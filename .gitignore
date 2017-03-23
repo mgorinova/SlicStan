@@ -3,3 +3,9 @@
 ################################################################################
 
 *.dll
+*.xml
+*.exe
+*.config
+*.pdb
+/NewStan/obj/Debug/NewStan.fsproj.FileListAbsolute.txt
+*.suo
