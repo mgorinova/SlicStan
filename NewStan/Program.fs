@@ -11,7 +11,8 @@ open Checker
 [<EntryPoint>]
 let main argv = 
 
-    let ex = Examples.ex2
+    
+    (*
     //let example_stan = MiniStanSyntax.example
     
     printfn "Program: %A\n" (NewStanSyntax.S_pretty ex)
@@ -25,22 +26,23 @@ let main argv =
     let ex_stan = Translate.translate ex env data_and_model 
 
     printfn "Stan: \n%s" (MiniStanSyntax.Prog_pretty ex_stan)
+    *)
 
-    let ex = S_of_list [Data("y1");
-                        NewStanSyntax.Let("alpha",Const(0.1));
-                        NewStanSyntax.Let("beta",Const(0.1));
-                        NewStanSyntax.Sample("tau_y",Dist("gamma",[Var"alpha";Var"beta"]));
-                        NewStanSyntax.Let("sigma_y",Prim("pow",[Var"tau_y";Const(-0.5)]));
-                        NewStanSyntax.Sample("mu_y",Dist("normal",[Const(0.0);Const(1.0)]));
-                        NewStanSyntax.Sample("y1",Dist("normal",[Var"mu_y";Var"sigma_y"]));
-                        NewStanSyntax.Let("variance_y",Prim("pow",[Var"sigma_y";Const(2.0)]))]
+    let ex = Examples.ex_mynormal
+    //let ex = Examples.ex_linear_funcs
 
-    let gamma =[("y1", ModelLevel); ("alpha", DataLevel); ("beta", DataLevel); 
-                ("tau_y", ModelLevel); ("sigma_y", ModelLevel); ("mu_y", ModelLevel);
-                ("variance_y", GenQuantLevel)]
+    printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
 
-    printfn "Typecheck: %A" (Checker.type_check_S ex ModelLevel gamma)
+    let elab = NewStanSyntax.elaborate_NewStanProg ex
+    let environment = match elab with Block(env, prog) -> env
 
+    printfn "Elaborated:\n%s" (NewStanSyntax.S_pretty "" elab)
+
+    let data, model = NewStanSyntax.check_data_and_model elab
+
+    printfn "\ndata: %A\nmodel: %A\n" data model
+
+    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate elab (data, model)))
     0
 
 

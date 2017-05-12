@@ -110,22 +110,20 @@ let rec check_Dist (d: Dist) (env: Dict) : Dict =
 /// and their type (primitive type + level).
 let rec check_S (S: S) (env: Dict) : Dict = 
   match S with
-  | Data(x) -> env.Add(x, ("real", DataLevel))
+  (*| Data(x) -> env.Add(x, ("real", DataLevel))*)
   | Sample(x,D) -> 
         let newenv = constrain env (check_Dist D env) ModelLevel
         newenv.Add(x, ("real", ModelLevel))
 
-  | Let(x,E) -> env.Add(x, ("real", to_option (max_Level (List.map (fun (_,(_,v)) -> v) (Map.toList (check_Exp E env))))))
+  | Assign(x,E) -> env.Add(x, ("real", to_option (max_Level (List.map (fun (_,(_,v)) -> v) (Map.toList (check_Exp E env))))))
   
   | Seq(S1,S2) -> 
         let newenv = check_S S1 env
         check_S S2 newenv
 
   | Skip -> env
-  | PrimDef(f,[],S) -> failwith "PrimDef not implemented"
-  | PrimDef(f,ys,S) -> failwith "PrimDef not implemented"
-  | Call(x,[]) -> failwith "Call not implemented"
-  | Call(x,Es) -> failwith "Call not implemented"
+  | VCall(x,[]) -> failwith "Call not implemented"
+  | VCall(x,Es) -> failwith "Call not implemented"
 
 
 
@@ -134,16 +132,14 @@ let rec check_S (S: S) (env: Dict) : Dict =
 /// second --- the names of the modeled variables (defined through ~)
 let rec check_data_and_model (S: S) : string list * string list = 
   match S with
-  | Data(x) -> ([x], [])
+  (*| Data(x) -> ([x], [])*)
   | Sample(x,D) -> ([], [x])
-  | Let(x,E) -> ([], [])  
+  | Assign(x,E) -> ([], [])  
   | Seq(S1,S2) -> 
         let s1d, s1p = check_data_and_model S1
         let s2d, s2p = check_data_and_model S2
         (List.append s1d s2d, List.append s1p s2p)
 
   | Skip -> ([], [])
-  | PrimDef(f,[],S) -> failwith "PrimDef not implemented"
-  | PrimDef(f,ys,S) -> failwith "PrimDef not implemented"
-  | Call(x,[]) -> failwith "Call not implemented"
-  | Call(x,Es) -> failwith "Call not implemented"
+  | VCall(x,[]) -> failwith "Call not implemented"
+  | VCall(x,Es) -> failwith "Call not implemented"

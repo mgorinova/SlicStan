@@ -6,7 +6,7 @@ type Ide = NewStanSyntax.Ide
 type Exp = NewStanSyntax.Exp 
 type Dist = NewStanSyntax.Dist 
 
-type TIde = string
+type TIde = TypePrim
 
 type Funcs = string // TODO: define funcs
 
@@ -33,9 +33,13 @@ type Prog = P of Data * TData * Params * TParams * Model * GenQuant
 let E_pretty = NewStanSyntax.E_pretty
 let D_pretty = NewStanSyntax.D_pretty
 
+let Type_pretty typeprim =
+    match typeprim with 
+    | Real -> "real"
+
 let rec Decls_pretty decls =
     match decls with 
-    | Declr (typestr, name) -> "\t" + typestr + " " + name + ";\n"
+    | Declr (typestr, name) -> "\t" + (Type_pretty typestr) + " " + name + ";\n"
     | VSeq (d1, d2) ->  Decls_pretty d1 + Decls_pretty d2
     | VNone -> ""
 
@@ -107,14 +111,14 @@ let example = P (DNone,
     variance_y = *(sigma_y,sigma_y);
 *)
 
-let example2 = P(DBlock(Declr("real", "y1")), 
-                 TDBlock(VSeq(Declr("real", "alpha"),
-                              Declr("real", "beta")), 
+let example2 = P(DBlock(Declr(Real, "y1")), 
+                 TDBlock(VSeq(Declr(Real, "alpha"),
+                              Declr(Real, "beta")), 
                          SSeq(Let("alpha", Const(0.1)), 
                               Let("beta", Const(0.1)))), 
-                 PBlock(VSeq(Declr("real", "tau_y"),Declr("real", "mu_y"))), 
-                 TPBlock(Declr("real", "sigma_y"),Let("sigma_y", Prim("pow",[Var("tau_y");Const(-0.5)]))), 
+                 PBlock(VSeq(Declr(Real, "tau_y"),Declr(Real, "mu_y"))), 
+                 TPBlock(Declr(Real, "sigma_y"),Let("sigma_y", Prim("pow",[Var("tau_y");Const(-0.5)]))), 
                  MBlock(VNone, SSeq(SSeq(Sample("tau_y", Dist("gamma",[Var("alpha"); Var("beta")])),
                                          Sample("mu_y", Dist("normal",[Const(0.0); Const(1.0)]))),
                                          Sample("y1", Dist("normal",[Var("mu_y"); Var("sigma_y")])))),
-                 GQBlock(Declr("real", "variance_y"),Let("variance_y", Prim("pow", [Var("sigma_y");Const(2.0)]))))
+                 GQBlock(Declr(Real, "variance_y"),Let("variance_y", Prim("pow", [Var("sigma_y");Const(2.0)]))))

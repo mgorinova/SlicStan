@@ -2,7 +2,7 @@
 
 open NewStanSyntax
 open MiniStanSyntax
-open Types
+//open Types
 
 let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
 
@@ -58,49 +58,68 @@ let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
     P (d, td, p, tp, m, gq)
 
 
+let rec get_type (env: (Type*Ide) list) (x: Ide) : Type = 
+    match env with 
+    | [] -> failwith (sprintf "no variable %s in program environment" x)
+    | (ty, name) :: ns -> if name = x then ty else get_type ns x
 
 
-let rec translate (S:S) (env: Dict) (data: string list, modelled: string list) : Prog =
-    match S with
-    | Data(x) -> 
-        let t, _ = env.Item(x)
-        P(DBlock(Declr(t,x)), TDNone, PNone, TPNone, MBlock(VNone, SNone), GQNone)
-     
-    | NewStanSyntax.Sample(x,D) -> 
-        if List.contains x data then 
+
+let translate (S:S) (data: string list, modelled: string list) : Prog =
+
+    let rec to_declarations vars =
+        match vars with 
+        | [] -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+        | ((t,l), var) :: vs ->
+            if List.contains var data then
+                let p = P(DBlock(Declr(t, var)), TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+                join_stan_p p (to_declarations vs)
+            else if List.contains var modelled && l = Model then
+                let p = P(DNone, TDNone, PBlock(Declr(t, var)), TPNone, MBlock(VNone,SNone), GQNone)
+                join_stan_p p (to_declarations vs)
+            else if List.contains var modelled && l = Data then
+                let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+                join_stan_p p (to_declarations vs)
+            else match l with
+            | Data ->     let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+                          join_stan_p p (to_declarations vs)
+            | Model ->    let p = P(DNone, TDNone, PNone, TPBlock(Declr(t, var), SNone), MBlock(VNone,SNone), GQNone)
+                          join_stan_p p (to_declarations vs)
+            | Local ->    let p = P(DNone, TDNone, PNone, TPNone, MBlock(Declr(t, var),SNone), GQNone)
+                          join_stan_p p (to_declarations vs)
+            | GenQuant -> let p = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,var), SNone))
+                          join_stan_p p (to_declarations vs)
+            | _ -> failwith "unexpected in translate init: to_declarations"
+
+    let rec _translate (S:S) (env: Env) : Prog =
+
+        let env_list = Set.toList env
+        match S with     
+        | NewStanSyntax.Block(vars, statements) -> 
+            let p = to_declarations (Set.toList vars)
+            let enew = Set.union vars env
+            join_stan_p p (_translate statements enew)
+
+        | NewStanSyntax.Sample(x,D) -> 
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
 
-            // TODO: need to figure out how to distinguis the variables defined locally in "model" from other variables
-        else
-            let t, _ = env.Item(x)
-            P(DNone, TDNone, PBlock(Declr(t,x)), TPNone, MBlock(VNone, Sample(x,D)), GQNone)
-
-    | NewStanSyntax.Let(x,E) -> 
-        let t, lr = env.Item(x)
-
-        let l = match lr with
-                | OptionLevel(list) -> if List.contains GenQuantLevel list then GenQuantLevel
-                                       elif List.contains DataLevel list then DataLevel
-                                       else ModelLevel                                        
-                | level -> level 
-
-        if List.contains x modelled then 
-            P(DNone, TDNone, PNone, TPNone, MBlock(Declr(t,x), Let(x,E)), GQNone)
-        else
-            match l with 
-            | DataLevel     -> P(DNone, TDBlock(Declr(t,x), Let(x,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
-            | ModelLevel    -> P(DNone, TDNone, PNone, TPBlock(Declr(t,x), Let(x,E)), MBlock(VNone,SNone), GQNone)
-            | GenQuantLevel -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,x), Let(x,E)))
+        | NewStanSyntax.Assign(x,E) -> 
+            let t, lr = get_type env_list x 
+            match lr with 
+            | Data     -> P(DNone, TDBlock(VNone, Let(x,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+            | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(x,E)), MBlock(VNone,SNone), GQNone)
+            | Local    -> P(DNone, TDNone, PNone, TPBlock(VNone, SNone), MBlock(VNone, Let(x,E)), GQNone)
+            | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(x,E)))
             | _ -> failwith "unexpected error!"
         
 
-    | Seq(S1,S2) -> 
-        let p1 = translate S1 env (data, modelled)
-        let p2 = translate S2 env (data, modelled)
-        join_stan_p p1 p2
+        | NewStanSyntax.Seq(S1,S2) -> 
+            let p1 = _translate S1 env 
+            let p2 = _translate S2 env 
+            join_stan_p p1 p2
 
-    | Skip -> failwith "PrimDef not implemented"
-    | PrimDef(f,[],S) -> failwith "PrimDef not implemented"
-    | PrimDef(f,ys,S) -> failwith "PrimDef not implemented"
-    | Call(x,[]) -> failwith "Call not implemented"
-    | Call(x,Es) -> failwith "Call not implemented"
+        | Skip        -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+        | DataDecl(_,_,s) -> _translate s env
+
+
+    _translate S Set.empty

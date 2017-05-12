@@ -42,12 +42,12 @@ let rec type_check_S (S: S) (level: TypeLevel) (gamma: (Ide * TypeLevel) list) :
     | Skip -> true
     | Seq(S1, S2) -> 
         match S1 with
-        | Data(x) -> 
+        (*| Data(x) -> 
             List.contains (x, DataLevel) gamma && 
             type_check_S S2 level gamma
-            //type_check_S S2 level ((x, DataLevel)::gamma)
+            //type_check_S S2 level ((x, DataLevel)::gamma)*)
 
-        | Let(x, E) ->
+        | Assign(x, E) ->
 
             if List.contains (x, DataLevel) gamma then 
                  type_check_E E DataLevel gamma &&
