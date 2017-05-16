@@ -5,6 +5,7 @@ open NewStanSyntax
 open Types
 open Examples
 //open MiniStanSyntax
+open Elaborate
 open Translate
 open Checker
 
@@ -28,17 +29,18 @@ let main argv =
     printfn "Stan: \n%s" (MiniStanSyntax.Prog_pretty ex_stan)
     *)
 
-    let ex = Examples.ex_mynormal
+    //let ex = Examples.ex_mynormal
     //let ex = Examples.ex_linear_funcs
+    let ex = Examples.ex_mynormal_clash
+    //let ex = Examples.ex_mynormal_clash2
 
     printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
 
-    let elab = NewStanSyntax.elaborate_NewStanProg ex
-    let environment = match elab with Block(env, prog) -> env
+    let elab = Elaborate.elaborate_NewStanProg ex
 
     printfn "Elaborated:\n%s" (NewStanSyntax.S_pretty "" elab)
 
-    let data, model = NewStanSyntax.check_data_and_model elab
+    let data, model = Elaborate.check_data_and_model elab
 
     printfn "\ndata: %A\nmodel: %A\n" data model
 

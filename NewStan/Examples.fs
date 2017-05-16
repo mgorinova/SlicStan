@@ -4,7 +4,7 @@ open NewStanSyntax
 open Types
 
 
-let ex_simple = DataDecl(Real, "alpha", Sample("beta",Dist("gamma",[Var"alpha";Const(1.0)])));
+let ex_simple: NewStanProg = [], DataDecl(Real, "alpha", Sample("beta",Dist("gamma",[Var"alpha";Const(1.0)])));
 
 // Example 2: from the Stan manual
 (*  
@@ -45,15 +45,38 @@ let ex_linear = SofList [Decl((Real, Data), "x1");
 
 *)
 
-let S_mynormal = Block( set [((Real, Model), "xr"); ((Real, Model), "x")], SofList[
+let rec BlockOfList (env, s) = 
+    match env with 
+    | [] -> s
+    | x::xs -> Block(x, BlockOfList (xs, s))
+
+let S_mynormal = BlockOfList( [((Real, Model), "xr"); ((Real, Model), "x")], SofList[
                           Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
                           Assign("x", Plus(Mul(Var "v", Var "xr"), Var "m"))])
-let S_main = Block( set [((Real, Model), "y")], Assign("y", ECall("MyNormal", [Const 5.0; Const 2.0])))
+let S_main = BlockOfList( [((Real, Model), "y")], Assign("y", ECall("MyNormal", [Const 5.0; Const 2.0])))
 let ex_mynormal: NewStanProg = [FunE("MyNormal", [((Real, Data), "m"); ((Real, Data), "v")], S_mynormal, Var("x"))], S_main
 
 /////////////////////////////////////////////
 
-let S_linear =   Block( set [((Real, Model), "alpha"); ((Real, Model), "beta"); ((Real, Model), "var")],
+let S_mynormal_clash = BlockOfList( [((Real, Model), "xr"); ((Real, Model), "x")], SofList[
+                          Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
+                          Assign("x", Plus(Mul(Var "v", Var "xr"), Var "m"))])
+let S_main_clash = BlockOfList( [((Real, Model), "x")], Assign("x", ECall("MyNormal", [Const 5.0; Const 2.0])))
+let ex_mynormal_clash: NewStanProg = [FunE("MyNormal", [((Real, Data), "m"); ((Real, Data), "v")], S_mynormal_clash, Var("x"))], S_main_clash
+
+/////////////////////////////////////////////
+
+let S_mynormal_clash2 = BlockOfList( [((Real, Model), "xr"); ((Real, Model), "x")], SofList[
+                          Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
+                          Assign("x", Plus(Mul(Var "v", Var "xr"), Var "m"))])
+let S_main_clash2 = BlockOfList( [((Real, Model), "x"); ((Real, Model), "mu")], 
+                                 SofList([Sample("mu", Dist("normal", [Const(0.0); Const(1.0)])); 
+                                          Assign("x", ECall("MyNormal", [Plus(Var("mu"), Const 5.0); Const 2.0]))]) )
+let ex_mynormal_clash2: NewStanProg = [FunE("MyNormal", [((Real, Model), "m"); ((Real, Data), "v")], S_mynormal_clash2, Var("x"))], S_main_clash2
+
+/////////////////////////////////////////////
+
+let S_linear =   BlockOfList( [((Real, Model), "alpha"); ((Real, Model), "beta"); ((Real, Model), "var")],
                         SofList[ Sample("alpha", Dist("normal", [Const(0.0); Const(1.0)])); 
                                  Sample("beta", Dist("normal", [Const(0.0); Const(1.0)])); 
                                  Sample("var", Dist("normal", [Const(0.0); Const(1.0)])); 

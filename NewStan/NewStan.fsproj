@@ -53,6 +53,7 @@
     <Compile Include="MiniStanSyntax.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="Examples.fs" />
+    <Compile Include="Elaborate.fs" />
     <Compile Include="Translate.fs" />
     <Compile Include="Checker.fs" />
     <Compile Include="Program.fs" />

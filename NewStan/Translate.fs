@@ -2,6 +2,7 @@
 
 open NewStanSyntax
 open MiniStanSyntax
+open Elaborate
 //open Types
 
 let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
@@ -95,9 +96,9 @@ let translate (S:S) (data: string list, modelled: string list) : Prog =
 
         let env_list = Set.toList env
         match S with     
-        | NewStanSyntax.Block(vars, statements) -> 
-            let p = to_declarations (Set.toList vars)
-            let enew = Set.union vars env
+        | NewStanSyntax.Block(var, statements) -> 
+            let p = to_declarations [var]
+            let enew = Set.add var env
             join_stan_p p (_translate statements enew)
 
         | NewStanSyntax.Sample(x,D) -> 
