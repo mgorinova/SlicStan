@@ -66,7 +66,9 @@ let rec get_type (env: (Type*Ide) list) (x: Ide) : Type =
 
 
 
-let translate (S:S) (data: string list, modelled: string list) : Prog =
+let translate (C: Context) (S: S) (data: string list, modelled: string list) : Prog =
+
+    let env_list = Set.toList C
 
     let rec to_declarations vars =
         match vars with 
@@ -82,24 +84,24 @@ let translate (S:S) (data: string list, modelled: string list) : Prog =
                 let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
                 join_stan_p p (to_declarations vs)
             else match l with
-            | Data ->     let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
-                          join_stan_p p (to_declarations vs)
-            | Model ->    let p = P(DNone, TDNone, PNone, TPBlock(Declr(t, var), SNone), MBlock(VNone,SNone), GQNone)
-                          join_stan_p p (to_declarations vs)
-            | Local ->    let p = P(DNone, TDNone, PNone, TPNone, MBlock(Declr(t, var),SNone), GQNone)
-                          join_stan_p p (to_declarations vs)
-            | GenQuant -> let p = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,var), SNone))
-                          join_stan_p p (to_declarations vs)
-            | _ -> failwith "unexpected in translate init: to_declarations"
+                 | Data ->     let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+                               join_stan_p p (to_declarations vs)
+                 | Model ->    let p = P(DNone, TDNone, PNone, TPBlock(Declr(t, var), SNone), MBlock(VNone,SNone), GQNone)
+                               join_stan_p p (to_declarations vs)
+                 | Local ->    let p = P(DNone, TDNone, PNone, TPNone, MBlock(Declr(t, var),SNone), GQNone)
+                               join_stan_p p (to_declarations vs)
+                 | GenQuant -> let p = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,var), SNone))
+                               join_stan_p p (to_declarations vs)
+                 | _ -> failwith "unexpected in translate init: to_declarations"
 
-    let rec _translate (S:S) (env: Env) : Prog =
-
-        let env_list = Set.toList env
+    let rec _translate (S:S) : Prog =        
         match S with     
-        | NewStanSyntax.Block(var, statements) -> 
-            let p = to_declarations [var]
-            let enew = Set.add var env
-            join_stan_p p (_translate statements enew)
+        | NewStanSyntax.Block _ -> failwith "unexpected"
+            // let p = to_declarations [var]
+            // let enew = Set.add var env
+            // join_stan_p p (_translate statements enew)
+            
+        | NewStanSyntax.VCall _ ->  failwith "unexpected"
 
         | NewStanSyntax.Sample(x,D) -> 
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
@@ -115,12 +117,12 @@ let translate (S:S) (data: string list, modelled: string list) : Prog =
         
 
         | NewStanSyntax.Seq(S1,S2) -> 
-            let p1 = _translate S1 env 
-            let p2 = _translate S2 env 
+            let p1 = _translate S1  
+            let p2 = _translate S2  
             join_stan_p p1 p2
 
         | Skip        -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
-        | DataDecl(_,_,s) -> _translate s env
+        | DataDecl(_,_,s) -> _translate s 
 
-
-    _translate S Set.empty
+    let p = to_declarations (Set.toList C)
+    join_stan_p p (_translate S)

@@ -115,7 +115,7 @@ let rec check_S (S: S) (env: Dict) : Dict =
         let newenv = constrain env (check_Dist D env) ModelLevel
         newenv.Add(x, ("real", ModelLevel))
 
-  | Assign(x,E) -> env.Add(x, ("real", to_option (max_Level (List.map (fun (_,(_,v)) -> v) (Map.toList (check_Exp E env))))))
+  (*| Assign(x,E) -> env.Add(x, ("real", to_option (max_Level (List.map (fun (_,(_,v)) -> v) (Map.toList (check_Exp E env))))))*)
   
   | Seq(S1,S2) -> 
         let newenv = check_S S1 env

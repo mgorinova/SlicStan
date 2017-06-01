@@ -1,9 +1,8 @@
 ﻿module NewStanSyntax
 
-
-
+type ArrSize = string 
 type TypeLevel = LogProb | Data | Local | Model | GenQuant
-type TypePrim = Real
+type TypePrim = Real | Int | Array of TypePrim * ArrSize
 
 type Type = TypePrim * TypeLevel
 
@@ -11,14 +10,26 @@ type Ide = string
 type FunIde = string
 type Arg = Type * Ide
 
+//type T = B of Ide | El of Ide * Exp
+//and ArrEl = T * Exp
 type Exp = Var of Ide
          | Const of double
+         //| Arr of Exp list
+         //| ArrElExp of ArrEl
          | Plus of Exp * Exp
          | Mul of Exp * Exp
-         | Prim of string * List<Exp>
+         | Prim of string * Exp list
          | ECall of FunIde * Exp list
 
-type Dist = Dist of string * List<Exp>
+//type Lhs = P of Ide | A of ArrEl
+
+(*let ex_1dim: Exp = ArrElExp(B("x"), Const(0.5))
+let ex_2dim: Exp = ArrElExp(El("x", Const(0.1)), Const(0.5))
+
+let ex_1dim_lhs: Lhs = A(B("x"), Const(0.1))
+let ex_2dim_lhs: Lhs = A(El("x", Const(0.1)), Const(0.5))*)
+
+type Dist = Dist of string * Exp list
           | DCall of FunIde * Exp list
 
 type S = Block of Arg * S //alpha convertible; make it have a single identifier
@@ -44,9 +55,11 @@ type NewStanProg = FunDef list * S
 
 let empty = Set.empty
 
-let TPrim_pretty tp =
+let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
+    | Int -> "int"
+    | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%s]" n)
 
 let TLev_pretty tl =
     match tl with
@@ -64,6 +77,8 @@ let rec E_pretty E =
   match E with
   | Var(x) -> x
   | Const(d) -> sprintf "%O" d
+  //| Arr(Es) -> sprintf "[ %s ]" (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
+
   | Plus(e1, e2) -> E_pretty e1 + " + " + E_pretty e2
   | Mul(e1, e2) -> E_pretty e1 + " * " + E_pretty e2
   | Prim(p,[]) -> sprintf "%s()" p
@@ -79,12 +94,23 @@ and D_pretty D =
   | DCall(x,[]) -> sprintf "%s()" x 
   | DCall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
 
+
+(*let rec T_pretty (x:T) =
+    match x with
+    | B(name) -> name
+    | El(name, index) -> sprintf "%s[%s]" name (E_pretty index)
+     
+let Lhs_pretty (x:Lhs) =
+        match x with 
+        | P(name) -> name
+        | A(name, index) -> sprintf "%s[%s]" (T_pretty name) (E_pretty index)*)
+
 let rec S_pretty ident S =
   match S with
   | DataDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
   | Block(env, S) -> sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
-  | Assign(x,E) -> sprintf "%s%s = %s;" ident x (E_pretty E)
+  | Assign(lhs,E) -> sprintf "%s%s = %s;" ident lhs (E_pretty E) //(Lhs_pretty x)
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
   | VCall(x,[]) -> sprintf "%s%s()" ident x 

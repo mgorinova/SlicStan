@@ -47,7 +47,7 @@ let rec type_check_S (S: S) (level: TypeLevel) (gamma: (Ide * TypeLevel) list) :
             type_check_S S2 level gamma
             //type_check_S S2 level ((x, DataLevel)::gamma)*)
 
-        | Assign(x, E) ->
+       (* | Assign(x, E) ->
 
             if List.contains (x, DataLevel) gamma then 
                  type_check_E E DataLevel gamma &&
@@ -58,7 +58,7 @@ let rec type_check_S (S: S) (level: TypeLevel) (gamma: (Ide * TypeLevel) list) :
             elif List.contains (x, GenQuantLevel) gamma then 
                  type_check_E E GenQuantLevel gamma &&
                  type_check_S S2 level gamma
-            else false
+            else false*)
 
             (*if type_check_E E GenQuantLevel gamma then
                 type_check_S S2 level ((x, GenQuantLevel)::(gamma))

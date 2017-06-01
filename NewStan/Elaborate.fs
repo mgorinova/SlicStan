@@ -3,8 +3,8 @@
 open NewStanSyntax
 open System.Runtime.CompilerServices
 
-type Env = (Type * Ide) Set 
 type Dict = Map<Ide,Ide> 
+type Context = Set.Context
 
 type Ret = ERet of Exp | DRet of Dist | None 
 
@@ -52,30 +52,28 @@ let rec block_from_list_env (env: List<Arg>, body) =
     List.fold (fun s v -> Block(v, s)) body env 
 
 
-let create_dict (env: Env) (args: List<Arg>) (locals: List<Arg>):Dict =
+let create_dict (mainC: Context) (secondaryC: Context) :Dict =
     let prime (v:Ide) = 
         v + "p"
 
-    let rec fresh (env: Env) (v:Ide) =
-        if Set.fold (fun s (t,name) -> s || (v=name)) false env 
-        then fresh env (prime v)
+    let rec fresh (C: Context) (v:Ide) =
+        if Set.fold (fun s (t,name) -> s || (v=name)) false C 
+        then fresh C (prime v)
         else v
 
-    let lst = (List.map (fun (t, a) -> (a, fresh env a)) (args @ locals))
-    Map.ofList lst
- 
-let get_locals (s: S) : List<Arg> =
-    let rec rec_locals s acc = 
-        match s with
-        | Block(env, s') ->  rec_locals s' (env::acc)
-        | Seq(s1, s2) -> rec_locals s1 (rec_locals s2 acc)
-        | _ -> acc
+    let clashes = Set.intersectNames mainC secondaryC
+    let allC = Set.union mainC secondaryC    
+    let d = Set.map (fun x -> x, fresh allC x) clashes
 
-    rec_locals s []
+    Map.ofList (Set.toList d)
+        
 
 /// Renames the single variable arg, as specified by dict.
 let rec rename_arg (dict:Dict) (arg: Arg):Arg =
     match arg with t, x -> t, Map.safeFind x dict
+
+let rename_Ctx (dict: Dict) (C: Context): Context =
+    Set.map (fun (t,x) -> (t, Map.safeFind x dict)) C
 
 /// Renames all bound variables in e, as specified by dict.
 let rec rename_E (dict:Dict) (e: Exp):Exp =
@@ -95,6 +93,12 @@ let rec rename_D (dict:Dict) (d: Dist):Dist =
     | DCall(name, Es) -> DCall(name, List.map (rename_E dict) Es) // this shouldn't be possible
 
 
+(*let rec baseName (lhs: Lhs) =
+    match lhs with
+    | B(name) -> name
+    | El(B(name), e) -> name, e
+    | El(lhs', _) -> *)
+
 /// Renames all bound variables in s, as specified by dict.
 let rec rename_S (dict:Dict) (s: S):S =
     match s with
@@ -107,145 +111,236 @@ let rec rename_S (dict:Dict) (s: S):S =
     | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
     | Skip -> Skip
   
+  
+let resolve_S (c:Context) (cs:Context) (s:S) =
+    if Set.intersectEmpty c cs then cs, s
+    else failwith "resolve_S not implemented"
+
+
+let fv (e: Exp): (Context) =
+    
+    let rec _fv e acc =    
+        match e with 
+        | Var(v) -> Set.add ((Real, Data), v) acc //FIXME: must be a better way
+        | Const(n) -> acc 
+        | Plus(e1, e2) -> _fv e1 (_fv e2 acc)
+        | Mul(e1, e2) -> _fv e1 (_fv e2 acc)
+        | Prim(name, Es) -> List.fold (fun sacc e -> _fv e sacc) acc Es
+        | ECall(name, Es) -> failwith("unexpected")
+
+    _fv e empty
+
+
+
+/// Given a list 'all' of Context-Statement-Expression
+/// tripples, the function goes through each consequitive
+/// pair of contexts, checking if there is a clash;
+/// If there is it renames the latter context and its
+/// associated S and Exp, so no name clashes occur. 
+/// It accumulates the result in the union of all 
+/// (renamed) context, and lists of renamed S-s and Exp-s.
+let tripple_Rename_and_Fold (all: (Context*S*Exp) list) =
+    let c, ss, es = all |> List.fold 
+                            (fun (cprev, sprev, esprev) (cc, sc, ec) ->                     
+                                if Set.intersectEmpty cprev cc then            
+                                    ((Set.union cprev cc), sc::sprev, ec::esprev)
+                                else 
+                                    let dict = create_dict cprev cc
+                                    let cc', sc', ec' = (rename_Ctx dict cc), (rename_S dict sc), (rename_E dict ec)
+                                    ((Set.union cprev cc'), sc'::sprev, ec'::esprev)
+                                ) (empty, [], [])
+    c, (List.rev ss), (List.rev es)
     
 /// Transforms an expression to a block and a return value.
 /// TODO: make sure the arguments, in the case when the
 /// input expression is a function, are also elaborated.
-let rec elaborate_E (defs: FunDef list) (env: Env) (exp: Exp) : S*Exp =
+let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
     match exp with 
     | ECall(x, Es) -> 
         let f = get_fun x defs
         match f with 
         | FunE(_, args, s, ret) ->             
-            let args', s', ret' = elaborate_F defs env f
-            let body = Seq((assign_all args' Es), s')
-            
-            match ret' with
-            | ERet(r') ->
-                block_from_list_env (args', body), r'
-            | _ -> failwith "unexpected"
+            let all_es = List.map (elaborate_E defs) Es
+            let ces, ss, es = tripple_Rename_and_Fold all_es
+
+            let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
+            let ces_all = Set.union fvs ces
+
+            let argsf, cf_all, sf, ef = elaborate_F defs f
+
+            let body, all, ef' = 
+                if Set.intersectEmpty ces_all cf_all then
+                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf))
+                    let all = Set.union (ces) cf_all
+                    body, all, ef
+                else 
+                    let dict = create_dict ces_all cf_all 
+                    let cf_all', sf', ef' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_E dict ef)
+                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf'))
+                    let all = Set.union (ces) cf_all'
+                    body, all, ef'
+
+            all, body, ef'
+
 
         | FunD(_) -> failwith "function is expected to return an expression, but returns a distribution instead"
         | FunV(_) -> failwith "function is expected to return a distribution, but returns void instead"
 
     | Plus(E1, E2) -> 
-        let s1, e1 = elaborate_E defs env E1
-        let s2, e2 = elaborate_E defs env E2
-        Seq(s1, s2), Plus(e1, e2)
-    | Mul(E1, E2) ->
-        let s1, e1 = elaborate_E defs env E1
-        let s2, e2 = elaborate_E defs env E2
-        Seq(s1, s2), Mul(e1, e2)
-    | Prim(name, Es) ->
-        let ss, es = List.map (elaborate_E defs env) Es |> List.unzip
-        SofList ss, Prim(name, es)
+        let c1, s1, e1 = elaborate_E defs E1
+        let c2, s2, e2 = elaborate_E defs E2
+        if Set.intersectEmpty c1 c2 then            
+            (Set.union c1 c2), Seq(s1, s2), Plus(e1, e2)
+        else 
+            let dict = create_dict c1 c2 
+            let c2', s2', e2' = (rename_Ctx dict c2), (rename_S dict s2), (rename_E dict e2)
+            (Set.union c1 c2'), Seq(s1, s2'), Plus(e1, e2')
 
-    | e -> Skip, e 
+    | Mul(E1, E2) ->
+        let c1, s1, e1 = elaborate_E defs E1
+        let c2, s2, e2 = elaborate_E defs E2
+        if Set.intersectEmpty c1 c2 then            
+            (Set.union c1 c2), Seq(s1, s2), Mul(e1, e2)
+        else 
+            let dict = create_dict c1 c2 
+            let c2', s2', e2' = (rename_Ctx dict c2), (rename_S dict s2), (rename_E dict e2)
+            (Set.union c1 c2'), Seq(s1, s2'), Mul(e1, e2')
+    | Prim(name, Es) ->
+                        
+        let all = List.map (elaborate_E defs) Es 
+        
+        let c, ss, es = tripple_Rename_and_Fold all        
+        c, SofList ss, Prim(name, es)
+
+    | e -> empty, Skip, e 
 
 /// Transforms a distribution to a block and a return value.
 /// TODO: make sure the arguments, in the case when the
 /// input expression is a function, are also elaborated.
-and elaborate_D (defs: FunDef list) (env: Env) (dist: Dist) : S*Dist =
+and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
     match dist with
     | DCall(x, Es) ->
         let f = get_fun x defs
         match f with 
         | FunD(_, args, s, ret) -> 
-            let args', s', ret' = elaborate_F defs env f
-            let body = Seq((assign_all args' Es), s')
-            
-            match ret' with
-            | DRet(r') ->
-                block_from_list_env (args', body), r'
-            | _ -> failwith "unexpected"
+            let args', cf, sf, ef = elaborate_F defs f
+            let body = Seq((assign_all args' Es), sf)
+            let all = Set.union (set args') cf
+
+            //match ef with
+            //| DRet(r') ->
+            //    all, body, r'
+            //| _ -> failwith "unexpected"
+
+            failwith "not implemented"
 
         | FunE(_) -> failwith "function is expected to return a distribution, but returns an expression instead"
         | FunV(_) -> failwith "function is expected to return a distribution, but returns void instead"
     
-    | d -> Skip, d 
+    | Dist(name, Es) -> 
+        let all = List.map (elaborate_E defs) Es 
+
+        let c, ss, es = tripple_Rename_and_Fold all        
+        c, SofList ss, Dist(name, es)
 
 /// Transforms a statement to a block and a return value.
 /// TODO: make sure the arguments, in the case when the
 /// input expression is a function, are also elaborated;
 /// TODO: need to make sure that the free vars in their 
 /// elaborated versions are also dealt with.
-and elaborate_S (defs: FunDef list ) (env: Env) (s: S) : S =
+and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
     match s with 
-    | DataDecl(t,str, s) -> 
-        let newenv = Set.add ((t, Data),str) env
-        let s' = elaborate_S defs newenv s
-        Block(((t, Data),str), (DataDecl(t,str,s')))
+    | DataDecl(t,x,s) -> 
+        let c, s' = elaborate_S defs s
+        if Set.contains x c then
+            let dict = create_dict (Set.singleton x) c 
+            let c', s'' = (rename_Ctx dict c), (rename_S dict s')
+            (Set.add ((t, Data),x) c'), DataDecl(t,x,s'')
+        else (Set.add ((t, Data),x) c), DataDecl(t,x,s')
 
     | Seq(s1, s2) -> 
-        let b1 = elaborate_S defs env s1
-        let b2 = elaborate_S defs env s2
-        match b1,b2 with 
-        | Block(env1, s1'), Block(env2, s2') ->             
-            Block(env1, Block(env2, Seq(s1', s2')))
-        | _ -> Seq(b1, b2)
+        let c1, s1' = elaborate_S defs s1
+        let c2, s2' = elaborate_S defs s2
+
+        if Set.intersectEmpty c1 c2 then
+            Set.union c1 c2, Seq(s1', s2')
+        else 
+            let dict = create_dict c1 c2
+            let c2', s2'' = (rename_Ctx dict c2), (rename_S dict s2')
+            Set.union c1 c2', Seq(s1', s2'')
 
     | Assign(x, e) -> 
-        let b, e' = elaborate_E defs env e 
-        match b with 
-        | Block(env', s') -> Block(env', Seq(s', Assign(x, e')))
-        | _ -> Assign(x, e')
+        let c, s, e' = elaborate_E defs e         
+        if Set.contains x c then
+            let dict = create_dict (Set.singleton x) c 
+            let c', s', e'' = (rename_Ctx dict c), (rename_S dict s), (rename_E dict e')
+            c', Seq(s', Assign(x, e''))
+        else c, Seq(s, Assign(x, e'))
 
     | Sample(x, d) -> 
-        let b, d' = elaborate_D defs env d 
-        match b with 
-        | Block(env', s') -> Block(env', Seq(s', Sample(x, d')))
-        | _ -> Sample(x, d')
+        let c, s, d' = elaborate_D defs d 
+        if Set.contains x c then
+            let dict = create_dict (Set.singleton x) c 
+            let c', s', d'' = (rename_Ctx dict c), (rename_S dict s), (rename_D dict d')
+            c', Seq(s', Sample(x, d''))
+        else c, Seq(s, Sample(x, d'))
 
     | VCall(x, Es) -> 
         let f = get_fun x defs
         match f with 
         | FunV(_, args, s) -> 
-            let args', s', ret' = elaborate_F defs env f
-            let body = Seq((assign_all args' Es), s')
+            let args', cf, sf, ef = elaborate_F defs f
+            let body = Seq((assign_all args' Es), sf)
+            let all = Set.union (set args') cf
             
-            match ret' with
-            | None ->
-                block_from_list_env (args', body)
-            | _ -> failwith "unexpected"
+            //match ef with
+            //| None ->
+            all, body
+            //| _ -> failwith "unexpected"
 
         | FunE(_) -> failwith "function was not expected to have a return value, but returns an expression instead"
         | FunD(_) -> failwith "function was not expected to have a return value, but returns a distribution instead"
 
-    | Block(env', s') ->
-        let enew = Set.add env' env
-        Block(env', elaborate_S defs enew s')
+    | Block((T,x), s) ->
+        let c, s' = elaborate_S defs s
+        if Set.contains x c then
+            let dict = create_dict (Set.singleton x) c 
+            let c', s'' = (rename_Ctx dict c), (rename_S dict s')
+            (Set.add (T,x) c'), s''
+        else
+            let c' = Set.add (T,x) c 
+            c', s'    
+                
+    | Skip -> empty, Skip
 
-    | s' -> s'
-
-and elaborate_F (defs: FunDef list) (env: Env) (f: FunDef) =
+and elaborate_F (defs: FunDef list) (f: FunDef) =
     let args, s, ret = match f with
                        | FunE(_, args, s, ret) -> args, s, ERet(ret)
                        | FunD(_, args, s, ret) -> args, s, DRet(ret)
                        | FunV(_, args, s) -> args, s, None
    
-    let locals = get_locals s
+    let cs, ss = elaborate_S defs s
 
-    let dict = create_dict env args locals
-    let args' = args
-             |> List.map (fun (t,v) -> t, Map.safeFind v dict)  
+    let args' = if (Set.intersectEmpty (set args) cs)
+                then args
+                else failwith "not implemented"
 
-    let s_renamed = rename_S dict s
-    let s' = elaborate_S defs (set args') s_renamed
-
-    let ret' = 
+    let ce, se, e' = 
         match ret with
         | ERet(r) -> 
-            let ret_renamed = rename_E dict r
-            let _, r' = elaborate_E defs (set args') ret_renamed
-            ERet(r')
+            let c, s, r' = elaborate_E defs r
+            let c', s' = resolve_S (Set.union (set args) cs) c s
+            c', s', r'
         | DRet(r) -> 
-            let ret_renamed = rename_D dict r
-            let _, r' = elaborate_D defs env ret_renamed
-            DRet(r')
-        | None -> None
+            let c, s, r' = elaborate_D defs r
+            let c', s' = resolve_S (Set.union (set args) cs) c s
+            failwith "not implemented"
+            //c', s', DRet(r')
+        | None ->
+            failwith "not implemented"
+            //empty, Skip, None  
     
-    args', s', ret'
- 
+    args', (Set.union (Set.union cs ce) (Set.ofList args')), (Seq(ss, se)), e'
    
 
 /// Runs basic checks on the function definitions, 
@@ -254,6 +349,15 @@ and elaborate_F (defs: FunDef list) (env: Env) (f: FunDef) =
 /// FIXME: Will currently break if loops or if-then
 /// statements are introduced. 
 let rec safetycheck defs =
+    let get_locals (s: S) : List<Arg> =
+        let rec rec_locals s acc = 
+            match s with
+            | Block(env, s') ->  rec_locals s' (env::acc)
+            | Seq(s1, s2) -> rec_locals s1 (rec_locals s2 acc)
+            | _ -> acc
+
+        rec_locals s []
+
     let checkdefs name args s =
         let locals = get_locals s
         let all_vars_set = (args@locals)
@@ -277,11 +381,11 @@ let rec safetycheck defs =
 
          
 
-let elaborate_NewStanProg (prog: NewStanProg) : S =
+let elaborate_NewStanProg (prog: NewStanProg) : Context*S =
     match prog with
     | defs, s -> 
         let _ = safetycheck defs
-        elaborate_S defs empty s
+        elaborate_S defs s
             
 
 let rec check_data_and_model (S: S) : string list * string list = 

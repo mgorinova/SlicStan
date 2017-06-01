@@ -50,12 +50,14 @@
     <Compile Include="AssemblyInfo.fs" />
     <None Include="App.config" />
     <Compile Include="NewStanSyntax.fs" />
-    <Compile Include="MiniStanSyntax.fs" />
-    <Compile Include="Types.fs" />
-    <Compile Include="Examples.fs" />
+    <Compile Include="Set.fs" />
+    <Compile Include="Typecheck.fs" />
     <Compile Include="Elaborate.fs" />
+    <Compile Include="MiniStanSyntax.fs" />
     <Compile Include="Translate.fs" />
-    <Compile Include="Checker.fs" />
+    <Compile Include="Types %28unused, take code%29.fs" />
+    <Compile Include="Checker %28unused, take code%29.fs" />
+    <Compile Include="Examples.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <PropertyGroup>
