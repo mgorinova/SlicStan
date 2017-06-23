@@ -54,31 +54,6 @@ let join (ds:Dict list) =
     Map(Seq.concat (List.map (fun d -> Map.toSeq d) ds))
 
 
-let reduce option level =
-     match option with
-     | OptionLevel(list) -> 
-        List.filter (fun l -> l <= level) list
-        |> OptionLevel
-     | _ -> option
-
-
-let constrain (env: Dict) (vars: Dict) (level: TypeLevel) =    
-
-    let priv k (t,v) = 
-        if vars.ContainsKey k
-        then
-            if level <= v
-            then t, reduce v level
-            else 
-                printfn "%s is %A" k v
-                match v with 
-                |OptionLevel(list) -> failwith "unexpected error in constrain" 
-                | _ -> t, level 
-        else t, v
-
-    Map.map priv env
-
-
 // check that the expression e is well-formed and return its type
 let rec check_Exp (e: Exp) (env: Dict) : Dict = 
 
@@ -109,11 +84,12 @@ let rec check_Dist (d: Dist) (env: Dict) : Dict =
 /// Check that a statement S is well-formed, and return a dictionary of the defined identifiers
 /// and their type (primitive type + level).
 let rec check_S (S: S) (env: Dict) : Dict = 
-  match S with
+    failwith "not implemented"
+  (*match S with
   (*| Data(x) -> env.Add(x, ("real", DataLevel))*)
   | Sample(x,D) -> 
-        let newenv = constrain env (check_Dist D env) ModelLevel
-        newenv.Add(x, ("real", ModelLevel))
+       // let newenv = constrain env (check_Dist D env) ModelLevel
+       // newenv.Add(x, ("real", ModelLevel))
 
   (*| Assign(x,E) -> env.Add(x, ("real", to_option (max_Level (List.map (fun (_,(_,v)) -> v) (Map.toList (check_Exp E env))))))*)
   
@@ -123,7 +99,7 @@ let rec check_S (S: S) (env: Dict) : Dict =
 
   | Skip -> env
   | VCall(x,[]) -> failwith "Call not implemented"
-  | VCall(x,Es) -> failwith "Call not implemented"
+  | VCall(x,Es) -> failwith "Call not implemented"*)
 
 
 

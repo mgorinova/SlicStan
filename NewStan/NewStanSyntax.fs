@@ -1,6 +1,6 @@
 ﻿module NewStanSyntax
 
-type ArrSize = string 
+type ArrSize = int 
 type TypeLevel = LogProb | Data | Local | Model | GenQuant
 type TypePrim = Real | Int | Array of TypePrim * ArrSize
 
@@ -10,45 +10,43 @@ type Ide = string
 type FunIde = string
 type Arg = Type * Ide
 
-//type T = B of Ide | El of Ide * Exp
-//and ArrEl = T * Exp
 type Exp = Var of Ide
          | Const of double
-         //| Arr of Exp list
-         //| ArrElExp of ArrEl
-         | Plus of Exp * Exp
-         | Mul of Exp * Exp
-         | Prim of string * Exp list
-         | ECall of FunIde * Exp list
+         | Arr of Exp list // [E1, ... En]
+         | ArrElExp of Exp * Exp // E[E]
+         | Plus of Exp * Exp // E1 + E2
+         | Mul of Exp * Exp // E1 * E2
+         | Prim of string * Exp list // sqrt(E1, E2)
+         | ECall of FunIde * Exp list 
 
-//type Lhs = P of Ide | A of ArrEl
+type LValue = I of Ide | A of LValue * Exp
 
-(*let ex_1dim: Exp = ArrElExp(B("x"), Const(0.5))
-let ex_2dim: Exp = ArrElExp(El("x", Const(0.1)), Const(0.5))
+let ex_1dim: Exp = ArrElExp(Var("x"), Const(0.5))
+let ex_2dim: Exp = ArrElExp(ArrElExp(Var("x"), Const(0.1)), Const(0.5))
 
-let ex_1dim_lhs: Lhs = A(B("x"), Const(0.1))
-let ex_2dim_lhs: Lhs = A(El("x", Const(0.1)), Const(0.5))*)
+let ex_1dim_lhs: LValue = A(I("x"), Const(0.1))
+let ex_2dim_lhs: LValue = A(A(I("x"), Const(0.1)), Const(0.5))
 
-type Dist = Dist of string * Exp list
+type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
           | DCall of FunIde * Exp list
 
 type S = Block of Arg * S //alpha convertible; make it have a single identifier
-       | Sample of Ide * Dist
-       | DataDecl of TypePrim * Ide * S //not up to alpha conversion 
-       | Assign of Ide * Exp
-       | Seq of S * S
-       | Skip
+       | Sample of Ide * Dist // x ~ D
+       | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S
+       | Assign of LValue * Exp // x = E 
+       | Seq of S * S // S1; S2
+       | Skip 
        | VCall of FunIde * Exp list
 
 
-type FunDef = FunE of FunIde * Arg list * S * Exp
-            | FunD of FunIde * Arg list * S * Dist
+type FunDef = FunE of FunIde * Arg list * S * Type * Exp
+            | FunD of FunIde * Arg list * S * Type * Dist
             | FunV of FunIde * Arg list * S
 
 let name fundef =
     match fundef with 
-    | FunE(n, _, _, _) -> n
-    | FunD(n, _, _, _) -> n
+    | FunE(n, _, _, _, _) -> n
+    | FunD(n, _, _, _, _) -> n
     | FunV(n, _, _) -> n
 
 type NewStanProg = FunDef list * S
@@ -59,7 +57,7 @@ let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
     | Int -> "int"
-    | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%s]" n)
+    | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%d]" n)
 
 let TLev_pretty tl =
     match tl with
@@ -77,8 +75,8 @@ let rec E_pretty E =
   match E with
   | Var(x) -> x
   | Const(d) -> sprintf "%O" d
-  //| Arr(Es) -> sprintf "[ %s ]" (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
-
+  | Arr(Es) -> sprintf "[ %s ]" (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
+  | ArrElExp(e1, e2) -> sprintf "%s[%s]" (E_pretty e1) (E_pretty e2) 
   | Plus(e1, e2) -> E_pretty e1 + " + " + E_pretty e2
   | Mul(e1, e2) -> E_pretty e1 + " * " + E_pretty e2
   | Prim(p,[]) -> sprintf "%s()" p
@@ -94,23 +92,17 @@ and D_pretty D =
   | DCall(x,[]) -> sprintf "%s()" x 
   | DCall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
 
-
-(*let rec T_pretty (x:T) =
-    match x with
-    | B(name) -> name
-    | El(name, index) -> sprintf "%s[%s]" name (E_pretty index)
-     
-let Lhs_pretty (x:Lhs) =
+let rec LValue_pretty (x:LValue) =
         match x with 
-        | P(name) -> name
-        | A(name, index) -> sprintf "%s[%s]" (T_pretty name) (E_pretty index)*)
+        | I(name) -> name
+        | A(lhs, index) -> sprintf "%s[%s]" (LValue_pretty lhs) (E_pretty index)
 
 let rec S_pretty ident S =
   match S with
   | DataDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
   | Block(env, S) -> sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
-  | Assign(lhs,E) -> sprintf "%s%s = %s;" ident lhs (E_pretty E) //(Lhs_pretty x)
+  | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
   | VCall(x,[]) -> sprintf "%s%s()" ident x 
@@ -127,9 +119,9 @@ let rec DefList_pretty defs =
     match defs with
     | [] -> ""
     | p::ps -> match p with
-               | FunE(name, args, s, e) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
+               | FunE(name, args, s, _, e) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (E_pretty e) (DefList_pretty ps)
-               | FunD(name, args, s, d) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
+               | FunD(name, args, s, _, d) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (D_pretty d) (DefList_pretty ps)
                | FunV(name, args, s)    -> sprintf "def %s(%s){\n%s\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (DefList_pretty ps)
@@ -145,6 +137,11 @@ let rec SofList ss =
   | [s] -> s
   | s::ss' -> Seq(s, SofList ss')
 
+
+let rec LValueBaseName (lhs: LValue): Ide =    
+    match lhs with
+    | I(name) -> name
+    | A(lhs', _) -> LValueBaseName lhs'
 
 
 

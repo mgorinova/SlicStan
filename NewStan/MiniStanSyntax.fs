@@ -3,8 +3,12 @@
 open NewStanSyntax
 
 type Ide = NewStanSyntax.Ide 
+//type T = NewStanSyntax.T
+//type ArrEl = NewStanSyntax.ArrEl
 type Exp = NewStanSyntax.Exp 
 type Dist = NewStanSyntax.Dist 
+
+type LValue = NewStanSyntax.LValue
 
 type TIde = TypePrim
 
@@ -14,7 +18,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
               | VSeq of VarDecls * VarDecls  
               | VNone
 
-type Statements = Let of Ide * Exp // TODO: add more statements
+type Statements = Let of LValue * Exp // TODO: add more statements
                 | Sample of Ide * Dist
                 | SSeq of Statements * Statements  
                 | SNone
@@ -33,9 +37,11 @@ type Prog = P of Data * TData * Params * TParams * Model * GenQuant
 let E_pretty = NewStanSyntax.E_pretty
 let D_pretty = NewStanSyntax.D_pretty
 
-let Type_pretty typeprim =
+let rec Type_pretty typeprim =
     match typeprim with 
     | Real -> "real"
+    | Int -> "int"
+    | Array(t, n) -> (Type_pretty t) + (sprintf "[%d]" n)
 
 let rec Decls_pretty decls =
     match decls with 
@@ -45,7 +51,7 @@ let rec Decls_pretty decls =
 
 let rec Statements_pretty decls =
     match decls with 
-    | Let (name, expr) -> "\t" + name + " = " + E_pretty expr + ";\n"
+    | Let (lhs, expr) -> "\t" + LValue_pretty lhs + " = " + E_pretty expr + ";\n"
     | Sample (name, dist) -> "\t" + name + " ~ " + D_pretty dist + ";\n"
     | SSeq (s1, s2) ->  Statements_pretty s1 + Statements_pretty s2
     | SNone -> ""
@@ -111,7 +117,7 @@ let example = P (DNone,
     variance_y = *(sigma_y,sigma_y);
 *)
 
-let example2 = P(DBlock(Declr(Real, "y1")), 
+(*let example2 = P(DBlock(Declr(Real, "y1")), 
                  TDBlock(VSeq(Declr(Real, "alpha"),
                               Declr(Real, "beta")), 
                          SSeq(Let("alpha", Const(0.1)), 
@@ -121,4 +127,4 @@ let example2 = P(DBlock(Declr(Real, "y1")),
                  MBlock(VNone, SSeq(SSeq(Sample("tau_y", Dist("gamma",[Var("alpha"); Var("beta")])),
                                          Sample("mu_y", Dist("normal",[Const(0.0); Const(1.0)]))),
                                          Sample("y1", Dist("normal",[Var("mu_y"); Var("sigma_y")])))),
-                 GQBlock(Declr(Real, "variance_y"),Let("variance_y", Prim("pow", [Var("sigma_y");Const(2.0)]))))
+                 GQBlock(Declr(Real, "variance_y"),Let("variance_y", Prim("pow", [Var("sigma_y");Const(2.0)]))))*)

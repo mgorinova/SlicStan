@@ -3,7 +3,6 @@
 open NewStanSyntax
 open MiniStanSyntax
 open Elaborate
-//open Types
 
 let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
 
@@ -106,13 +105,13 @@ let translate (C: Context) (S: S) (data: string list, modelled: string list) : P
         | NewStanSyntax.Sample(x,D) -> 
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
 
-        | NewStanSyntax.Assign(x,E) -> 
-            let t, lr = get_type env_list x 
+        | NewStanSyntax.Assign(lhs,E) -> 
+            let t, lr = get_type env_list (LValueBaseName lhs) 
             match lr with 
-            | Data     -> P(DNone, TDBlock(VNone, Let(x,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
-            | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(x,E)), MBlock(VNone,SNone), GQNone)
-            | Local    -> P(DNone, TDNone, PNone, TPBlock(VNone, SNone), MBlock(VNone, Let(x,E)), GQNone)
-            | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(x,E)))
+            | Data     -> P(DNone, TDBlock(VNone, Let(lhs,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+            | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(lhs,E)), MBlock(VNone,SNone), GQNone)
+            | Local    -> P(DNone, TDNone, PNone, TPBlock(VNone, SNone), MBlock(VNone, Let(lhs,E)), GQNone)
+            | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(lhs,E)))
             | _ -> failwith "unexpected error!"
         
 

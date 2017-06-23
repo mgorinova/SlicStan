@@ -35,10 +35,10 @@ let rec get_fun x defs : FunDef =
 let assign_all (lhs: Arg list) (rhs:Exp list) : S =
     let zipped = List.zip lhs rhs
 
-    let rec _assign tuples =
+    let rec _assign (tuples: (Arg*Exp) list ) =
         match tuples with
         | [] -> Skip
-        | ((t,v), r)::zs -> Seq(Assign(v,r), _assign zs)
+        | ((t,v), r)::zs -> Seq(Assign(I(v),r), _assign zs)
 
     _assign zipped
 
@@ -78,8 +78,9 @@ let rename_Ctx (dict: Dict) (C: Context): Context =
 /// Renames all bound variables in e, as specified by dict.
 let rec rename_E (dict:Dict) (e: Exp):Exp =
     match e with
-    | Var(v) -> 
-        Var(Map.safeFind v dict)
+    | Var(v) ->  Var(Map.safeFind v dict)
+    | Arr(Es) -> Arr(List.map (rename_E dict) Es)
+    | ArrElExp(e1, e2) -> ArrElExp(rename_E dict e1, rename_E dict e2)
     | Const(n) -> Const(n) 
     | Plus(e1, e2) -> Plus(rename_E dict e1, rename_E dict e2)
     | Mul(e1, e2) -> Mul(rename_E dict e1, rename_E dict e2)
@@ -92,12 +93,11 @@ let rec rename_D (dict:Dict) (d: Dist):Dist =
     | Dist(name, Es) -> Dist(name, List.map (rename_E dict) Es)
     | DCall(name, Es) -> DCall(name, List.map (rename_E dict) Es) // this shouldn't be possible
 
-
-(*let rec baseName (lhs: Lhs) =
+let rec rename_LValue (dict:Dict) (lhs:LValue): LValue =
     match lhs with
-    | B(name) -> name
-    | El(B(name), e) -> name, e
-    | El(lhs', _) -> *)
+    | I(name) -> I(Map.safeFind name dict)
+    | A(lhs', e) -> A(rename_LValue dict lhs', rename_E dict e)
+
 
 /// Renames all bound variables in s, as specified by dict.
 let rec rename_S (dict:Dict) (s: S):S =
@@ -105,7 +105,7 @@ let rec rename_S (dict:Dict) (s: S):S =
     | DataDecl(t, x, s') -> DataDecl(t, Map.safeFind x dict, rename_S dict s')
     | Block(env, s') -> Block(rename_arg dict env, rename_S dict s')
     | Sample(x, d) -> Sample(Map.safeFind x dict, rename_D dict d)
-    | Assign(x, e) -> Assign(Map.safeFind x dict, rename_E dict e)
+    | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
     | Seq(s1, s2) -> Seq(rename_S dict s1, rename_S dict s2)
     | VCall(x, []) -> VCall(x,[])
     | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
@@ -118,11 +118,13 @@ let resolve_S (c:Context) (cs:Context) (s:S) =
 
 
 let fv (e: Exp): (Context) =
-    
+
     let rec _fv e acc =    
         match e with 
         | Var(v) -> Set.add ((Real, Data), v) acc //FIXME: must be a better way
         | Const(n) -> acc 
+        | Arr(Es) -> List.fold (fun sacc e -> _fv e sacc) acc Es
+        | ArrElExp(e1, e2) ->  _fv e1 (_fv e2 acc)
         | Plus(e1, e2) -> _fv e1 (_fv e2 acc)
         | Mul(e1, e2) -> _fv e1 (_fv e2 acc)
         | Prim(name, Es) -> List.fold (fun sacc e -> _fv e sacc) acc Es
@@ -159,7 +161,7 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
     | ECall(x, Es) -> 
         let f = get_fun x defs
         match f with 
-        | FunE(_, args, s, ret) ->             
+        | FunE(_, args, s, _, ret) ->             
             let all_es = List.map (elaborate_E defs) Es
             let ces, ss, es = tripple_Rename_and_Fold all_es
 
@@ -222,7 +224,7 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
     | DCall(x, Es) ->
         let f = get_fun x defs
         match f with 
-        | FunD(_, args, s, ret) -> 
+        | FunD(_, args, s, _, ret) -> 
             let args', cf, sf, ef = elaborate_F defs f
             let body = Seq((assign_all args' Es), sf)
             let all = Set.union (set args') cf
@@ -269,13 +271,14 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             let c2', s2'' = (rename_Ctx dict c2), (rename_S dict s2')
             Set.union c1 c2', Seq(s1', s2'')
 
-    | Assign(x, e) -> 
-        let c, s, e' = elaborate_E defs e         
+    | Assign(lhs, e) -> 
+        let c, s, e' = elaborate_E defs e 
+        let x = LValueBaseName lhs       
         if Set.contains x c then
-            let dict = create_dict (Set.singleton x) c 
+            let dict = create_dict (Set.singleton x) c // FIXME: need to include other names that lhs might have
             let c', s', e'' = (rename_Ctx dict c), (rename_S dict s), (rename_E dict e')
-            c', Seq(s', Assign(x, e''))
-        else c, Seq(s, Assign(x, e'))
+            c', Seq(s', Assign(lhs, e''))
+        else c, Seq(s, Assign(lhs, e'))
 
     | Sample(x, d) -> 
         let c, s, d' = elaborate_D defs d 
@@ -315,8 +318,8 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
 
 and elaborate_F (defs: FunDef list) (f: FunDef) =
     let args, s, ret = match f with
-                       | FunE(_, args, s, ret) -> args, s, ERet(ret)
-                       | FunD(_, args, s, ret) -> args, s, DRet(ret)
+                       | FunE(_, args, s, _, ret) -> args, s, ERet(ret)
+                       | FunD(_, args, s, _, ret) -> args, s, DRet(ret)
                        | FunV(_, args, s) -> args, s, None
    
     let cs, ss = elaborate_S defs s
@@ -373,8 +376,8 @@ let rec safetycheck defs =
     | d::ds -> 
 
         let name, args, s = match d with
-                            | FunE(name, args, s, ret) -> name, args, s
-                            | FunD(name, args, s, ret) -> name, args, s
+                            | FunE(name, args, s, _, ret) -> name, args, s
+                            | FunD(name, args, s, _, ret) -> name, args, s
                             | FunV(name, args, s) -> name, args, s
 
         checkdefs name args s
