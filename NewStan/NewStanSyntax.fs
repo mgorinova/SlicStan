@@ -2,7 +2,7 @@
 
 type ArrSize = int 
 type TypeLevel = LogProb | Data | Local | Model | GenQuant
-type TypePrim = Real | Int | Array of TypePrim * ArrSize
+type TypePrim = Real | Int | Array of TypePrim * ArrSize | Unit
 
 type Type = TypePrim * TypeLevel
 
@@ -39,15 +39,15 @@ type S = Block of Arg * S //alpha convertible; make it have a single identifier
        | VCall of FunIde * Exp list
 
 
-type FunDef = FunE of FunIde * Arg list * S * Type * Exp
-            | FunD of FunIde * Arg list * S * Type * Dist
-            | FunV of FunIde * Arg list * S
+type FunDef = FunE of FunIde * Arg list * S * Exp
+            | FunD of FunIde * Arg list * S * Dist
+            | FunV of FunIde * Arg list * S * unit
 
 let name fundef =
     match fundef with 
-    | FunE(n, _, _, _, _) -> n
-    | FunD(n, _, _, _, _) -> n
-    | FunV(n, _, _) -> n
+    | FunE(n, _, _, _) -> n
+    | FunD(n, _, _, _) -> n
+    | FunV(n, _, _, _) -> n
 
 type NewStanProg = FunDef list * S
 
@@ -58,6 +58,7 @@ let rec TPrim_pretty tp =
     | Real -> "real"
     | Int -> "int"
     | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%d]" n)
+    | Unit -> "unit"
 
 let TLev_pretty tl =
     match tl with
@@ -99,7 +100,7 @@ let rec LValue_pretty (x:LValue) =
 
 let rec S_pretty ident S =
   match S with
-  | DataDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
+  | DataDecl(t, x, s) -> sprintf "%sdata %s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
   | Block(env, S) -> sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
@@ -119,11 +120,11 @@ let rec DefList_pretty defs =
     match defs with
     | [] -> ""
     | p::ps -> match p with
-               | FunE(name, args, s, _, e) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
+               | FunE(name, args, s, e) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (E_pretty e) (DefList_pretty ps)
-               | FunD(name, args, s, _, d) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
+               | FunD(name, args, s, d) -> sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (D_pretty d) (DefList_pretty ps)
-               | FunV(name, args, s)    -> sprintf "def %s(%s){\n%s\n}\n%s" 
+               | FunV(name, args, s, _)    -> sprintf "def %s(%s){\n%s\n}\n%s" 
                                                     name (List_pretty args) (S_pretty "  " s) (DefList_pretty ps)
 
 let rec NewStanProg_pretty prog = 
@@ -136,6 +137,12 @@ let rec SofList ss =
   | [] -> Skip
   | [s] -> s
   | s::ss' -> Seq(s, SofList ss')
+
+
+let rec BlockOfList (env, s) = 
+    match env with 
+    | [] -> s
+    | x::xs -> Block(x, BlockOfList (xs, s))
 
 
 let rec LValueBaseName (lhs: LValue): Ide =    

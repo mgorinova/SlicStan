@@ -55,8 +55,6 @@
     <Compile Include="Elaborate.fs" />
     <Compile Include="MiniStanSyntax.fs" />
     <Compile Include="Translate.fs" />
-    <Compile Include="Types %28unused, take code%29.fs" />
-    <Compile Include="Checker %28unused, take code%29.fs" />
     <Compile Include="Examples.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

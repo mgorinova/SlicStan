@@ -161,7 +161,7 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
     | ECall(x, Es) -> 
         let f = get_fun x defs
         match f with 
-        | FunE(_, args, s, _, ret) ->             
+        | FunE(_, args, s, ret) ->             
             let all_es = List.map (elaborate_E defs) Es
             let ces, ss, es = tripple_Rename_and_Fold all_es
 
@@ -224,7 +224,7 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
     | DCall(x, Es) ->
         let f = get_fun x defs
         match f with 
-        | FunD(_, args, s, _, ret) -> 
+        | FunD(_, args, s, ret) -> 
             let args', cf, sf, ef = elaborate_F defs f
             let body = Seq((assign_all args' Es), sf)
             let all = Set.union (set args') cf
@@ -291,7 +291,7 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
     | VCall(x, Es) -> 
         let f = get_fun x defs
         match f with 
-        | FunV(_, args, s) -> 
+        | FunV(_, args, s, _) -> 
             let args', cf, sf, ef = elaborate_F defs f
             let body = Seq((assign_all args' Es), sf)
             let all = Set.union (set args') cf
@@ -318,9 +318,9 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
 
 and elaborate_F (defs: FunDef list) (f: FunDef) =
     let args, s, ret = match f with
-                       | FunE(_, args, s, _, ret) -> args, s, ERet(ret)
-                       | FunD(_, args, s, _, ret) -> args, s, DRet(ret)
-                       | FunV(_, args, s) -> args, s, None
+                       | FunE(_, args, s, ret) -> args, s, ERet(ret)
+                       | FunD(_, args, s, ret) -> args, s, DRet(ret)
+                       | FunV(_, args, s, _) -> args, s, None
    
     let cs, ss = elaborate_S defs s
 
@@ -376,9 +376,9 @@ let rec safetycheck defs =
     | d::ds -> 
 
         let name, args, s = match d with
-                            | FunE(name, args, s, _, ret) -> name, args, s
-                            | FunD(name, args, s, _, ret) -> name, args, s
-                            | FunV(name, args, s) -> name, args, s
+                            | FunE(name, args, s, ret) -> name, args, s
+                            | FunD(name, args, s, ret) -> name, args, s
+                            | FunV(name, args, s, _) -> name, args, s
 
         checkdefs name args s
 

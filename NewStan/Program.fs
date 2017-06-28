@@ -33,7 +33,7 @@ let main argv =
 
     printfn "%A" (Typecheck.typecheck_Prog ex)
 
-    (*
+    
     let context, elab = Elaborate.elaborate_NewStanProg ex
 
     printfn "Context: %A" (context)
@@ -44,7 +44,7 @@ let main argv =
 
     printfn "\ndata: %A\nmodel: %A\n" data model
 
-    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate context elab (data, model)))*)
+    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate context elab (data, model)))
     0
 
 
