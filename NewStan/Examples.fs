@@ -5,7 +5,7 @@ open NewStanSyntax
 
 let ex_simple: NewStanProg = [], DataDecl(Real, "alpha", Sample("beta",Dist("gamma",[Var"alpha";Const(1.0)])));
 
-let ex_arrays: NewStanProg = [], (BlockOfList( [((Real, Data), "x"); ((Real, Data), "y")], 
+let ex_arrays: NewStanProg = [], (BlockOfList( [((Array(Real, 3), Data), "x"); ((Real, Data), "y")], 
                                                SofList [Assign(I("x"), Arr [Const(0.0); Const(2.0); Const(1.5)]);
                                                         Assign(I("y"), ArrElExp(Var("x"), Const(2.0)))]))
 
@@ -14,7 +14,7 @@ let ex_arrays: NewStanProg = [], (BlockOfList( [((Real, Data), "x"); ((Real, Dat
 
 let multinormal = BlockOfList( [((Array(Real,2), Model), "xr"); ((Array(Array(Real, 2), 2), Model), "L"); ((Array(Real,2), Model), "x")], SofList[
                                   Assign(I("L"), Prim("cholesky_decompose", [Var("Sigma")]))
-                                  Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
+                                  Sample("xr", Dist("normal", [Arr [Const(0.0); Const(0.0)]; Const(1.0)]));
                                   Assign(I("x"), Plus(Mul(Var "L", Var "xr"), Var "mu"))])
 
 let defs_multinormal = [FunE("MyMultiNormal", [((Array(Real,2), Data), "mu"); ((Array(Array(Real, 2), 2), Data), "Sigma")], multinormal, Var("x"))]
@@ -22,7 +22,7 @@ let defs_multinormal = [FunE("MyMultiNormal", [((Array(Real,2), Data), "mu"); ((
 let mu = Arr [Const(2.0); Const(3.4)]
 let Sigma = Arr [(Arr [Const(0.3); Const(0.1)]);(Arr [Const(0.1); Const(2.0)])]
 
-let main_multinormal = BlockOfList( [((Real, Model), "x")], Assign(I("x"), ECall("MyMultiNormal", [mu; Sigma])))
+let main_multinormal = BlockOfList( [((Array(Real,2), Model), "x")], Assign(I("x"), ECall("MyMultiNormal", [mu; Sigma])))
 
 let ex_multinormal:NewStanProg = defs_multinormal, main_multinormal
                                           

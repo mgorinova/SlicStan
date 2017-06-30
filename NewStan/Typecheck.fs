@@ -14,6 +14,7 @@ let Buildins: Map<string, TypePrim list * TypePrim> =
                 "cauchy", ([Real; Real], (Real)); // cauchy(mu, sigma)
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
+                "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
                 ]
 
 let (<=) (l1:TypeLevel) (l2:TypeLevel) =
@@ -50,22 +51,33 @@ let join (p:Map<'a,'b>) (q:Map<'a,'b>) =
 
 let emptyGamma = Map.empty
 
-let typecheck_Prog ((defs, s): NewStanProg): Dict =
+let ty x: TypePrim = Real
 
-    let ty x: TypePrim = Real
+let lub (ells: TypeLevel list) =
+    assert (List.length ells > 0)
+    List.fold (fun s ell -> if s <= ell then ell else s) LogProb ells
 
-    let lub (ells: TypeLevel list) =
-        assert (List.length ells > 0)
-        List.fold (fun s ell -> if s <= ell then ell else s) LogProb ells
+let glb (ells: TypeLevel list) =
+    assert (List.length ells > 0)
+    List.fold (fun s ell -> if ell <= s then ell else s) GenQuant ells
 
-    let glb (ells: TypeLevel list) =
-        assert (List.length ells > 0)
-        List.fold (fun s ell -> if ell <= s then ell else s) GenQuant ells
+let vectorize (orig_fun: FunSignature) (vectorized_args: TypePrim list): TypePrim =
 
-    let vectorize (orig_fun: FunSignature) (vectorized_args: TypePrim list): TypePrim =
-        // TODO: implement this properly
-        snd orig_fun
-        
+    let args, ret = orig_fun
+    let zipped = List.zip args vectorized_args
+    let k = List.fold (fun s (t, t') -> 
+                            match t' with
+                            | Array(t'', n) -> if t = t'' then n else s
+                            | _ -> s 
+                        ) 0 zipped
+
+    assert true // TODO: write out correct assertion
+
+    if k = 0 then ret
+    else Array(ret, k)
+
+
+let typecheck_Prog ((defs, s): NewStanProg): Dict =        
 
     let rec synth_E (signatures: Signatures) (gamma: Dict) (e: Exp): Type =
         match e with
@@ -89,7 +101,7 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
             let tau = match tau1 with Array(t, n) -> t
 
             let tau2, ell2 = synth_E signatures gamma e2
-            assert (tau2 = Int)
+            assert (tau2 = Real) // FIXME: should be assert tau2 = Int
 
             tau, lub ([ell1; ell2])
 
@@ -216,9 +228,9 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
             let gamma = typecheck_S signatures (BlockOfList (args, S))
             let _, def_types = Map.toList gamma 
                             |> List.unzip
-            let def_args, _ = List.unzip def_types
+
             let def_ret, _ = synth_E signatures gamma E            
-            Map.add name (def_args, def_ret) signatures    
+            Map.add name (Ps, def_ret) signatures    
 
         | FunD (name, args, S, D) -> 
             let Ts, _ = List.unzip args
@@ -227,9 +239,9 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
             let gamma = typecheck_S signatures (BlockOfList (args, S))
             let _, def_types = Map.toList gamma 
                             |> List.unzip
-            let def_args, _ = List.unzip def_types
+
             let def_ret, _ = synth_D signatures gamma D            
-            Map.add name (def_args, def_ret) signatures  
+            Map.add name (Ps, def_ret) signatures  
 
         | FunV (name, args, S, _) -> 
             let Ts, _ = List.unzip args
@@ -238,8 +250,8 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
             let gamma = typecheck_S signatures (BlockOfList (args, S))
             let _, def_types = Map.toList gamma 
                             |> List.unzip
-            let def_args, _ = List.unzip def_types          
-            Map.add name (def_args, Unit) signatures  
+
+            Map.add name (Ps, Unit) signatures  
 
     let signatures = List.fold (fun signatures def -> typecheck_Def signatures def) Buildins defs
     
