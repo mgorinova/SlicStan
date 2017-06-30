@@ -1,7 +1,7 @@
 ﻿module NewStanSyntax
 
 type ArrSize = int 
-type TypeLevel = LogProb | Data | Local | Model | GenQuant
+type TypeLevel = LevelVar of string | LogProb | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
 type TypePrim = Real | Int | Array of TypePrim * ArrSize | Unit
 
 type Type = TypePrim * TypeLevel
@@ -60,13 +60,15 @@ let rec TPrim_pretty tp =
     | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%d]" n)
     | Unit -> "unit"
 
-let TLev_pretty tl =
+let rec TLev_pretty tl =
     match tl with
-    | LogProb -> failwith "unexpected"
+    | LogProb -> "logprob"
     | Data -> "data"
-    | Local -> "level"
     | Model -> "model"
     | GenQuant -> "quant"
+    | LevelVar(s) -> s
+    | Lub(ls) -> sprintf "lub %A" (List.map TLev_pretty ls)
+    | Glb(ls) -> sprintf "glb %A" (List.map TLev_pretty ls)
     
 let Type_pretty t =
     match t with 

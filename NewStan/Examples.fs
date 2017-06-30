@@ -52,6 +52,23 @@ let ex_mynormal: NewStanProg = [FunE("MyNormal", [((Real, Data), "m"); ((Real, D
 
 /////////////////////////////////////////////
 
+let S_main_nf = BlockOfList( [((Real, Model), "y"); ((Real, Model), "z")], 
+                             Seq(Assign(I("y"), ECall("MyNormal", [Const 0.0; Const 3.0])), 
+                                 Assign(I("z"), ECall("MyNormal", [Const 0.0; Prim("exp",[Mul(Var "y", Const 0.5)])]))))
+let ex_neals_funnel: NewStanProg = [FunE("MyNormal", [((Real, Data), "m"); ((Real, Data), "v")], S_mynormal, Var("x"))], S_main_nf
+
+
+/////////////////////////////////////////////
+
+let S_main_nf_data = BlockOfList( [((Real, Model), "y"); ((Real, Model), "z")], 
+                                  SofList [Assign(I("y"), ECall("MyNormal", [Const 0.0; Const 3.0])); 
+                                           Assign(I("z"), ECall("MyNormal", [Const 0.0; Prim("exp",[Mul(Var "y", Const 0.5)])]));
+                                           DataDecl(Real, "d", Sample("d", Dist("normal", [Var "y"; Const 1.0] )))] )
+let ex_neals_funnel_data: NewStanProg = [FunE("MyNormal", [((Real, Data), "m"); ((Real, Data), "v")], S_mynormal, Var("x"))], S_main_nf_data
+
+
+/////////////////////////////////////////////
+
 let S_mynormal_clash = BlockOfList( [((Real, Model), "xr"); ((Real, Model), "x")], SofList[
                                      Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
                                      Assign(I("x"), Plus(Mul(Var "v", Var "xr"), Var "m"))])

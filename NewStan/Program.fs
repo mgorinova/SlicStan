@@ -10,8 +10,10 @@ open Translate
 [<EntryPoint>]
 let main argv = 
 
-    let ex = Examples.ex_simple_normal
+    //let ex = Examples.ex_simple_normal
     //let ex = Examples.ex_mynormal
+    //let ex = Examples.ex_neals_funnel
+    let ex = Examples.ex_neals_funnel_data
     //let ex = Examples.ex_linear_funcs
     //let ex = Examples.ex_mynormal_clash
     //let ex = Examples.ex_mynormal_clash2
