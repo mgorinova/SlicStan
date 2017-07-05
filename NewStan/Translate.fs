@@ -87,8 +87,6 @@ let translate (C: Context) (S: S) (data: string list, modelled: string list) : P
                                join_stan_p p (to_declarations vs)
                  | Model ->    let p = P(DNone, TDNone, PNone, TPBlock(Declr(t, var), SNone), MBlock(VNone,SNone), GQNone)
                                join_stan_p p (to_declarations vs)
-                 | Local ->    let p = P(DNone, TDNone, PNone, TPNone, MBlock(Declr(t, var),SNone), GQNone)
-                               join_stan_p p (to_declarations vs)
                  | GenQuant -> let p = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,var), SNone))
                                join_stan_p p (to_declarations vs)
                  | _ -> failwith "unexpected in translate init: to_declarations"
@@ -110,7 +108,6 @@ let translate (C: Context) (S: S) (data: string list, modelled: string list) : P
             match lr with 
             | Data     -> P(DNone, TDBlock(VNone, Let(lhs,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
             | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(lhs,E)), MBlock(VNone,SNone), GQNone)
-            | Local    -> P(DNone, TDNone, PNone, TPBlock(VNone, SNone), MBlock(VNone, Let(lhs,E)), GQNone)
             | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(lhs,E)))
             | _ -> failwith "unexpected error!"
         

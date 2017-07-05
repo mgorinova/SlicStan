@@ -21,12 +21,6 @@ type Exp = Var of Ide
 
 type LValue = I of Ide | A of LValue * Exp
 
-let ex_1dim: Exp = ArrElExp(Var("x"), Const(0.5))
-let ex_2dim: Exp = ArrElExp(ArrElExp(Var("x"), Const(0.1)), Const(0.5))
-
-let ex_1dim_lhs: LValue = A(I("x"), Const(0.1))
-let ex_2dim_lhs: LValue = A(A(I("x"), Const(0.1)), Const(0.5))
-
 type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
           | DCall of FunIde * Exp list
 
@@ -42,6 +36,20 @@ type S = Block of Arg * S //alpha convertible; make it have a single identifier
 type FunDef = FunE of FunIde * Arg list * S * Exp
             | FunD of FunIde * Arg list * S * Dist
             | FunV of FunIde * Arg list * S * unit
+
+let (<=) (l1:TypeLevel) (l2:TypeLevel) =
+    match l1, l2 with
+    | LogProb, _ -> true
+    | Data, LogProb -> false
+    | Data, _ -> true
+    | Model, LogProb -> false
+    | Model, Data -> false
+    | Model, _ -> true
+    | _, GenQuant -> true
+    | GenQuant, LogProb -> false    
+    | GenQuant, Data -> false    
+    | GenQuant, Model -> false  
+    | _ -> true
 
 let name fundef =
     match fundef with 
@@ -153,5 +161,12 @@ let rec LValueBaseName (lhs: LValue): Ide =
     | A(lhs', _) -> LValueBaseName lhs'
 
 
+let BaseTypeLevel (tau: TypeLevel) =
+    match tau with
+    | LogProb -> true
+    | Data -> true
+    | Model -> true
+    | GenQuant -> true
+    | _ -> false
 
 

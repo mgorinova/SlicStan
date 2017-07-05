@@ -6,7 +6,7 @@ open System.Runtime.CompilerServices
 type Dict = Map<Ide,Ide> 
 type Context = Set.Context
 
-type Ret = ERet of Exp | DRet of Dist | None 
+type Ret = ERet of Exp | DRet of Dist | Unit 
 
 [<Extension>]
 type Map<'Key,'Value when 'Key : comparison> with 
@@ -168,7 +168,7 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
             let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
             let ces_all = Set.union fvs ces
 
-            let argsf, cf_all, sf, ef = elaborate_F defs f
+            let argsf, cf_all, sf, ERet(ef) = elaborate_F defs f
 
             let body, all, ef' = 
                 if Set.intersectEmpty ces_all cf_all then
@@ -225,15 +225,10 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
         let f = get_fun x defs
         match f with 
         | FunD(_, args, s, ret) -> 
-            let args', cf, sf, ef = elaborate_F defs f
+            let args', cf, sf, DRet(df) = elaborate_F defs f
             let body = Seq((assign_all args' Es), sf)
             let all = Set.union (set args') cf
-
-            //match ef with
-            //| DRet(r') ->
-            //    all, body, r'
-            //| _ -> failwith "unexpected"
-
+            
             failwith "not implemented"
 
         | FunE(_) -> failwith "function is expected to return a distribution, but returns an expression instead"
@@ -254,7 +249,7 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
     match s with 
     | DataDecl(t,x,s) -> 
         let c, s' = elaborate_S defs s
-        if Set.contains x c then
+        if Set.contextContains x c then
             let dict = create_dict (Set.singleton x) c 
             let c', s'' = (rename_Ctx dict c), (rename_S dict s')
             (Set.add ((t, Data),x) c'), DataDecl(t,x,s'')
@@ -274,7 +269,7 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
     | Assign(lhs, e) -> 
         let c, s, e' = elaborate_E defs e 
         let x = LValueBaseName lhs       
-        if Set.contains x c then
+        if Set.contextContains x c then
             let dict = create_dict (Set.singleton x) c // FIXME: need to include other names that lhs might have
             let c', s', e'' = (rename_Ctx dict c), (rename_S dict s), (rename_E dict e')
             c', Seq(s', Assign(lhs, e''))
@@ -282,7 +277,7 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
 
     | Sample(x, d) -> 
         let c, s, d' = elaborate_D defs d 
-        if Set.contains x c then
+        if Set.contextContains x c then
             let dict = create_dict (Set.singleton x) c 
             let c', s', d'' = (rename_Ctx dict c), (rename_S dict s), (rename_D dict d')
             c', Seq(s', Sample(x, d''))
@@ -292,21 +287,18 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
         let f = get_fun x defs
         match f with 
         | FunV(_, args, s, _) -> 
-            let args', cf, sf, ef = elaborate_F defs f
+            let args', cf, sf, Unit = elaborate_F defs f
             let body = Seq((assign_all args' Es), sf)
             let all = Set.union (set args') cf
             
-            //match ef with
-            //| None ->
             all, body
-            //| _ -> failwith "unexpected"
 
         | FunE(_) -> failwith "function was not expected to have a return value, but returns an expression instead"
         | FunD(_) -> failwith "function was not expected to have a return value, but returns a distribution instead"
 
     | Block((T,x), s) ->
         let c, s' = elaborate_S defs s
-        if Set.contains x c then
+        if Set.contextContains x c then
             let dict = create_dict (Set.singleton x) c 
             let c', s'' = (rename_Ctx dict c), (rename_S dict s')
             (Set.add (T,x) c'), s''
@@ -320,7 +312,7 @@ and elaborate_F (defs: FunDef list) (f: FunDef) =
     let args, s, ret = match f with
                        | FunE(_, args, s, ret) -> args, s, ERet(ret)
                        | FunD(_, args, s, ret) -> args, s, DRet(ret)
-                       | FunV(_, args, s, _) -> args, s, None
+                       | FunV(_, args, s, _) -> args, s, Unit
    
     let cs, ss = elaborate_S defs s
 
@@ -328,22 +320,20 @@ and elaborate_F (defs: FunDef list) (f: FunDef) =
                 then args
                 else failwith "not implemented"
 
-    let ce, se, e' = 
+    let ce, se, ret = 
         match ret with
         | ERet(r) -> 
             let c, s, r' = elaborate_E defs r
             let c', s' = resolve_S (Set.union (set args) cs) c s
-            c', s', r'
+            c', s', ERet(r')
         | DRet(r) -> 
             let c, s, r' = elaborate_D defs r
             let c', s' = resolve_S (Set.union (set args) cs) c s
-            failwith "not implemented"
-            //c', s', DRet(r')
-        | None ->
-            failwith "not implemented"
-            //empty, Skip, None  
+            c', s', DRet(r')
+        | Unit ->
+            empty, Skip, Unit  
     
-    args', (Set.union (Set.union cs ce) (Set.ofList args')), (Seq(ss, se)), e'
+    args', (Set.union (Set.union cs ce) (Set.ofList args')), (Seq(ss, se)), ret
    
 
 /// Runs basic checks on the function definitions, 

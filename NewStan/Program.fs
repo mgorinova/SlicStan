@@ -3,18 +3,21 @@
 
 open NewStanSyntax
 open Examples
+open Typecheck
 open Elaborate
 open Translate
 
+open Constraints
 
 [<EntryPoint>]
 let main argv = 
 
+    //let ex = Examples.ex_simple
     //let ex = Examples.ex_simple_normal
     //let ex = Examples.ex_mynormal
     //let ex = Examples.ex_neals_funnel
-    let ex = Examples.ex_neals_funnel_data
-    //let ex = Examples.ex_linear_funcs
+    //let ex = Examples.ex_neals_funnel_data
+    let ex = Examples.ex_linear_funcs 
     //let ex = Examples.ex_mynormal_clash
     //let ex = Examples.ex_mynormal_clash2
     //let ex = Examples.ex_mynormal_clash3
@@ -27,16 +30,11 @@ let main argv =
 
     printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
 
-   
-    //let args, cdefs, sdefs, _ = Elaborate.elaborate_F defs (List.head defs)
-    //printfn "Arguments: %A" (args)
-    //printfn "Context: %A" (cdefs)
-    //printfn "Function: %s" (NewStanSyntax.S_pretty "" sdefs)
-
-    printfn "%A" (Typecheck.typecheck_Prog ex)
-
-    
-    let context, elab = Elaborate.elaborate_NewStanProg ex
+    let inferred = typecheck_Prog ex
+       
+    printfn "Inferred types: \n%s" (NewStanProg_pretty inferred)
+        
+    let context, elab = Elaborate.elaborate_NewStanProg inferred
 
     printfn "Context: %A" (context)
 
@@ -47,6 +45,8 @@ let main argv =
     printfn "\ndata: %A\nmodel: %A\n" data model
 
     printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate context elab (data, model)))
+    
+    
     0
 
 

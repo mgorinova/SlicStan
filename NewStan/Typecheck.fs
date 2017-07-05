@@ -1,14 +1,13 @@
 ﻿module Typecheck
 
 open NewStanSyntax
+open Constraints
 
 type Dict = Map<Ide,Type> 
-type FunSignature = TypePrim list * TypePrim
+type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
-type Constraint = Leq of TypeLevel * TypeLevel | Eq of TypeLevel * TypeLevel
-
-let Buildins: Map<string, TypePrim list * TypePrim> = 
+let Buildins_basic: Map<string, TypePrim list * TypePrim> = 
     Map.ofList ["normal", ([Real; Real], (Real)); // normal(mu, sigma)
                 "gamma", ([Real; Real], (Real)); // gamma(alpha, beta)
                 "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
@@ -20,37 +19,8 @@ let Buildins: Map<string, TypePrim list * TypePrim> =
                 "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
                 ]
 
-let (<=) (l1:TypeLevel) (l2:TypeLevel) =
-    match l1, l2 with
-    | LogProb, _ -> true
-    | Data, LogProb -> false
-    | Data, _ -> true
-    | Model, LogProb -> false
-    | Model, Data -> false
-    | Model, _ -> true
-    | _, GenQuant -> true
-    | _ -> false
-
-(*let (!=) (l1:TypeLevel) (l2:TypeLevel) =
-    match l1, l2 with
-    | LogProb, LogProb -> false
-    | Data, Data -> false
-    | Local, Local -> false
-    | Model, Model -> false
-    | GenQuant, GenQuant -> false 
-    | _ -> true*)
-
-
-let rec constraints_pretty (cs : Constraint list) =
-    
-    let rec single_pretty c =
-        match c with
-        | Leq(l1, l2) -> TLev_pretty l1 + " <= " + TLev_pretty l2 
-        | Eq(l1, l2) -> TLev_pretty l1 + " = " + TLev_pretty l2  
-    
-    match cs with
-    | c::cs' -> single_pretty c + "\n" + constraints_pretty cs'
-    | [] -> ""
+// give Model level, say, to all buildins
+let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) Buildins_basic
 
 let arr_size (tau: TypePrim) : int = 
     match tau with 
@@ -60,6 +30,8 @@ let arr_size (tau: TypePrim) : int =
 let join (p:Map<'a,'b>) (q:Map<'a,'b>) = 
     Map(Seq.concat [ (Map.toSeq p) ; (Map.toSeq q) ])
 
+let flip (a,b) = (b,a)
+
 let emptyGamma = Map.empty
 
 let ty x: TypePrim = Real
@@ -68,11 +40,20 @@ let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
     List.fold (fun s ell -> if s <= ell then ell else s) LogProb ells
 
-let glb (ells: TypeLevel list) =
+let rec glb (ells: TypeLevel list) =
     assert (List.length ells > 0)
-    List.fold (fun s ell -> if ell <= s then ell else s) GenQuant ells
+    match ells with
+    | l::[] -> l
+    | l::ls ->
+        let l' = glb ls 
+        if l = LogProb || l' = LogProb then LogProb
+        elif BaseTypeLevel l && BaseTypeLevel l' then
+            if l <= l' then l else l' 
+        else Glb [l; l']
+    | [] -> failwith "unexpected"
+                    
 
-let vectorize (orig_fun: FunSignature) (vectorized_args: TypePrim list): TypePrim =
+let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim list): TypePrim =
 
     let args, ret = orig_fun
     let zipped = List.zip args vectorized_args
@@ -88,7 +69,18 @@ let vectorize (orig_fun: FunSignature) (vectorized_args: TypePrim list): TypePri
     else Array(ret, k)
 
 
-let typecheck_Prog ((defs, s): NewStanProg): Dict =        
+let rec assign_S (S: S) : Set<Ide> =
+    match S with
+    | DataDecl(_, x, s) -> assign_S s
+    | Block((_, x), s) -> Set.remove x (assign_S s)
+    | Sample(x, _) -> Set.empty
+    | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
+    | Seq(s1, s2) -> Set.union (assign_S s1) (assign_S s2)
+    | Skip -> Set.empty
+    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
+
+
+let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =        
 
     let rec synth_E (signatures: Signatures) (gamma: Dict) (e: Exp): Type*(Constraint list) =
         match e with
@@ -128,12 +120,31 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
                 if signatures.ContainsKey name then
                     signatures.Item name
                 else failwith (sprintf "function %s not defined" name)
+            
+            let taus, ells, (tau, ell) = fun_signature
 
-            let tau' = vectorize (fun_signature) (Ps)
+            let tau' = vectorize (taus, tau) (Ps)
 
             (tau', Lub Ls), c
 
-        | ECall(name, Es) -> synth_E signatures gamma (Prim(name, Es))
+        | ECall(name, Es) -> 
+            let PLs, Cs = List.map (synth_E signatures gamma) Es 
+                       |> List.unzip 
+
+            let c = List.fold (List.append) [] Cs
+            let taus', ells' = List.unzip PLs
+
+            let fun_signature = 
+                if signatures.ContainsKey name then
+                    signatures.Item name
+                else failwith (sprintf "function %s not defined" name)
+
+            let taus, ells, (tau, ell) = fun_signature
+            let tau' = vectorize (taus, tau) (taus')
+            let c' = List.map2 (fun l l' -> Leq(l', l)) ells ells' 
+
+            (tau', ell), (List.append c c')
+
         | Plus(e1, e2) -> synth_E signatures gamma (Prim("+", [e1; e2]))
         | Mul(e1, e2) -> synth_E signatures gamma (Prim("*", [e1; e2]))
 
@@ -150,93 +161,88 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
                        |> List.unzip 
             let Ps, Ls = List.unzip PLs
             let c = List.fold (List.append) [] Cs
-
-
+            
             let fun_signature = 
                 if signatures.ContainsKey name then
                     signatures.Item name
                 else failwith (sprintf "function %s not defined" name)
 
-            let tau' = vectorize (fun_signature) (Ps)
+            let taus, ells, (tau, ell) = fun_signature
+
+            let tau' = vectorize (taus, tau) (Ps)
 
             (tau', Lub Ls), c
 
-        | DCall(name, Es) -> synth_D signatures gamma (Dist(name, Es))
+        | DCall(name, Es) -> 
+            synth_E signatures gamma (ECall(name, Es))
 
     let rec check_D (signatures: Signatures) (gamma: Dict) (d: Dist) ((tau,ell): Type) : Constraint list =
         let (tau', ell'), c = synth_D signatures gamma d
         assert (tau' = tau) 
         (Leq(ell',ell))::c
 
-    let rec typecheck_S (signatures: Signatures) (S:S) : Dict*(Constraint list) = 
+    //let rec typecheck_S (signatures: Signatures) (S:S) : Dict*(Constraint list) = 
 
-        let rec synth_L (gamma: Dict) (l: LValue): Type*(Constraint list) =
-            match l with
-            | I(x) -> 
-                if gamma.ContainsKey(x) then gamma.Item(x), []
-                else failwith (sprintf "%s not found in type environment" x)
-            | A(l', e') -> 
-                let (tau1, ell1), c1 = synth_L gamma l'
-                let tau = match tau1 with Array(t, n) -> t
+    let rec synth_L (signatures: Signatures) (gamma: Dict) (l: LValue): Type*(Constraint list) =
+        match l with
+        | I(x) -> 
+            if gamma.ContainsKey(x) then gamma.Item(x), []
+            else failwith (sprintf "%s not found in type environment" x)
+        | A(l', e') -> 
+            let (tau1, ell1), c1 = synth_L signatures gamma l'
+            let tau = match tau1 with Array(t, n) -> t
 
-                let (tau2, ell2), c2 = synth_E signatures gamma e'
-                assert (tau2 = Int)
+            let (tau2, ell2), c2 = synth_E signatures gamma e'
+            assert (tau2 = Int)
 
-                (tau, Lub ([ell1; ell2])), (List.append c1 c2)
+            (tau, Lub ([ell1; ell2])), (List.append c1 c2)
 
 
-        let rec synth_S (gamma: Dict) (s: S): TypeLevel*Dict*(Constraint list) = 
-            match s with
-            | Assign(lhs, e) -> 
-                let (tau, ell), c1 = synth_L gamma lhs
-                let c2 = check_E signatures gamma e (tau, ell)
-                ell, emptyGamma, (List.append c1 c2)
+    let rec synth_S (signatures: Signatures) (gamma: Dict) (S: S): TypeLevel*Dict*(Constraint list) = 
+        match S with
+        | Assign(lhs, e) -> 
+            let (tau, ell), c1 = synth_L signatures gamma lhs
+            let c2 = check_E signatures gamma e (tau, ell)
+            ell, emptyGamma, (List.append c1 c2)
 
-            | Sample(x, d) -> 
-                let (tau, ell), ce = synth_E signatures gamma (Var(x))                
-                let cd = check_D signatures gamma d (tau, Model)
+        | Sample(x, d) -> 
+            let (tau, ell), ce = synth_E signatures gamma (Var(x))                
+            let cd = check_D signatures gamma d (tau, Model)
 
-                LogProb, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
+            LogProb, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
 
-            | DataDecl(tp, x, s) -> 
-                let gamma' = Map.add x (tp, Data) gamma
-                let l, g, c = synth_S gamma' s
-                l, (Map.add x (tp, Data) g), c
+        | DataDecl(tp, x, s') -> 
+            let gamma' = Map.add x (tp, Data) gamma
+            let l', g, c = synth_S signatures gamma' s'
+            l', ( Map.add x (tp, Data) g ), c
 
-            | Seq(s1, s2) -> 
-                let ell1, gamma1, c1 = synth_S gamma s1
-                let ell2, gamma2, c2 = synth_S gamma s2
-                (Glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2)
+        | Seq(s1, s2) -> 
+            let ell1, gamma1, c1 = synth_S signatures gamma s1
+            let ell2, gamma2, c2 = synth_S signatures gamma s2
+            (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2)
 
-            | Skip -> GenQuant, emptyGamma, []
+        | Skip -> GenQuant, emptyGamma, []
 
-            | Block(env, s) -> 
-                let (p, _), x = env
-                let l = LevelVar("l" + x)
-                let gamma' = Map.add x (p, l) gamma
-                let l, g, c = synth_S gamma' s
-                l, Map.add x (p,l) g, c
+        | Block(env, s') -> 
+            let (p, l), x = env
+            let gamma' = Map.add x (p, l) gamma
+            let l', g, c = synth_S signatures gamma' s'
+            let c' =
+                if (Set.contains x (assign_S s')) then c
+                else (Leq(Model, l)) :: c
+            l', ( Map.add x (p, l) g ), c'
 
-            | VCall(name, Es) -> 
-                let PLs, Cs = List.map (synth_E signatures gamma) Es 
-                           |> List.unzip 
-                let Ps, Ls = List.unzip PLs
-                let c = List.fold (List.append) [] Cs
+        | VCall(name, Es) -> 
+            let (tau, ell), c = synth_E signatures gamma (ECall(name, Es))
+            assert (tau = Unit)
+            ell, gamma, c
 
-                let taus, tau = 
-                    if signatures.ContainsKey name then
-                        signatures.Item name
-                    else failwith (sprintf "function %s not defined" name)
 
-                assert (tau = Unit)
+    let rec check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
+        let ell', gamma', c = synth_S signatures gamma s            
+        (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
 
-                glb Ls, emptyGamma, c
-
-        let rec check_S (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
-            let ell', gamma', c = synth_S gamma s            
-            (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
-
-        check_S (Map.empty) S LogProb
+        //check_S (Map.empty) S LogProb
 
 
     let typecheck_Def (signatures: Signatures) (def: FunDef) : Signatures*(Constraint list) =             
@@ -244,51 +250,66 @@ let typecheck_Prog ((defs, s): NewStanProg): Dict =
         | FunE (name, args, S, E) -> 
             
             let Ts, _ = List.unzip args
-            let Ps, _ = List.unzip Ts
+            let Ps, Ls = List.unzip Ts
 
-            // TODO: deal with introduced constraints
+            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S LogProb
 
-            let gamma, cs = typecheck_S signatures (BlockOfList (args, S))
-            let _, def_types = Map.toList gamma 
-                            |> List.unzip
-
-            let (def_ret, _), ce = synth_E signatures gamma E            
-            Map.add name (Ps, def_ret) signatures, (List.append cs ce)   
+            let ret, ce = synth_E signatures gamma E            
+            Map.add name (Ps, Ls, ret) signatures, (List.append cs ce)   
 
         | FunD (name, args, S, D) -> 
             let Ts, _ = List.unzip args
-            let Ps, _ = List.unzip Ts
+            let Ps, Ls = List.unzip Ts
 
-            // TODO: deal with introduced constraints
+            let gamma, cs = check_S signatures (Map.empty) (BlockOfList (args, S)) LogProb
 
-            let gamma, cs = typecheck_S signatures (BlockOfList (args, S))
-            let _, def_types = Map.toList gamma 
-                            |> List.unzip
-
-            let (def_ret, _), cd = synth_D signatures gamma D            
-            Map.add name (Ps, def_ret) signatures, (List.append cs cd)   
+            let ret, cd = synth_D signatures gamma D            
+            Map.add name (Ps, Ls, ret) signatures, (List.append cs cd)  
 
         | FunV (name, args, S, _) -> 
             let Ts, _ = List.unzip args
-            let Ps, _ = List.unzip Ts
+            let Ps, Ls = List.unzip Ts
 
-            // TODO: deal with introduced constraints
-
-            let gamma, c = typecheck_S signatures (BlockOfList (args, S))
+            let gamma, c = check_S signatures (Map.empty) (BlockOfList (args, S)) LogProb
             let _, def_types = Map.toList gamma 
                             |> List.unzip
 
-            Map.add name (Ps, Unit) signatures, c
+            Map.add name (Ps, Ls, (Unit, Model)) signatures, c
+
+    let rename_NewStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
+        
+        let rename_arg (((t,l), x):Arg) =
+             match l with
+             | LevelVar(ln) -> (t, dict.Item(ln)), x
+             | _ -> ((t,l), x)
+
+        let rec rename_S s =
+            match s with 
+            | Block (a, s') -> Block(rename_arg a, rename_S s')
+            | DataDecl(t, x, s') ->  DataDecl(t, x, rename_S s')
+            | Seq(s1, s2) -> Seq(rename_S s1, rename_S s2)
+            | s' -> s'
+        
+        let rename_def def = 
+            match def with
+            | FunE (name, args, s, e) -> FunE(name, (List.map rename_arg args), (rename_S s), e)
+            | FunD (name, args, s, d) -> FunD(name, (List.map rename_arg args), (rename_S s), d)
+            | FunV (name, args, s, ()) -> FunV(name, (List.map rename_arg args), (rename_S s), ())
+             
+        
+        List.map rename_def defs, rename_S s
 
     let signatures, cdefs = List.fold (fun (signatures, cs) def -> 
                                             let s', c' = typecheck_Def signatures def
                                             s', List.append cs c') (Buildins, []) defs
     
-    let gamma, c = typecheck_S signatures s  
+    let _, c = check_S signatures (Map.empty) s LogProb  
 
-    printfn "%s" (constraints_pretty (List.append cdefs c))
+    let inferred_levels = Constraints.naive_solver (List.append cdefs c)
 
-    gamma
+    printfn "%A" (inferred_levels)
+
+    rename_NewStanProg inferred_levels (defs, s)
 
     
 

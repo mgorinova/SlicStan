@@ -9,7 +9,7 @@ let singleton (element : Ide) : Context =
     // a single element prettier...
     Set.empty |> Set.add ((Real,Data), element)
 
-let contains (x:string) (c:Context) : bool =
+let contextContains (x:string) (c:Context) : bool =
     let names = Set.map (fun (t,n) -> n) c
     Set.contains x names
 

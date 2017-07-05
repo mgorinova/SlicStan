@@ -51,6 +51,7 @@
     <None Include="App.config" />
     <Compile Include="NewStanSyntax.fs" />
     <Compile Include="Set.fs" />
+    <Compile Include="Constraints.fs" />
     <Compile Include="Typecheck.fs" />
     <Compile Include="Elaborate.fs" />
     <Compile Include="MiniStanSyntax.fs" />
