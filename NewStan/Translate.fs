@@ -4,6 +4,10 @@ open NewStanSyntax
 open MiniStanSyntax
 open Elaborate
 
+
+let assigns = Typecheck.assigns
+
+
 let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
 
     let join_block (block1 : VarDecls * Statements) (block2 : VarDecls * Statements) : VarDecls * Statements =        

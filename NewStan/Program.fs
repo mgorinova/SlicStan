@@ -15,9 +15,9 @@ let main argv =
     //let ex = Examples.ex_simple
     //let ex = Examples.ex_simple_normal
     //let ex = Examples.ex_mynormal
-    //let ex = Examples.ex_neals_funnel
+    let ex = Examples.ex_neals_funnel
     //let ex = Examples.ex_neals_funnel_data
-    let ex = Examples.ex_linear_funcs 
+    //let ex = Examples.ex_linear_funcs 
     //let ex = Examples.ex_mynormal_clash
     //let ex = Examples.ex_mynormal_clash2
     //let ex = Examples.ex_mynormal_clash3
@@ -31,8 +31,6 @@ let main argv =
     printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
 
     let inferred = typecheck_Prog ex
-       
-    printfn "Inferred types: \n%s" (NewStanProg_pretty inferred)
         
     let context, elab = Elaborate.elaborate_NewStanProg inferred
 

@@ -19,7 +19,7 @@ let Buildins_basic: Map<string, TypePrim list * TypePrim> =
                 "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
                 ]
 
-// give Model level, say, to all buildins
+// give Model level, say, to all build-ins
 let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) Buildins_basic
 
 let arr_size (tau: TypePrim) : int = 
@@ -69,13 +69,13 @@ let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim li
     else Array(ret, k)
 
 
-let rec assign_S (S: S) : Set<Ide> =
+let rec assigns (S: S) : Set<Ide> =
     match S with
-    | DataDecl(_, x, s) -> assign_S s
-    | Block((_, x), s) -> Set.remove x (assign_S s)
+    | DataDecl(_, x, s) -> assigns s
+    | Block((_, x), s) -> Set.remove x (assigns s)
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
-    | Seq(s1, s2) -> Set.union (assign_S s1) (assign_S s2)
+    | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
     | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
 
@@ -181,8 +181,6 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
         assert (tau' = tau) 
         (Leq(ell',ell))::c
 
-    //let rec typecheck_S (signatures: Signatures) (S:S) : Dict*(Constraint list) = 
-
     let rec synth_L (signatures: Signatures) (gamma: Dict) (l: LValue): Type*(Constraint list) =
         match l with
         | I(x) -> 
@@ -228,7 +226,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let gamma' = Map.add x (p, l) gamma
             let l', g, c = synth_S signatures gamma' s'
             let c' =
-                if (Set.contains x (assign_S s')) then c
+                if (Set.contains x (assigns s')) then c
                 else (Leq(Model, l)) :: c
             l', ( Map.add x (p, l) g ), c'
 
@@ -241,8 +239,6 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
     let rec check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
         let ell', gamma', c = synth_S signatures gamma s            
         (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
-
-        //check_S (Map.empty) S LogProb
 
 
     let typecheck_Def (signatures: Signatures) (def: FunDef) : Signatures*(Constraint list) =             
@@ -261,7 +257,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, cs = check_S signatures (Map.empty) (BlockOfList (args, S)) LogProb
+            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S LogProb
 
             let ret, cd = synth_D signatures gamma D            
             Map.add name (Ps, Ls, ret) signatures, (List.append cs cd)  
@@ -270,7 +266,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, c = check_S signatures (Map.empty) (BlockOfList (args, S)) LogProb
+            let gamma, c = check_S signatures (Map.ofList (List.map flip args)) S LogProb
             let _, def_types = Map.toList gamma 
                             |> List.unzip
 
@@ -307,7 +303,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let inferred_levels = Constraints.naive_solver (List.append cdefs c)
 
-    printfn "%A" (inferred_levels)
+    printfn "Inferred type levels:  %A\n" (inferred_levels)
 
     rename_NewStanProg inferred_levels (defs, s)
 

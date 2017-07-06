@@ -152,7 +152,7 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
 
     //printfn "%s" (constraints_pretty cs)
     let filltered = expand_and_filter cs
-    printfn "%s" (constraints_pretty filltered)
+    printfn "Constraints:\n%s\n" (constraints_pretty filltered)
 
 
     let dict_forwards = init_dict_forwards()
@@ -162,8 +162,8 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
     let forwards = multi_pass_forwards filltered dict_forwards n
     let backwards = multi_pass_backwards filltered dict_backwards n
     
-    printfn "forwards: %A" forwards
-    printfn "backwards: %A" backwards
+    //printfn "forwards: %A" forwards
+    //printfn "backwards: %A" backwards
 
     let union_dicts (f:Map<Ide, TypeLevel>) (b:Map<Ide, TypeLevel>) =
         let func (k: Ide) (lf: TypeLevel) =
