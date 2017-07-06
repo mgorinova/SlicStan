@@ -38,11 +38,7 @@ let main argv =
 
     printfn "Elaborated:\n%s" (NewStanSyntax.S_pretty "" elab)
 
-    let data, model = Elaborate.check_data_and_model elab
-
-    printfn "\ndata: %A\nmodel: %A\n" data model
-
-    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate context elab (data, model)))
+    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty (Translate.translate context elab))
     
     
     0

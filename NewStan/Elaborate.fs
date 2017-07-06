@@ -379,21 +379,3 @@ let elaborate_NewStanProg (prog: NewStanProg) : Context*S =
     | defs, s -> 
         let _ = safetycheck defs
         elaborate_S defs s
-            
-
-let rec check_data_and_model (S: S) : string list * string list = 
-  match S with
-  | DataDecl(t,x,s) ->
-    let next_d, next_m = check_data_and_model s
-    (x::next_d, next_m)
-  | Sample(x,D) -> ([], [x])
-  | Assign(x,E) -> ([], [])  
-  | Seq(S1,S2) -> 
-        let s1d, s1p = check_data_and_model S1
-        let s2d, s2p = check_data_and_model S2
-        (List.append s1d s2d, List.append s1p s2p)
-
-  | Skip -> ([], [])
-  | Block(env, s) -> 
-    let next_d, next_m = check_data_and_model s
-    (next_d, next_m)

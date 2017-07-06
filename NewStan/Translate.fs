@@ -7,6 +7,8 @@ open Elaborate
 
 let assigns = Typecheck.assigns
 
+let emptyStanProg = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+
 
 let join_stan_p (p1: Prog) (p2 :Prog) : Prog =
 
@@ -68,61 +70,49 @@ let rec get_type (env: (Type*Ide) list) (x: Ide) : Type =
     | (ty, name) :: ns -> if name = x then ty else get_type ns x
 
 
+let translate (C: Context) (S: S) : Prog =
 
-let translate (C: Context) (S: S) (data: string list, modelled: string list) : Prog =
+    let gamma = Set.toList C
+    let assset = assigns S
 
-    let env_list = Set.toList C
+    let rec translate_Gamma (gamma: (Type * Ide) list) =
+        let allocate_declaration (T: Type, x: Ide) =
+            let tau, ell = T
+            match ell with
+            | Data ->  if Set.contains x assset 
+                       then P(DNone, TDBlock(Declr(tau, x),SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
+                       else P(DBlock(Declr(tau, x)), TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+            | Model -> if Set.contains x assset 
+                       then P(DNone, TDNone, PNone, TPBlock(Declr(tau, x),SNone), MBlock(VNone,SNone), GQNone)
+                       else P(DNone, TDNone, PBlock(Declr(tau, x)), TPNone, MBlock(VNone,SNone), GQNone)
+            | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(tau, x),SNone))
+            | _ -> failwith "unexpected"
 
-    let rec to_declarations vars =
-        match vars with 
-        | [] -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
-        | ((t,l), var) :: vs ->
-            if List.contains var data then
-                let p = P(DBlock(Declr(t, var)), TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
-                join_stan_p p (to_declarations vs)
-            else if List.contains var modelled && l = Model then
-                let p = P(DNone, TDNone, PBlock(Declr(t, var)), TPNone, MBlock(VNone,SNone), GQNone)
-                join_stan_p p (to_declarations vs)
-            else if List.contains var modelled && l = Data then
-                let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
-                join_stan_p p (to_declarations vs)
-            else match l with
-                 | Data ->     let p = P(DNone, TDBlock(Declr(t, var), SNone), PNone, TPNone, MBlock(VNone,SNone), GQNone)
-                               join_stan_p p (to_declarations vs)
-                 | Model ->    let p = P(DNone, TDNone, PNone, TPBlock(Declr(t, var), SNone), MBlock(VNone,SNone), GQNone)
-                               join_stan_p p (to_declarations vs)
-                 | GenQuant -> let p = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(t,var), SNone))
-                               join_stan_p p (to_declarations vs)
-                 | _ -> failwith "unexpected in translate init: to_declarations"
+        List.fold (fun p d -> join_stan_p p (allocate_declaration d)) emptyStanProg gamma
 
     let rec _translate (S:S) : Prog =        
         match S with     
-        | NewStanSyntax.Block _ -> failwith "unexpected"
-            // let p = to_declarations [var]
-            // let enew = Set.add var env
-            // join_stan_p p (_translate statements enew)
-            
-        | NewStanSyntax.VCall _ ->  failwith "unexpected"
-
         | NewStanSyntax.Sample(x,D) -> 
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
 
         | NewStanSyntax.Assign(lhs,E) -> 
-            let t, lr = get_type env_list (LValueBaseName lhs) 
+            let t, lr = get_type gamma (LValueBaseName lhs) 
             match lr with 
             | Data     -> P(DNone, TDBlock(VNone, Let(lhs,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
             | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(lhs,E)), MBlock(VNone,SNone), GQNone)
             | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(lhs,E)))
             | _ -> failwith "unexpected error!"
         
-
         | NewStanSyntax.Seq(S1,S2) -> 
             let p1 = _translate S1  
             let p2 = _translate S2  
             join_stan_p p1 p2
 
         | Skip        -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
-        | DataDecl(_,_,s) -> _translate s 
 
-    let p = to_declarations (Set.toList C)
+        | DataDecl(_,_,s) -> _translate s  // FIXME: make that case fail too
+        | NewStanSyntax.Block _ -> failwith "unexpected"            
+        | NewStanSyntax.VCall _ ->  failwith "unexpected"
+
+    let p = translate_Gamma gamma
     join_stan_p p (_translate S)

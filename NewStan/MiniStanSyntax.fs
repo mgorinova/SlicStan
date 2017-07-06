@@ -31,6 +31,8 @@ type TParams = TPBlock of VarDecls * Statements | TPNone
 type Model = MBlock of VarDecls * Statements
 type GenQuant = GQBlock of VarDecls * Statements | GQNone
 
+type Block = VarDecls * Statements 
+
 type Prog = P of Data * TData * Params * TParams * Model * GenQuant
 
 
