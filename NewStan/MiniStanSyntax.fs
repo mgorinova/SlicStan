@@ -3,8 +3,8 @@
 open NewStanSyntax
 
 type Ide = NewStanSyntax.Ide 
-//type T = NewStanSyntax.T
-//type ArrEl = NewStanSyntax.ArrEl
+//type T = NewStan.T
+//type ArrEl = NewStan.ArrEl
 type Exp = NewStanSyntax.Exp 
 type Dist = NewStanSyntax.Dist 
 

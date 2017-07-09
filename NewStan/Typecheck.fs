@@ -7,20 +7,8 @@ type Dict = Map<Ide,Type>
 type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
-let Buildins_basic: Map<string, TypePrim list * TypePrim> = 
-    Map.ofList ["normal", ([Real; Real], (Real)); // normal(mu, sigma)
-                "gamma", ([Real; Real], (Real)); // gamma(alpha, beta)
-                "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
-                "student_t", ([Real; Real; Real], (Real)); //student_t(nu, mu, sigma)
-                "cauchy", ([Real; Real], (Real)); // cauchy(mu, sigma)
-                "+", ([Real; Real], (Real));
-                "*", ([Real; Real], (Real));
-                "exp", ([Real], Real);
-                "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
-                ]
-
 // give Model level, say, to all build-ins
-let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) Buildins_basic
+let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) NewStanSyntax.Primitives
 
 let arr_size (tau: TypePrim) : int = 
     match tau with 

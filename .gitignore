@@ -9,3 +9,7 @@
 *.pdb
 /NewStan/obj/Debug/NewStan.fsproj.FileListAbsolute.txt
 *.suo
+/NewStan/NewStanSyntaxLexer.fs
+/NewStan/NewStanSyntaxParser.fs
+/NewStan/NewStanSyntaxParser.fsi
+*.txt

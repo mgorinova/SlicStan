@@ -37,6 +37,21 @@ type FunDef = FunE of FunIde * Arg list * S * Exp
             | FunD of FunIde * Arg list * S * Dist
             | FunV of FunIde * Arg list * S * unit
 
+
+let Primitives: Map<string, TypePrim list * TypePrim> = 
+    Map.ofList ["normal", ([Real; Real], (Real)); // normal(mu, sigma)
+                "gamma", ([Real; Real], (Real)); // gamma(alpha, beta)
+                "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
+                "student_t", ([Real; Real; Real], (Real)); //student_t(nu, mu, sigma)
+                "cauchy", ([Real; Real], (Real)); // cauchy(mu, sigma)
+                "+", ([Real; Real], (Real));
+                "*", ([Real; Real], (Real));
+                "exp", ([Real], Real);
+                "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
+                ]
+
+
+
 let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     match l1, l2 with
     | LogProb, _ -> true
@@ -111,7 +126,11 @@ let rec LValue_pretty (x:LValue) =
 let rec S_pretty ident S =
   match S with
   | DataDecl(t, x, s) -> sprintf "%sdata %s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
-  | Block(env, S) -> sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
+  | Block(env, S) -> //
+    let (p, l), n = env
+
+    sprintf "%s%s(%A) %s;\n%s" ident (TPrim_pretty p) l n (S_pretty ident  S)
+    //sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
@@ -123,8 +142,8 @@ let rec S_pretty ident S =
 let rec List_pretty lst =
     match lst with
     | [] -> ""
-    | [((p, _), n)] -> sprintf "%s %s" (TPrim_pretty p) n 
-    | ((p, _), n)::ls -> sprintf "%s %s, %s" (TPrim_pretty p) n (List_pretty ls)
+    | [((p, l), n)] -> sprintf "%s(%A) %s" (TPrim_pretty p) l n 
+    | ((p, l), n)::ls -> sprintf "%s(%A) %s, %s" (TPrim_pretty p) l n (List_pretty ls)
 
 let rec DefList_pretty defs =
     match defs with
@@ -168,5 +187,18 @@ let BaseTypeLevel (tau: TypeLevel) =
     | Model -> true
     | GenQuant -> true
     | _ -> false
+
+
+let typeLevelNames = Seq.initInfinite (fun index ->
+        "l" + (string index))
+
+let mutable cur = 0
+
+let next() =
+    let ret = Seq.nth cur typeLevelNames
+    cur <- cur + 1
+    ret
+
+
 
 

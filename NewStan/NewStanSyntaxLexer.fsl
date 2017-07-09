@@ -1,0 +1,68 @@
+{   
+module Lexer
+
+open Microsoft.FSharp.Text.Lexing
+open System   
+open Parser   
+  
+let keywords =   
+    [   
+        "def", DEF;   
+        "real", REALTYPE;
+        "int",  INTTYPE;
+        "data", DATA;
+        "return",  RET;
+    ] |> Map.ofList   
+  
+let ops =   
+    [   
+        "=", EQ;   
+        "~", SIM;    
+        "+", PLUS;
+        "*", MULT;
+    ] |> Map.ofList  
+
+let lexeme = LexBuffer.LexemeString
+
+let newline (lexbuf: LexBuffer<_>) = 
+    lexbuf.StartPos <- lexbuf.StartPos.NextLine
+}   
+  
+let char = ['a'-'z' 'A'-'Z']   
+let int = ['-' '+']? ['0'-'9']+
+let digit = ['0'-'9']
+let frac = '.' digit*
+let exp = ['e' 'E'] ['-' '+']? digit+
+let float = '-'? digit* frac? exp?
+
+let identifier  = char(char|digit|['-' '_' '.'])*   
+let operator    = "~" | "=" | "+" | "*"
+
+let whitespace = [' ' '\t']+
+let newline = '\r' | '\n' | "\r\n"
+  
+rule read = 
+	parse   
+	| whitespace    { read lexbuf }
+    | newline  { newline lexbuf; read lexbuf }
+    | int      { INT (int (lexeme lexbuf)) }
+    | float    { REAL (float (lexeme lexbuf)) }
+	| operator      { ops.[lexeme lexbuf] }
+	| identifier    { match keywords.TryFind(lexeme lexbuf) with   
+                      | Some(token) -> token   
+                      | None -> IDE(string (lexeme lexbuf)) }  
+	| "def"         { DEF }
+	| "return"         { RET }
+	| "data"		{ DATA }
+	| "real"        { REALTYPE }
+	| "int"         { INTTYPE }
+	| '{'			{ LBRACE } 
+	| '}'			{ RBRACE } 
+	| '('			{ LEFT } 
+	| ')'			{ RIGHT } 
+	| '['			{ ALEFT } 
+	| ']'			{ ARIGHT } 
+	| ','           { COMMA }
+	| ';'			{ SEMICOLON }
+	| eof           { EOF }
+	| _ { raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) }

@@ -2,7 +2,7 @@
 
 #if INTERACTIVE
 #I __SOURCE_DIRECTORY__
-#r "bin\Debug\NewStan.exe"
+#r "bin\Debug\NewStanSyntax.exe"
 #endif
 
 open NewStanSyntax

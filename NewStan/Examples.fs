@@ -1,155 +1,144 @@
 ﻿module Examples
 
-open NewStanSyntax
-
-let ex_simple: NewStanProg = [], DataDecl(Real, "alpha", 
-                                          BlockOfList ([ ((Real, LevelVar("a")), "a"); 
-                                                         ((Real, LevelVar("b")), "b"); 
-                                                         ((Real, LevelVar("beta")), "beta");],
-                                                       SofList [ Assign(I("a"), Var("alpha")); 
-                                                                 Assign(I("b"), Const(0.5));
-                                                                 Sample("beta",Dist("normal",[Var"a";Var"b"]));]))
-
-let ex_arrays: NewStanProg = [], (BlockOfList( [((Array(Real, 3), LevelVar("x")), "x"); ((Real, LevelVar("y")), "y")], 
-                                               SofList [Assign(I("x"), Arr [Const(0.0); Const(2.0); Const(1.5)]);
-                                                        Assign(I("y"), ArrElExp(Var("x"), Const(2.0)))]))
-
-/////////////////////////////////////////////
-
-let multinormal = BlockOfList( [((Array(Real,2), LevelVar("xr")), "xr"); ((Array(Array(Real, 2), 2), LevelVar("L")), "L"); 
-                                ((Array(Real,2), LevelVar("x")), "x")], SofList[
-                                  Assign(I("L"), Prim("cholesky_decompose", [Var("Sigma")]))
-                                  Sample("xr", Dist("normal", [Arr [Const(0.0); Const(0.0)]; Const(1.0)]));
-                                  Assign(I("x"), Plus(Mul(Var "L", Var "xr"), Var "mu"))])
-
-let defs_multinormal = [FunE("MyMultiNormal", [((Array(Real,2), LevelVar("mu")), "mu"); 
-                                               ((Array(Array(Real, 2), 2), LevelVar("Sigma")), "Sigma")], multinormal, Var("x"))]
-
-let mu = Arr [Const(2.0); Const(3.4)]
-let Sigma = Arr [(Arr [Const(0.3); Const(0.1)]);(Arr [Const(0.1); Const(2.0)])]
-
-let main_multinormal = BlockOfList( [((Array(Real,2), LevelVar("x")), "x")], Assign(I("x"), ECall("MyMultiNormal", [mu; Sigma])))
-
-let ex_multinormal:NewStanProg = defs_multinormal, main_multinormal
-                                          
-// Example 2: from the Stan manual
-(*  
-    alpha = 0.1; 
-    beta = 0.1; 
-    tau_y ~ gamma(alpha,beta); 
-    sigma_y = pow(tau_y,-0.5); 
-    mu_y ~ normal(0,1); 
-    y1 ~ normal(mu_y,sigma_y); 
-    variance_y = *(sigma_y,sigma_y);
-*)
-
-let ex_simple_normal: NewStanProg = [], BlockOfList( [((Real, LevelVar("y")), "y"); ((Real, LevelVar("x")), "x");], 
-                                                        SofList ([Sample("y", Dist("normal", [Var("x"); Const 2.0])); 
-                                                                  Assign(I("x"), Var("y"));
-                                                                  //Assign(I("y"), Var("x"))
-                                                                  ]))
+// Simple
+let simple = "
+data real alpha;
+real a;
+real b;
+real beta;
+a = alpha; 
+b = 0.5; 
+beta ~ normal(a, b);"
 
 
-let S_mynormal = BlockOfList( [((Real, LevelVar("MyNormal_xr")), "xr"); ((Real, LevelVar("MyNormal_x")), "x")], SofList[
-                               Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
-                               Assign(I("x"), Plus(Mul(Var "v", Var "xr"), Var "m"))])
-let S_main = BlockOfList( [((Real, LevelVar("y")), "y")], Assign(I("y"), ECall("MyNormal", [Const 5.0; Const 2.0])))
-let ex_mynormal: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("MyNormal_m")), "m"); 
-                                                  ((Real, LevelVar("MyNormal_v")), "v")], S_mynormal, Var("x"))], S_main
-
-/////////////////////////////////////////////
-
-let S_main_nf = BlockOfList( [((Real, LevelVar("y")), "y"); ((Real, LevelVar("z")), "z")], 
-                             Seq(Assign(I("y"), ECall("MyNormal", [Const 0.0; Const 3.0])), 
-                                 Assign(I("z"), ECall("MyNormal", [Const 0.0; Prim("exp",[Mul(Var "y", Const 0.5)])]))))
-let ex_neals_funnel: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("m")), "m"); ((Real, LevelVar("v")), "v")], S_mynormal, Var("x"))], S_main_nf
+//Simple Normal
+let simple_normal = "
+real y;
+real x;
+y ~ normal(x, 2); 
+x = y;"
 
 
-/////////////////////////////////////////////
+// My Normal
+let mynormal = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
 
-let S_main_nf_data = BlockOfList( [((Real, LevelVar("y")), "y"); ((Real, LevelVar("z")), "z")], 
-                                  SofList [Assign(I("y"), ECall("MyNormal", [Const 0.0; Const 3.0])); 
-                                           Assign(I("z"), ECall("MyNormal", [Const 0.0; Prim("exp",[Mul(Var "y", Const 0.5)])]));
-                                           DataDecl(Real, "d", Sample("d", Dist("normal", [Var "y"; Const 1.0] )))] )
-let ex_neals_funnel_data: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("m")), "m"); ((Real, LevelVar("v")), "v")], S_mynormal, Var("x"))], S_main_nf_data
-
-
-/////////////////////////////////////////////
-
-let S_mynormal_clash = BlockOfList( [((Real, LevelVar("MyNormal_xr")), "xr"); ((Real, LevelVar("MyNormal_x")), "x")], SofList[
-                                     Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
-                                     Assign(I("x"), Plus(Mul(Var "v", Var "xr"), Var "m"))])
-let S_main_clash = BlockOfList( [((Real, LevelVar("x")), "x")], Assign(I("x"), ECall("MyNormal", [Const 5.0; Const 2.0])))
-let ex_mynormal_clash: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("MyNormal_m")), "m"); 
-                                                        ((Real, LevelVar("MyNormal_v")), "v")], S_mynormal_clash, Var("x"))], S_main_clash
-
-/////////////////////////////////////////////
-
-let S_mynormal_clash2 = BlockOfList( [((Real, LevelVar("MyNormal_xr")), "xr"); ((Real, LevelVar("MyNormal_x")), "x")], SofList[
-                                      Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
-                                      Assign(I("x"), Plus(Mul(Var "v", Var "xr"), Var "m"))])
-let S_main_clash2 = BlockOfList( [((Real, LevelVar("x")), "x"); ((Real, LevelVar("mu")), "mu")], 
-                                 SofList([Sample("mu", Dist("normal", [Const(0.0); Const(1.0)])); 
-                                          Assign(I("x"), ECall("MyNormal", [Plus(Var("mu"), Const 5.0); Const 2.0]))]) )
-let ex_mynormal_clash2: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("MyNormal_m")), "m"); 
-                                                         ((Real, LevelVar("MyNormal_v")), "v")], S_mynormal_clash2, Var("x"))], S_main_clash2
+real y;
+y = MyNormal(5, 2);"
 
 
-/////////////////////////////////////////////
+// Neals Funnel
+let neals_funnel = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
 
-let S_mynormal_clash3 = BlockOfList( [((Real, LevelVar("MyNormal_xr")), "xr"); ((Real, LevelVar("MyNormal_x")), "x")], SofList[
-                                      Sample("xr", Dist("normal", [Const(0.0); Const(1.0)]));
-                                      Assign(I("x"), Plus(Mul(Var "v", Var "xr"), Var "m"))])
-let S_main_clash3 = BlockOfList( [((Real, LevelVar("x")), "x"); ((Real, LevelVar("mu")), "mu"); ((Real, LevelVar("y")), "y")], 
-                                 SofList([Sample("mu", Dist("normal", [Const(0.0); Const(1.0)])); 
-                                          Assign(I("x"), ECall("MyNormal", [Plus(Var("mu"), Const 5.0); Const 2.0]));
-                                          Sample("y", Dist("normal", [ECall("MyNormal", [Var("x"); Const 2.0]); Const(1.0)]));]) )
-let ex_mynormal_clash3: NewStanProg = [FunE("MyNormal", [((Real, LevelVar("MyNormal_m")), "m"); 
-                                                         ((Real, LevelVar("MyNormal_v")), "v")], S_mynormal_clash3, Var("x"))], S_main_clash3
-
-/////////////////////////////////////////////
-
-let S_linear =   BlockOfList( [((Real, LevelVar("alpha")), "alpha"); ((Real, LevelVar("beta")), "beta"); ((Real, LevelVar("e")), "e")],
-                        SofList[ Sample("alpha", Dist("normal", [Const(0.0); Const(1.0)])); 
-                                 Sample("beta", Dist("normal", [Const(0.0); Const(1.0)])); 
-                                 Sample("e", Dist("normal", [Const(0.0); Const(1.0)])); 
-                                 Sample("y", Dist("normal", [(Plus(Mul(Var("alpha"), Var("x")), Var("beta"))); Var("e")]))])
+real y;
+real z;
+y = MyNormal(0, 3); 
+z = MyNormal(0, exp(y * 0.5));"
 
 
-let fundefs_linear = FunV("LR", [((Real, LevelVar("x")), "x"); ((Real, LevelVar("y")), "y")], S_linear, ())
-let main_linear = DataDecl(Real, "input_x", DataDecl(Real, "input_y", VCall("LR", [Var("input_x"); Var("input_y")])))
+// Neals Funnel with Data
+let neals_funnel_with_data = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
 
-// block : (Type * Ide) list * S list -> S
+real y;
+real z;
+y = MyNormal(0, 3); 
+z = MyNormal(0, exp(y * 0.5)); 
+data real d;
+d ~ normal(y, 1);"
 
-let ex_linear_funcs = [fundefs_linear], main_linear
 
-/////////////////////////////////////////////
+// Linear Regression
+let linear = "
+def lr(real x, real y){
+  real alpha;
+  real beta;
+  real e;
+  alpha ~ normal(0, 1); 
+  beta ~ normal(0, 1); 
+  e ~ normal(0, 1); 
+  y ~ normal(alpha * x + beta, e);
+}
 
-(******************** Stan Eaxmples *********************)
+data real input_x;
+data real input_y;
+lr(input_x, input_y);"
 
 
-let Declr = MiniStanSyntax.Declr
-let Let = MiniStanSyntax.Let
-let VSeq = MiniStanSyntax.VSeq
-let SSeq = MiniStanSyntax.SSeq
-let Sample = MiniStanSyntax.Sample
-let P = MiniStanSyntax.P
-let DBlock = MiniStanSyntax.DBlock
-let TDBlock = MiniStanSyntax.TDBlock
-let PBlock = MiniStanSyntax.PBlock
-let TPBlock = MiniStanSyntax.TPBlock
-let MBlock = MiniStanSyntax.MBlock
-let GQBlock = MiniStanSyntax.GQBlock
-let VNone = MiniStanSyntax.VNone 
+// Naming Clash 1
+let mynormal_clash1 = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
 
-let example2 = P(DBlock(Declr(Real, "y1")), 
-                 TDBlock(VSeq(Declr(Real, "alpha"),
-                              Declr(Real, "beta")), 
-                         SSeq(Let(I("alpha"), Const(0.1)), 
-                              Let(I("beta"), Const(0.1)))), 
-                 PBlock(VSeq(Declr(Real, "tau_y"),Declr(Real, "mu_y"))), 
-                 TPBlock(Declr(Real, "sigma_y"),Let(I("sigma_y"), Prim("pow",[Var("tau_y");Const(-0.5)]))), 
-                 MBlock(VNone, SSeq(SSeq(Sample("tau_y", Dist("gamma",[Var("alpha"); Var("beta")])),
-                                         Sample("mu_y", Dist("normal",[Const(0.0); Const(1.0)]))),
-                                         Sample("y1", Dist("normal",[Var("mu_y"); Var("sigma_y")])))),
-                 GQBlock(Declr(Real, "variance_y"),Let(I("variance_y"), Prim("pow", [Var("sigma_y");Const(2.0)]))))
+real xr;
+xr = MyNormal(5, 2);"
+
+
+// Naming Clash 2
+let mynormal_clash2 = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
+
+real x;
+real mu;
+mu ~ normal(0, 1); 
+x = MyNormal(mu + 5, 2);"
+
+
+// Naming Clash 3
+let mynormal_clash3 = "
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
+
+real x;
+real mu;
+real y;
+mu ~ normal(0, 1); 
+x = MyNormal(mu + 5, 2); 
+y ~ normal(MyNormal(x, 2), 1);"
+
+
+// Arrays Simple
+let arrays = "
+real[3] x;
+real y;
+x = [ 0, 2, 1.5 ]; 
+y = x[2];"//
+
+
+// My Multinormal
+let mymultinormal = "
+def MyMultiNormal(real[2] mu, real[2][2] Sigma){
+  real[2] xr;
+  real[2][2] L;
+  real[2] x;
+  L = cholesky_decompose(Sigma); 
+  xr ~ normal([ 0, 0 ], 1); 
+  x = L * xr + mu;
+  return x;
+}
+
+real[2] x;
+x = MyMultiNormal([ 2, 3.4 ], [ [ 0.3, 0.1 ], [ 0.1, 2 ] ]);"
