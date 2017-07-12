@@ -91,7 +91,10 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
         | ArrElExp(e1, e2) -> 
             let (tau1, ell1), c1 = synth_E signatures gamma e1
-            let tau = match tau1 with Array(t, n) -> t
+            let tau = match tau1 with 
+                      | Array(t, n) -> t
+                      | Vector(n) -> Real
+                      | Matrix(n1, n2) -> Vector(n1)
 
             let (tau2, ell2), c2 = synth_E signatures gamma e2
             assert (tau2 = Real) // FIXME: should be assert tau2 = Int
@@ -138,7 +141,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let rec check_E (signatures: Signatures)  (gamma: Dict) (e: Exp) ((tau,ell): Type) : Constraint list =    
         let (tau', ell'), c = synth_E signatures gamma e
-        assert (tau' = tau)
+        assert (tau == tau')
         (Leq(ell',ell))::c 
 
 
@@ -166,7 +169,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let rec check_D (signatures: Signatures) (gamma: Dict) (d: Dist) ((tau,ell): Type) : Constraint list =
         let (tau', ell'), c = synth_D signatures gamma d
-        assert (tau' = tau) 
+        assert (tau == tau') 
         (Leq(ell',ell))::c
 
     let rec synth_L (signatures: Signatures) (gamma: Dict) (l: LValue): Type*(Constraint list) =
@@ -176,7 +179,10 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             else failwith (sprintf "%s not found in type environment" x)
         | A(l', e') -> 
             let (tau1, ell1), c1 = synth_L signatures gamma l'
-            let tau = match tau1 with Array(t, n) -> t
+            let tau = match tau1 with 
+                      | Array(t, n) -> t
+                      | Vector(n) -> Real
+                      | Matrix(n1, n2) -> Vector(n1)
 
             let (tau2, ell2), c2 = synth_E signatures gamma e'
             assert (tau2 = Int)

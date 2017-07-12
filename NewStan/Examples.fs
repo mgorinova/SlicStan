@@ -142,3 +142,24 @@ def MyMultiNormal(real[2] mu, real[2][2] Sigma){
 
 real[2] x;
 x = MyMultiNormal([ 2, 3.4 ], [ [ 0.3, 0.1 ], [ 0.1, 2 ] ]);"
+
+
+// My Multinormal with Data
+let mymultinormal_data ="
+def MyMultiNormal(real[] mu, real[][] Sigma){
+  real[] xr;
+  real[][] L;
+  L = cholesky_decompose(Sigma); 
+  xr ~ normal(0, 1); 
+  return L * xr + mu;
+}
+
+real[2] x;
+x = MyMultiNormal([ 2, 3.4 ], [ [ 0.3, 0.1 ], [ 0.1, 2 ] ]);"
+
+
+// Vectors and Matrices
+let vectors = "
+vector[3] x;
+matrix a;"
+

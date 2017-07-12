@@ -10,6 +10,7 @@ open NewStanSyntax
 %token <string> FUNIDE   
 
 %token DATA INTTYPE REALTYPE  
+%token VECTOR MATRIX
 %token EQ SIM PLUS MULT
 %token DEF RET 
 %token LBRACE RBRACE
@@ -87,6 +88,11 @@ dist:
 
 tp: 
   | tp ALEFT INT ARIGHT { Array($1, $3) }
+  | tp ALEFT ARIGHT { Array($1, -1) }
+  | VECTOR ALEFT INT ARIGHT {Vector($3)}
+  | MATRIX ALEFT INT COMMA INT ARIGHT {Matrix($3, $5)}
+  | VECTOR   {Vector(-1)}
+  | MATRIX   {Matrix(-1,-1)}
   | REALTYPE { Real }
   | INTTYPE  { Int }
 

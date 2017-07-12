@@ -43,7 +43,7 @@ let rec Type_pretty typeprim =
     match typeprim with 
     | Real -> "real"
     | Int -> "int"
-    | Array(t, n) -> (Type_pretty t) + (sprintf "[%d]" n)
+    | Array(t, n) -> (Type_pretty t) + (if n > -1 then (sprintf "[%d]" n) else "[]")
 
 let rec Decls_pretty decls =
     match decls with 

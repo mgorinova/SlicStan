@@ -10,6 +10,8 @@ let keywords =
         "def", DEF;   
         "real", REALTYPE;
         "int",  INTTYPE;
+        "vector", VECTOR;
+        "matrix", MATRIX;
         "data", DATA;
         "return",  RET;
     ] |> Map.ofList   
@@ -56,6 +58,8 @@ rule read =
 	| "data"		{ DATA }
 	| "real"        { REALTYPE }
 	| "int"         { INTTYPE }
+	| "vector"      { VECTOR }
+	| "matrix"      { MATRIX }
 	| '{'			{ LBRACE } 
 	| '}'			{ RBRACE } 
 	| '('			{ LEFT } 

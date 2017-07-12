@@ -1,8 +1,10 @@
 ﻿module NewStanSyntax
 
 type ArrSize = int 
+let AnySize = -1
+
 type TypeLevel = LevelVar of string | LogProb | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
-type TypePrim = Real | Int | Array of TypePrim * ArrSize | Unit
+type TypePrim = Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
 
 type Type = TypePrim * TypeLevel
 
@@ -18,6 +20,13 @@ type Exp = Var of Ide
          | Mul of Exp * Exp // E1 * E2
          | Prim of string * Exp list // sqrt(E1, E2)
          | ECall of FunIde * Exp list 
+
+// M' = matrix transpose
+// inverse(M) = inverse
+// M1 * M2 = matrix multiplication
+// M1 / M2 = matrix division is provided, which is much more arithmetically stable than inversion
+// M1 .* M2 = elementwise multiplication
+// M1 ./ M2 = elementwise devision
 
 type LValue = I of Ide | A of LValue * Exp
 
@@ -47,7 +56,8 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
                 "exp", ([Real], Real);
-                "cholesky_decompose", ([Array(Array(Real, 2), 2)], Array(Array(Real, 2), 2));
+                "cholesky_decompose", ([Array(Array(Real, AnySize), AnySize)], Array(Array(Real, AnySize), AnySize));
+                "multi_normal", ([Vector(AnySize); Matrix(AnySize, AnySize)], (Vector(AnySize)));
                 ]
 
 
@@ -66,6 +76,17 @@ let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     | GenQuant, Model -> false  
     | _ -> true
 
+let rec (==) (p1: TypePrim) (p2: TypePrim) : bool =
+    match p1, p2 with
+    | Int, Int -> true
+    | Real, Real -> true
+    | Vector(n1), Vector(n2) -> n1 = -1 || n2 = -1 || n1 = n2
+    | Matrix(m1, n1), Matrix(m2, n2) -> (n1 = -1 || n2 = -1 || n1 = n2) && (m1 = -1 || m2 = -1 || m1 = n2)
+    | Array(tp1, n1), Array(tp2, n2) -> (n1 = -1 || n2 = -1 || n1 = n2) && (tp1 == tp2)
+    | Array(tp, _), p -> p = tp
+    | Vector _, p -> p = Real
+    | _ -> false
+
 let name fundef =
     match fundef with 
     | FunE(n, _, _, _) -> n
@@ -80,7 +101,9 @@ let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
     | Int -> "int"
-    | Array(t, n) -> (TPrim_pretty t) + (sprintf "[%d]" n)
+    | Array(t, n) -> (TPrim_pretty t) + (if n > -1 then (sprintf "[%d]" n) else "[]")
+    | Vector(n) -> if n > -1 then (sprintf "vector[%d]" n) else "vector"
+    | Matrix(n1, n2) -> if n1 > -1 && n2 > -1 then (sprintf "matrix[%d, %d]" n1 n2) else "matrix"
     | Unit -> "unit"
 
 let rec TLev_pretty tl =
