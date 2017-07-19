@@ -47,9 +47,7 @@ let expand_and_filter (cs: Constraint list): Constraint list =
                                                    |> List.append s) [] ls
 
         | Leq (Glb ls, l) ->         
-            if List.exists (fun li -> match li with LogProb -> true | _ -> false) ls
-            then [Leq(LogProb, l)]
-            elif List.exists (fun li -> match li with Data -> true | _ -> false) ls
+            if List.exists (fun li -> match li with Data -> true | _ -> false) ls
             then [Leq(Data, l)]
             else failwith "don't know how to deal with this case!"
         | Leq (_, Lub _) -> failwith "don't know how to deal with this case!"
@@ -86,7 +84,6 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
 
     let ground (l:TypeLevel): bool =
         match l with 
-        | LogProb -> true
         | Data -> true
         | Model -> true
         | GenQuant -> true

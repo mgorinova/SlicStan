@@ -1,0 +1,7 @@
+def MyNormal(real m, real v){
+  real xr;
+  xr ~ normal(0, 1); 
+  return v * xr + m;
+}
+
+real x = MyNormal(sqrt(x - x), 1);

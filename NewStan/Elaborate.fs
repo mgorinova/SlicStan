@@ -225,11 +225,31 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
         let f = get_fun x defs
         match f with 
         | FunD(_, args, s, ret) -> 
-            let args', cf, sf, DRet(df) = elaborate_F defs f
-            let body = Seq((assign_all args' Es), sf)
-            let all = Set.union (set args') cf
+            //let args', cf, sf, DRet(df) = elaborate_F defs f
+            //let body = Seq((assign_all args' Es), sf)
+            //let all = Set.union (set args') cf
             
-            failwith "not implemented"
+            let all_es = List.map (elaborate_E defs) Es
+            let ces, ss, es = tripple_Rename_and_Fold all_es
+
+            let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
+            let ces_all = Set.union fvs ces
+
+            let argsf, cf_all, sf, DRet(df) = elaborate_F defs f
+
+            let body, all, df' = 
+                if Set.intersectEmpty ces_all cf_all then
+                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf))
+                    let all = Set.union (ces) cf_all
+                    body, all, df
+                else 
+                    let dict = create_dict ces_all cf_all 
+                    let cf_all', sf', df' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_D dict df)
+                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf'))
+                    let all = Set.union (ces) cf_all'
+                    body, all, df'
+
+            all, body, df'
 
         | FunE(_) -> failwith "function is expected to return a distribution, but returns an expression instead"
         | FunV(_) -> failwith "function is expected to return a distribution, but returns void instead"

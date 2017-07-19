@@ -23,15 +23,15 @@ let parse slicstan =
 [<EntryPoint>]
 let main argv =   
     
-    let ex = parse Examples.mymultinormal_data
+    let ex = parse Examples.mynormal_clash3
     printfn "%A\n\n" ex 
 
     let gamma = Map.empty
     let defs, prog = ex
 
     printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
-
-    let inferred = typecheck_Prog ex
+    //
+    let inferred = typecheck_Prog ex 
         
     let context, elab = Elaborate.elaborate_NewStanProg inferred
 

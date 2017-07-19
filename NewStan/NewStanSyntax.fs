@@ -3,7 +3,7 @@
 type ArrSize = int 
 let AnySize = -1
 
-type TypeLevel = LevelVar of string | LogProb | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
+type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
 type TypePrim = Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
 
 type Type = TypePrim * TypeLevel
@@ -53,8 +53,14 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
                 "student_t", ([Real; Real; Real], (Real)); //student_t(nu, mu, sigma)
                 "cauchy", ([Real; Real], (Real)); // cauchy(mu, sigma)
+                "pareto", ([Real; Real], (Real)); 
+                "beta", ([Real; Real], (Real)); 
+                "-", ([Real; Real], (Real));
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
+                "/", ([Real; Real], (Real));
+                "pow", ([Real; Real], (Real));
+                "sqrt", ([Real], Real);
                 "exp", ([Real], Real);
                 "cholesky_decompose", ([Array(Array(Real, AnySize), AnySize)], Array(Array(Real, AnySize), AnySize));
                 "multi_normal", ([Vector(AnySize); Matrix(AnySize, AnySize)], (Vector(AnySize)));
@@ -64,14 +70,10 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
 
 let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     match l1, l2 with
-    | LogProb, _ -> true
-    | Data, LogProb -> false
     | Data, _ -> true
-    | Model, LogProb -> false
     | Model, Data -> false
     | Model, _ -> true
-    | _, GenQuant -> true
-    | GenQuant, LogProb -> false    
+    | _, GenQuant -> true 
     | GenQuant, Data -> false    
     | GenQuant, Model -> false  
     | _ -> true
@@ -108,7 +110,6 @@ let rec TPrim_pretty tp =
 
 let rec TLev_pretty tl =
     match tl with
-    | LogProb -> "logprob"
     | Data -> "data"
     | Model -> "model"
     | GenQuant -> "quant"
@@ -126,10 +127,12 @@ let rec E_pretty E =
   | Const(d) -> sprintf "%O" d
   | Arr(Es) -> sprintf "[ %s ]" (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
   | ArrElExp(e1, e2) -> sprintf "%s[%s]" (E_pretty e1) (E_pretty e2) 
-  | Plus(e1, e2) -> E_pretty e1 + " + " + E_pretty e2
-  | Mul(e1, e2) -> E_pretty e1 + " * " + E_pretty e2
+  | Plus(e1, e2) -> sprintf "(%s + %s)" (E_pretty e1) (E_pretty e2)
+  | Mul(e1, e2) -> sprintf "%s * %s" (E_pretty e1) (E_pretty e2)
   | Prim(p,[]) -> sprintf "%s()" p
-  | Prim(p,Es) -> sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty Es))
+  | Prim(p,Es) -> 
+    if (p = "-" || p = "/") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
+    else sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty Es))
   | ECall(x,[]) -> sprintf "%s()" x 
   | ECall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
 
@@ -205,7 +208,6 @@ let rec LValueBaseName (lhs: LValue): Ide =
 
 let BaseTypeLevel (tau: TypeLevel) =
     match tau with
-    | LogProb -> true
     | Data -> true
     | Model -> true
     | GenQuant -> true

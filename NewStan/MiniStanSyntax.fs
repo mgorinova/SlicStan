@@ -44,6 +44,10 @@ let rec Type_pretty typeprim =
     | Real -> "real"
     | Int -> "int"
     | Array(t, n) -> (Type_pretty t) + (if n > -1 then (sprintf "[%d]" n) else "[]")
+    | Vector(n) -> (if n > -1 then (sprintf "vector[%d]" n) else "vector")
+    | Matrix(n, m) -> (if n > -1 then 
+                            if m > -1 then (sprintf "matrix[%d,%d]" n m) else (sprintf "matrix[%d,]" n) 
+                       else if m > -1 then (sprintf "matrix[,%d]" m) else "matrix")
 
 let rec Decls_pretty decls =
     match decls with 

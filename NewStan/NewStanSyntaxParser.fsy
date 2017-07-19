@@ -11,7 +11,7 @@ open NewStanSyntax
 
 %token DATA INTTYPE REALTYPE  
 %token VECTOR MATRIX
-%token EQ SIM PLUS MULT
+%token EQ SIM PLUS MULT MINUS DIV
 %token DEF RET 
 %token LBRACE RBRACE
 %token LEFT RIGHT  
@@ -38,8 +38,8 @@ defs:
 deff:
   | IDE LEFT args RIGHT LBRACE statement_seq RET exp SEMICOLON RBRACE { FunE($1, $3, $6, $8) }
   | IDE LEFT RIGHT LBRACE statement_seq RET exp SEMICOLON RBRACE { FunE($1, [], $5, $7) }
-  | IDE LEFT args RIGHT LBRACE statement_seq RET dist SEMICOLON RBRACE { FunD($1, $3, $6, $8) }
-  | IDE LEFT RIGHT LBRACE statement_seq RET dist SEMICOLON RBRACE { FunD($1, [], $5, $7) }
+  | IDE LEFT args RIGHT LBRACE statement_seq RET SIM dist SEMICOLON RBRACE { FunD($1, $3, $6, $9) }
+  | IDE LEFT RIGHT LBRACE statement_seq RET SIM dist SEMICOLON RBRACE { FunD($1, [], $5, $8) }
   | IDE LEFT args RIGHT LBRACE statement_seq RBRACE{ FunV($1, $3, $6, ()) }
   | IDE LEFT RIGHT LBRACE statement_seq RBRACE{ FunV($1, [], $5, ()) }
 
@@ -54,9 +54,14 @@ arg:
 
 statement_seq:
   | DATA tp IDE SEMICOLON statement_seq { DataDecl($2, $3, $5) }
+  | DATA tp IDE SIM dist SEMICOLON statement_seq { DataDecl($2, $3, Seq(Sample($3, $5), $7)) }
   | tp IDE SEMICOLON statement_seq { Block((($1, LevelVar (next())), $2), $4) }
+  | tp IDE EQ exp SEMICOLON statement_seq { Block((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), $6)) }
+  | tp IDE SIM dist SEMICOLON statement_seq { Block((($1, LevelVar (next())), $2), Seq(Sample($2, $4), $6)) }
   | statement_signle SEMICOLON statement_seq { Seq($1, $3) }
   | statement_signle SEMICOLON { $1 }
+  | tp IDE EQ exp SEMICOLON { Block((($1, LevelVar (next())), $2), Assign(I($2), $4)) }
+  | tp IDE SIM dist SEMICOLON { Block((($1, LevelVar (next())), $2), Sample($2, $4)) }
   | EOF { Skip }
 
 statement_signle:
@@ -70,8 +75,11 @@ exp:
   | IDE  { Var($1) }
   | ALEFT exps ARIGHT { Arr($2) }
   | IDE ALEFT exp ARIGHT { ArrElExp(Var $1, $3) }
+  | LEFT exp RIGHT { $2 }
   | exp PLUS exp { Plus($1, $3) }
   | exp MULT exp { Mul($1, $3) }
+  | exp MINUS exp { Prim("-", [$1; $3]) }
+  | exp DIV exp { Prim("/", [$1; $3]) }
   | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Prim($1, $3) else ECall($1, $3) }
 
 exps:

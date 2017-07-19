@@ -26,7 +26,7 @@ let ty x: TypePrim = Real
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
-    List.fold (fun s ell -> if s <= ell then ell else s) LogProb ells
+    List.fold (fun s ell -> if s <= ell then ell else s) Data ells
 
 let rec glb (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -34,7 +34,7 @@ let rec glb (ells: TypeLevel list) =
     | l::[] -> l
     | l::ls ->
         let l' = glb ls 
-        if l = LogProb || l' = LogProb then LogProb
+        if l = Data || l' = Data then Data
         elif BaseTypeLevel l && BaseTypeLevel l' then
             if l <= l' then l else l' 
         else Glb [l; l']
@@ -201,7 +201,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let (tau, ell), ce = synth_E signatures gamma (Var(x))                
             let cd = check_D signatures gamma d (tau, Model)
 
-            LogProb, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
+            Model, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
 
         | DataDecl(tp, x, s') -> 
             let gamma' = Map.add x (tp, Data) gamma
@@ -242,7 +242,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S LogProb
+            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S Data
 
             let ret, ce = synth_E signatures gamma E            
             Map.add name (Ps, Ls, ret) signatures, (List.append cs ce)   
@@ -251,7 +251,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S LogProb
+            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S Data
 
             let ret, cd = synth_D signatures gamma D            
             Map.add name (Ps, Ls, ret) signatures, (List.append cs cd)  
@@ -260,7 +260,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, c = check_S signatures (Map.ofList (List.map flip args)) S LogProb
+            let gamma, c = check_S signatures (Map.ofList (List.map flip args)) S Data
             let _, def_types = Map.toList gamma 
                             |> List.unzip
 
@@ -293,7 +293,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                                             let s', c' = typecheck_Def signatures def
                                             s', List.append cs c') (Buildins, []) defs
     
-    let _, c = check_S signatures (Map.empty) s LogProb  
+    let _, c = check_S signatures (Map.empty) s Data  
 
     let inferred_levels = Constraints.naive_solver (List.append cdefs c)
 
