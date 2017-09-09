@@ -1,7 +1,17 @@
 ﻿module NewStanSyntax
 
-type ArrSize = int 
-let AnySize = -1
+type ArrSize = N of int | SizeVar of string
+let AnySize = N(-1)//
+
+let SizeToString (n: ArrSize) =
+    match n with
+    | N(i) -> sprintf "%d" i
+    | SizeVar(s) -> s
+
+let NotAnySize (n: ArrSize) =
+    match n with
+    | N(-1) -> false
+    | _ -> true
 
 type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
 type TypePrim = Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
@@ -49,21 +59,30 @@ type FunDef = FunE of FunIde * Arg list * S * Exp
 
 let Primitives: Map<string, TypePrim list * TypePrim> = 
     Map.ofList ["normal", ([Real; Real], (Real)); // normal(mu, sigma)
+                "lognormal", ([Real; Real], (Real));
                 "gamma", ([Real; Real], (Real)); // gamma(alpha, beta)
+                "uniform", ([Real; Real], (Real));
                 "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
                 "student_t", ([Real; Real; Real], (Real)); //student_t(nu, mu, sigma)
                 "cauchy", ([Real; Real], (Real)); // cauchy(mu, sigma)
+                "binomial_logit", ([Int; Real], (Int)); 
                 "pareto", ([Real; Real], (Real)); 
                 "beta", ([Real; Real], (Real)); 
+                "poisson", ([Real], (Int)); 
+                "poisson_log", ([Real], (Int)); 
                 "-", ([Real; Real], (Real));
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
                 "/", ([Real; Real], (Real));
+                ".*", ([Real; Real], (Real));
+                "./", ([Real; Real], (Real));
                 "pow", ([Real; Real], (Real));
                 "sqrt", ([Real], Real);
                 "exp", ([Real], Real);
-                "cholesky_decompose", ([Array(Array(Real, AnySize), AnySize)], Array(Array(Real, AnySize), AnySize));
+                "log", ([Real], Real);
+                "cholesky_decompose", ([Matrix(AnySize, AnySize)], Matrix(AnySize, AnySize));
                 "multi_normal", ([Vector(AnySize); Matrix(AnySize, AnySize)], (Vector(AnySize)));
+                "num_elements", ([Vector(AnySize)], Int);
                 ]
 
 
@@ -82,9 +101,9 @@ let rec (==) (p1: TypePrim) (p2: TypePrim) : bool =
     match p1, p2 with
     | Int, Int -> true
     | Real, Real -> true
-    | Vector(n1), Vector(n2) -> n1 = -1 || n2 = -1 || n1 = n2
-    | Matrix(m1, n1), Matrix(m2, n2) -> (n1 = -1 || n2 = -1 || n1 = n2) && (m1 = -1 || m2 = -1 || m1 = n2)
-    | Array(tp1, n1), Array(tp2, n2) -> (n1 = -1 || n2 = -1 || n1 = n2) && (tp1 == tp2)
+    | Vector(n1), Vector(n2) -> n1 = AnySize || n2 = AnySize || n1 = n2
+    | Matrix(m1, n1), Matrix(m2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (m1 = AnySize || m2 = AnySize || m1 = m2)
+    | Array(tp1, n1), Array(tp2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (tp1 == tp2)
     | Array(tp, _), p -> p = tp
     | Vector _, p -> p = Real
     | _ -> false
@@ -103,9 +122,9 @@ let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
     | Int -> "int"
-    | Array(t, n) -> (TPrim_pretty t) + (if n > -1 then (sprintf "[%d]" n) else "[]")
-    | Vector(n) -> if n > -1 then (sprintf "vector[%d]" n) else "vector"
-    | Matrix(n1, n2) -> if n1 > -1 && n2 > -1 then (sprintf "matrix[%d, %d]" n1 n2) else "matrix"
+    | Array(t, n) -> (TPrim_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
+    | Vector(n) -> if n > AnySize then (sprintf "vector[%s]" (SizeToString n)) else "vector"
+    | Matrix(n1, n2) -> if NotAnySize(n1) && NotAnySize(n2) then (sprintf "matrix[%s, %s]" (SizeToString n1) (SizeToString n2)) else "matrix"
     | Unit -> "unit"
 
 let rec TLev_pretty tl =
@@ -131,7 +150,7 @@ let rec E_pretty E =
   | Mul(e1, e2) -> sprintf "%s * %s" (E_pretty e1) (E_pretty e2)
   | Prim(p,[]) -> sprintf "%s()" p
   | Prim(p,Es) -> 
-    if (p = "-" || p = "/") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
+    if (p = "+" || p = "*" || p = "-" || p = "/" || p = ".*" || p = "./") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
     else sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty Es))
   | ECall(x,[]) -> sprintf "%s()" x 
   | ECall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
@@ -155,7 +174,7 @@ let rec S_pretty ident S =
   | Block(env, S) -> //
     let (p, l), n = env
 
-    sprintf "%s%s(%A) %s;\n%s" ident (TPrim_pretty p) l n (S_pretty ident  S)
+    sprintf "%s%s %s;\n%s" ident (TPrim_pretty p) n (S_pretty ident  S)
     //sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
@@ -224,6 +243,7 @@ let next() =
     cur <- cur + 1
     ret
 
+let reset_levels() = cur <- 0 
 
 
 

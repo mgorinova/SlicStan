@@ -1,0 +1,12 @@
+data int N; 
+data vector[N] exposure2; 
+data vector[N] roach1; 
+data vector[N] senior; 
+data vector[N] treatment; 
+
+vector[N] log_expo;
+log_expo = log(exposure2);
+
+vector[4] beta;
+
+data int[N] y ~ poisson_log(log_expo + beta[1] + beta[2] * roach1 + beta[3] * treatment + beta[4] * senior);

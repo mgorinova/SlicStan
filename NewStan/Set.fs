@@ -13,6 +13,13 @@ let contextContains (x:string) (c:Context) : bool =
     let names = Set.map (fun (t,n) -> n) c
     Set.contains x names
 
+let contextItemTypePrim (x:string) (c:Context) : TypePrim =
+    Set.filter (fun (_, n) -> n = x ) c
+    |> Set.toList
+    |> List.head
+    |> fst |> fst     
+
+
 let intersectNames (c1:Context) (c2:Context) : Set<Ide> =
     let c1' = Set.map (fun (t,v) -> v) c1 
     let c2' = Set.map (fun (t,v) -> v) c2 

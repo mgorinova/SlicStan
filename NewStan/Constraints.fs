@@ -7,14 +7,14 @@
 
 open NewStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel | Eq of TypeLevel * TypeLevel
+type Constraint = Leq of TypeLevel * TypeLevel //| Eq of TypeLevel * TypeLevel
 
 let rec constraints_pretty (cs : Constraint list) =
     
     let rec single_pretty c =
         match c with
         | Leq(l1, l2) -> TLev_pretty l1 + " <= " + TLev_pretty l2 
-        | Eq(l1, l2) -> TLev_pretty l1 + " = " + TLev_pretty l2  
+        //| Eq(l1, l2) -> TLev_pretty l1 + " = " + TLev_pretty l2  
     
     match cs with
     | c::cs' -> single_pretty c + "\n" + constraints_pretty cs'
@@ -48,9 +48,16 @@ let expand_and_filter (cs: Constraint list): Constraint list =
 
         | Leq (Glb ls, l) ->         
             if List.exists (fun li -> match li with Data -> true | _ -> false) ls
-            then [Leq(Data, l)]
+            then expand_constraint (Leq(Data, l))
             else failwith "don't know how to deal with this case!"
-        | Leq (_, Lub _) -> failwith "don't know how to deal with this case!"
+        | Leq (l, Lub ls) -> 
+            let filtered = List.filter (fun li -> match li with Data -> false | _ -> true) ls
+            if (List.length filtered) = 1 then
+                expand_constraint (Leq (l, List.head filtered))
+            elif (List.length filtered) = 0 then
+                expand_constraint (Leq (l, Data))
+            else failwith "don't know how to deal with this case!"
+
 
         | _ -> [c]
 
@@ -59,6 +66,9 @@ let expand_and_filter (cs: Constraint list): Constraint list =
 
 
 let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
+    
+    let filltered = expand_and_filter cs
+    //printfn "Constraints:\n%s\n" (constraints_pretty filltered)
 
     let init_dict_forwards() =
         let folder (s: (Ide*TypeLevel) list) (c:Constraint) =
@@ -68,7 +78,7 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
             | Leq(_, LevelVar(x)) -> (x, Data)::s 
             | _ -> s
 
-        List.fold (fun s c -> folder s c) [] cs    
+        List.fold (fun s c -> folder s c) [] filltered    
         |> Map.ofList 
 
     let init_dict_backwards() =
@@ -79,7 +89,7 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
             | Leq(_, LevelVar(x)) -> (x, GenQuant)::s 
             | _ -> s
 
-        List.fold (fun s c -> folder s c) [] cs    
+        List.fold (fun s c -> folder s c) [] filltered    
         |> Map.ofList   
 
     let ground (l:TypeLevel): bool =
@@ -112,8 +122,10 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
             | Leq(LevelVar(x), ell) ->
                 let l = if ground ell then ell else match ell with LevelVar(y) -> d.Item(y)
                 let l' = d.Item(x)
-                assert (l' <= l) 
-                single_pass_forwards ctail d
+                assert (l' <= l)
+                single_pass_forwards ctail d 
+                //if (l' <= l) then single_pass_forwards ctail d 
+                //else single_pass_forwards ctail (Map.add x l d) // FIXME: not sure that will work!
 
 
     let rec multi_pass_forwards (cs: Constraint list) (d: Map<Ide, TypeLevel>) (n:int) =
@@ -135,9 +147,11 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
 
             | Leq(ell, LevelVar(x)) ->
                 let l = if ground ell then ell else match ell with LevelVar(y) -> d.Item(y)
-                let l' = d.Item(x)
-                assert (l <= l') 
+                let l' = d.Item(x)                
+                assert(l <= l') 
                 single_pass_backwards ctail d 
+                //if (l <= l') then single_pass_backwards ctail d 
+                //else single_pass_backwards ctail (Map.add x l d) // FIXME: not sure that will work!
 
 
     let rec multi_pass_backwards (cs: Constraint list) (d: Map<Ide, TypeLevel>) (n:int) =
@@ -148,8 +162,6 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
 
 
     //printfn "%s" (constraints_pretty cs)
-    let filltered = expand_and_filter cs
-    printfn "Constraints:\n%s\n" (constraints_pretty filltered)
 
 
     let dict_forwards = init_dict_forwards()

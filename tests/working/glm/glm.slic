@@ -1,0 +1,28 @@
+
+int n;       			
+int C[n];    			
+vector[n] year;      
+
+vector[n] year_squared;
+vector[n] year_cubed;
+
+year_squared = year .* year;
+year_cubed = year .* year .* year;
+
+
+real alpha ~ uniform(-20, 20);
+real beta1 ~ uniform(-10, 10);
+real beta2 ~ uniform(-10, 10);
+real beta3 ~ uniform(-10, 10);
+
+vector[n] log_lambda;
+
+log_lambda = alpha + beta1 * year + beta2 * year_squared + beta3 * year_cubed;
+
+C ~ poisson_log(log_lambda);
+
+
+
+vector[n] lambda = exp(log_lambda);
+
+

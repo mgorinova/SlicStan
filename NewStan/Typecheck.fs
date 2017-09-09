@@ -10,10 +10,6 @@ type Signatures = Map<string, FunSignature>
 // give Model level, say, to all build-ins
 let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) NewStanSyntax.Primitives
 
-let arr_size (tau: TypePrim) : int = 
-    match tau with 
-    | Array(tauel, n) -> n
-    | _ -> 0   
 
 let join (p:Map<'a,'b>) (q:Map<'a,'b>) = 
     Map(Seq.concat [ (Map.toSeq p) ; (Map.toSeq q) ])
@@ -22,7 +18,9 @@ let flip (a,b) = (b,a)
 
 let emptyGamma = Map.empty
 
-let ty x: TypePrim = Real
+let ty x: TypePrim = 
+    // FIXME: implement this properly
+    Real
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -49,11 +47,11 @@ let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim li
                             match t' with
                             | Array(t'', n) -> if t = t'' then n else s
                             | _ -> s 
-                        ) 0 zipped
+                        ) (N 0) zipped
 
     assert true // TODO: write out correct assertion
 
-    if k = 0 then ret
+    if k = N 0 then ret
     else Array(ret, k)
 
 
@@ -87,7 +85,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             // FIXME: What do we do with an empty array?
             assert ( List.length Ps > 0 && List.forall (fun p -> p = List.head Ps) Ps )
         
-            (Array(List.head Ps, List.length Ps), Lub(Ls)), c
+            (Array(List.head Ps, N (List.length Ps)), Lub(Ls)), c
 
         | ArrElExp(e1, e2) -> 
             let (tau1, ell1), c1 = synth_E signatures gamma e1
@@ -185,7 +183,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                       | Matrix(n1, n2) -> Vector(n1)
 
             let (tau2, ell2), c2 = synth_E signatures gamma e'
-            assert (tau2 = Int)
+            assert (tau2 = Real) // FIXME: change that assumption to an Int, when you figure types out
 
             (tau, Lub ([ell1; ell2])), (List.append c1 c2)
 
@@ -242,35 +240,40 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S Data
+            let argsgamma = (Map.ofList (List.map flip args))
+            let ell, gamma, cs = synth_S signatures argsgamma S //Data
 
-            let ret, ce = synth_E signatures gamma E            
+            let ret, ce = synth_E signatures (join argsgamma gamma) E            
             Map.add name (Ps, Ls, ret) signatures, (List.append cs ce)   
 
         | FunD (name, args, S, D) -> 
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, cs = check_S signatures (Map.ofList (List.map flip args)) S Data
+            let argsgamma = (Map.ofList (List.map flip args))
+            let _, gamma, cs = synth_S signatures argsgamma S // Data
 
-            let ret, cd = synth_D signatures gamma D            
+            let ret, cd = synth_D signatures (join argsgamma gamma) D            
             Map.add name (Ps, Ls, ret) signatures, (List.append cs cd)  
 
         | FunV (name, args, S, _) -> 
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let gamma, c = check_S signatures (Map.ofList (List.map flip args)) S Data
+            let argsgamma = (Map.ofList (List.map flip args))
+            let ell, gamma, c = synth_S signatures argsgamma S // Data
             let _, def_types = Map.toList gamma 
                             |> List.unzip
 
-            Map.add name (Ps, Ls, (Unit, Model)) signatures, c
+            Map.add name (Ps, Ls, (Unit, ell)) signatures, c
 
     let rename_NewStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
         
         let rename_arg (((t,l), x):Arg) =
              match l with
-             | LevelVar(ln) -> (t, dict.Item(ln)), x
+             | LevelVar(ln) -> 
+                if dict.ContainsKey(ln) then (t, dict.Item(ln)), x
+                else (t, GenQuant), x //FIXME: is that a correct assumption?
              | _ -> ((t,l), x)
 
         let rec rename_S s =
@@ -297,7 +300,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let inferred_levels = Constraints.naive_solver (List.append cdefs c)
 
-    printfn "Inferred type levels:  %A\n" (inferred_levels)
+    //printfn "Inferred type levels:  %A\n" (inferred_levels)
 
     rename_NewStanProg inferred_levels (defs, s)
 

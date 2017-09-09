@@ -24,6 +24,8 @@ let ops =
         "*", MULT;
         "-", MINUS;
         "/", DIV; 
+        ".*", ELMULT;
+        "./", ELDIV
     ] |> Map.ofList  
 
 let lexeme = LexBuffer.LexemeString
@@ -39,7 +41,7 @@ let frac = '.' digit*
 let float =  digit* frac? 
 
 let identifier  = char(char|digit|['-' '_' '.'])*   
-let operator    = "~" | "=" | "+" | "*" | "-" | "/" 
+let operator    = "~" | "=" | "+" | "*" | "-" | "/" | ".*" | "./"
 
 let whitespace = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"

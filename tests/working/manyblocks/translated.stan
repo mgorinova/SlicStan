@@ -1,7 +1,7 @@
 data {
         real mu_mu;
         real sigma_mu;
-        real[10] y;
+        real y[N];
 }
 transformed data {
         real alpha;

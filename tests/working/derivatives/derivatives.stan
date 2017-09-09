@@ -1,6 +1,8 @@
 parameters {
    real x;
+   real y;
 }
 model {
-   x ~ normal(sqrt(x - x), 1);
+   y ~ normal(0, 1);
+   x ~ normal(sqrt(y - y), 1);
 }

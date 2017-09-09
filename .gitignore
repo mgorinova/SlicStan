@@ -13,3 +13,14 @@
 /NewStan/NewStanSyntaxParser.fs
 /NewStan/NewStanSyntaxParser.fsi
 *.txt
+/NewStan/bin/Debug/results/pickles/ECalls
+/NewStan/bin/Debug/results/pickles/NoEcalls
+/NewStan/bin/Debug/100.pkl
+/NewStan/bin/Debug/runexperiments.py
+/NewStan/bin/Debug/plotresults.py
+/NewStan/bin/Debug/NoEcalls_nolog.pdf
+/NewStan/bin/Debug/NoEcalls.pdf
+/NewStan/bin/Debug/neals.slic
+/NewStan/bin/Debug/Ecalls.pdf
+/NewStan/bin/Debug/anal_results.py
+/NewStan/bin/Release/neals.slic

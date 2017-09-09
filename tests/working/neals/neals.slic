@@ -1,8 +1,6 @@
 def MyNormal(real m, real v){
-  real xr;
-  xr ~ normal(0, 1); 
+  real xr ~ normal(0, 1); 
   return v * xr + m;
 }
-
 real y = MyNormal(0, 3); 
-real z = MyNormal(0, exp(y * 0.5));
+real x = MyNormal(0, exp(y * 0.5));

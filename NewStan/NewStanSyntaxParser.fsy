@@ -11,12 +11,18 @@ open NewStanSyntax
 
 %token DATA INTTYPE REALTYPE  
 %token VECTOR MATRIX
-%token EQ SIM PLUS MULT MINUS DIV
+%token EQ SIM PLUS MINUS MULT DIV
+%token ELMULT ELDIV
 %token DEF RET 
 %token LBRACE RBRACE
 %token LEFT RIGHT  
 %token ALEFT ARIGHT  
 %token COMMA SEMICOLON
+%left PLUS 
+%left MINUS
+%left MULT 
+%left DIV
+%left NEG
 %token EOF 
 %type <NewStanSyntax.NewStanProg> start   
   
@@ -76,10 +82,13 @@ exp:
   | ALEFT exps ARIGHT { Arr($2) }
   | IDE ALEFT exp ARIGHT { ArrElExp(Var $1, $3) }
   | LEFT exp RIGHT { $2 }
-  | exp PLUS exp { Plus($1, $3) }
-  | exp MULT exp { Mul($1, $3) }
+  | exp ELMULT exp { Prim(".*", [$1; $3])  }
+  | exp ELDIV exp { Prim("./", [$1; $3])  }
+  | exp MULT exp { Mul($1, $3) }  
+  | exp PLUS exp { Plus($1, $3) }  
   | exp MINUS exp { Prim("-", [$1; $3]) }
   | exp DIV exp { Prim("/", [$1; $3]) }
+  //| MINUS REAL %prec NEG { Const(-$2) }
   | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Prim($1, $3) else ECall($1, $3) }
 
 exps:
@@ -95,12 +104,15 @@ dist:
   | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Dist($1, $3) else DCall($1, $3) }
 
 tp: 
-  | tp ALEFT INT ARIGHT { Array($1, $3) }
-  | tp ALEFT ARIGHT { Array($1, -1) }
-  | VECTOR ALEFT INT ARIGHT {Vector($3)}
-  | MATRIX ALEFT INT COMMA INT ARIGHT {Matrix($3, $5)}
-  | VECTOR   {Vector(-1)}
-  | MATRIX   {Matrix(-1,-1)}
+  | tp ALEFT IDE ARIGHT {Array($1, SizeVar($3)) }
+  | tp ALEFT INT ARIGHT { Array($1, N($3)) }
+  | tp ALEFT ARIGHT { Array($1, N(-1)) }
+  | VECTOR ALEFT IDE ARIGHT {Vector(SizeVar($3)) }
+  | VECTOR ALEFT INT ARIGHT {Vector(N($3))}
+  | MATRIX ALEFT IDE COMMA IDE ARIGHT {Matrix(SizeVar($3), SizeVar($5))}
+  | MATRIX ALEFT INT COMMA INT ARIGHT {Matrix(N($3), N($5))}
+  | VECTOR   { Vector(N(-1)) }
+  | MATRIX   { Matrix(N(-1), N(-1)) }
   | REALTYPE { Real }
   | INTTYPE  { Int }
 

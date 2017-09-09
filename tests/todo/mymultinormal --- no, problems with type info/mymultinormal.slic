@@ -1,0 +1,13 @@
+def MyMultiNormal(vector mu, matrix Sigma)
+{
+	matrix L = cholesky_decompose(Sigma);
+	vector alpha ~ normal(0, 1);
+	return mu + L * alpha;
+	
+}
+
+data int K;
+data vector[K] mu;
+data matrix[K, K] Sigma;
+
+vector[K] beta = MyMultiNormal(mu, Sigma)

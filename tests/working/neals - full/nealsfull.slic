@@ -1,0 +1,15 @@
+def MyNormal(real m, real v){
+  real xr ~ normal(0, 1); 
+  return v * xr + m;
+}
+real y = MyNormal(0, 3); 
+vector[9] x;
+x[1] = MyNormal(0, exp(y * 0.5));
+x[2] = MyNormal(0, exp(y * 0.5));
+x[3] = MyNormal(0, exp(y * 0.5));
+x[4] = MyNormal(0, exp(y * 0.5));
+x[5] = MyNormal(0, exp(y * 0.5));
+x[6] = MyNormal(0, exp(y * 0.5));
+x[7] = MyNormal(0, exp(y * 0.5));
+x[8] = MyNormal(0, exp(y * 0.5));
+x[9] = MyNormal(0, exp(y * 0.5));

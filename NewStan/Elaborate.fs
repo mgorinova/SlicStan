@@ -72,6 +72,9 @@ let create_dict (mainC: Context) (secondaryC: Context) :Dict =
 let rec rename_arg (dict:Dict) (arg: Arg):Arg =
     match arg with t, x -> t, Map.safeFind x dict
 
+let rename_args (dict:Dict) (args: Arg list) =
+    List.map (rename_arg dict) args
+
 let rename_Ctx (dict: Dict) (C: Context): Context =
     Set.map (fun (t,x) -> (t, Map.safeFind x dict)) C
 
@@ -111,7 +114,48 @@ let rec rename_S (dict:Dict) (s: S):S =
     | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
     | Skip -> Skip
   
-  
+
+let rec getType_Exp (ctx: Context) (e: Exp): TypePrim =
+    let ty x: TypePrim = 
+        // FIXME: implement this properly
+        Real
+
+    let signatures = Primitives
+    
+    match e with
+    | Var(x) -> 
+        if Set.contextContains x ctx then Set.contextItemTypePrim x ctx
+        else failwith (sprintf "%s not found in type environment" x)
+
+    | Const(n) -> ty(n)
+
+    | Arr(Es) -> 
+        let types = List.map (getType_Exp ctx) Es         
+        Array(List.head types, N (List.length types))
+
+    | ArrElExp(e1, e2) -> 
+        let tau1 = getType_Exp ctx e1
+        match tau1 with 
+        | Array(t, n) -> t
+        | Vector(n) -> Real
+        | Matrix(n1, n2) -> Vector(n1)
+        | _ -> failwith "unexpected type error"
+
+    | Prim(name, Es) -> 
+        let types =  List.map (getType_Exp ctx) Es 
+
+        let fun_signature = 
+            if signatures.ContainsKey name then
+                signatures.Item name
+            else failwith (sprintf "function %s not defined" name)
+            
+        let taus, tau = fun_signature
+        tau
+
+
+    | Plus(e1, e2) -> getType_Exp ctx (Prim("+", [e1; e2]))
+    | Mul(e1, e2) -> getType_Exp ctx (Prim("*", [e1; e2]))
+
 let resolve_S (c:Context) (cs:Context) (s:S) =
     if Set.intersectEmpty c cs then cs, s
     else failwith "resolve_S not implemented"
@@ -121,7 +165,9 @@ let fv (e: Exp): (Context) =
 
     let rec _fv e acc =    
         match e with 
-        | Var(v) -> Set.add ((Real, Data), v) acc //FIXME: must be a better way
+        //here is where the problem is... we lost information about e's type.
+
+        | Var(v) -> Set.add ((Real, Data), v) acc //FIXME: needs to return actual type
         | Const(n) -> acc 
         | Arr(Es) -> List.fold (fun sacc e -> _fv e sacc) acc Es
         | ArrElExp(e1, e2) ->  _fv e1 (_fv e2 acc)
@@ -153,6 +199,20 @@ let tripple_Rename_and_Fold (all: (Context*S*Exp) list) =
                                 ) (empty, [], [])
     c, (List.rev ss), (List.rev es)
     
+
+let adjust_types (ctx: Context) (args: Arg list) (types: TypePrim list) : Context =
+    
+    let _, names = List.unzip args
+    let actuals = Map.ofList (List.zip names types)
+
+    let _adjust (((t, l),name): Type*Ide) =
+        if actuals.ContainsKey name then
+            let actual = actuals.Item(name)
+            ((actual, l), name)
+        else ((t, l),name)
+
+    Set.map _adjust ctx  
+
 /// Transforms an expression to a block and a return value.
 /// TODO: make sure the arguments, in the case when the
 /// input expression is a function, are also elaborated.
@@ -165,7 +225,7 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
             let all_es = List.map (elaborate_E defs) Es
             let ces, ss, es = tripple_Rename_and_Fold all_es
 
-            let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
+            let fvs = Set.unionMany (List.map (fun e -> (fv e)) es)
             let ces_all = Set.union fvs ces
 
             let argsf, cf_all, sf, ERet(ef) = elaborate_F defs f
@@ -177,9 +237,16 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
                     body, all, ef
                 else 
                     let dict = create_dict ces_all cf_all 
-                    let cf_all', sf', ef' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_E dict ef)
-                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf'))
-                    let all = Set.union (ces) cf_all'
+                    let cf_all', sf', ef' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_E dict ef)                    
+                    let argsf' = rename_args dict argsf
+
+                    // this next line is what doesn't work --- 
+                    // I don't have enough type context to figure out 
+                    // the types of expressions at this point
+                    let types = (List.map (getType_Exp ces_all) es) 
+                    let cf_all'' = adjust_types cf_all' argsf' types
+                    let body = Seq(SofList ss, Seq((assign_all argsf' es), sf'))
+                    let all = Set.union (ces) cf_all''
                     body, all, ef'
 
             all, body, ef'
@@ -225,10 +292,7 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
         let f = get_fun x defs
         match f with 
         | FunD(_, args, s, ret) -> 
-            //let args', cf, sf, DRet(df) = elaborate_F defs f
-            //let body = Seq((assign_all args' Es), sf)
-            //let all = Set.union (set args') cf
-            
+                    
             let all_es = List.map (elaborate_E defs) Es
             let ces, ss, es = tripple_Rename_and_Fold all_es
 
@@ -245,7 +309,8 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
                 else 
                     let dict = create_dict ces_all cf_all 
                     let cf_all', sf', df' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_D dict df)
-                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf'))
+                    let argsf' = rename_args dict argsf
+                    let body = Seq(SofList ss, Seq((assign_all argsf' es), sf'))
                     let all = Set.union (ces) cf_all'
                     body, all, df'
 
@@ -307,11 +372,30 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
         let f = get_fun x defs
         match f with 
         | FunV(_, args, s, _) -> 
-            let args', cf, sf, Unit = elaborate_F defs f
-            let body = Seq((assign_all args' Es), sf)
-            let all = Set.union (set args') cf
-            
+
+            let all_es = List.map (elaborate_E defs) Es
+            let ces, ss, es = tripple_Rename_and_Fold all_es
+
+            let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
+            let ces_all = Set.union fvs ces
+
+            let argsf, cf_all, sf, Unit = elaborate_F defs f
+
+            let body, all = 
+                if Set.intersectEmpty ces_all cf_all then
+                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf))
+                    let all = Set.union (ces) cf_all
+                    body, all
+                else 
+                    let dict = create_dict ces_all cf_all 
+                    let cf_all', sf' = (rename_Ctx dict cf_all), (rename_S dict sf)
+                    let argsf' = rename_args dict argsf
+                    let body = Seq(SofList ss, Seq((assign_all argsf' es), sf'))
+                    let all = Set.union (ces) cf_all'
+                    body, all
+
             all, body
+
 
         | FunE(_) -> failwith "function was not expected to have a return value, but returns an expression instead"
         | FunD(_) -> failwith "function was not expected to have a return value, but returns a distribution instead"
