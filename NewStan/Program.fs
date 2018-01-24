@@ -80,12 +80,23 @@ let parse slicstan =
 *)  
     
 
+let example = Examples.ifs
+
 [<EntryPoint>]
 let main argv =   
-    
-    let reader = File.OpenText(argv.[0])
 
-    let slic = reader.ReadToEnd()
+    let option = try argv.[0] with _ -> "--no-input"
+    
+    let slic = match option with
+               | "--fromfile" -> 
+                    let reader = File.OpenText(argv.[1])
+                    reader.ReadToEnd()
+
+               | "--no-input" -> example
+
+               | _ -> option
+
+    // printfn "%s" slic 
 
     let elab = slic
             |> parse
@@ -97,7 +108,7 @@ let main argv =
 
     let stan = translate ctx s
     
-    printfn "%s" (MiniStanSyntax.Prog_pretty stan)           
+    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
 
     0
 

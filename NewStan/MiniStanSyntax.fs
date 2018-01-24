@@ -21,6 +21,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
 type Statements = Let of LValue * Exp // TODO: add more statements
                 | Sample of Ide * Dist
                 | SSeq of Statements * Statements  
+                | If of Exp * Statements * Statements
                 | SNone
 
 
@@ -60,7 +61,9 @@ let rec Statements_pretty decls =
     match decls with 
     | Let (lhs, expr) -> "\t" + LValue_pretty lhs + " = " + E_pretty expr + ";\n"
     | Sample (name, dist) -> "\t" + name + " ~ " + D_pretty dist + ";\n"
-    | SSeq (s1, s2) ->  Statements_pretty s1 + Statements_pretty s2
+    | SSeq (s1, s2) -> Statements_pretty s1 + Statements_pretty s2
+    | If(e, s1, SNone) -> sprintf "\tif(%s){\n\t%s\t}" (E_pretty e) (Statements_pretty s1)
+    | If(e, s1, s2) -> sprintf "\tif(%s){\n\t%s\n}\telse{\n\t%s}\n" (E_pretty e) (Statements_pretty s1) (Statements_pretty s2)
     | SNone -> ""
 
 let Data_pretty d =

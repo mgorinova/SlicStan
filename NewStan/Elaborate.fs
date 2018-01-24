@@ -109,6 +109,7 @@ let rec rename_S (dict:Dict) (s: S):S =
     | Block(env, s') -> Block(rename_arg dict env, rename_S dict s')
     | Sample(x, d) -> Sample(Map.safeFind x dict, rename_D dict d)
     | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
+    | If(e, s1, s2) -> If(rename_E dict e, rename_S dict s1, rename_S dict s2)
     | Seq(s1, s2) -> Seq(rename_S dict s1, rename_S dict s2)
     | VCall(x, []) -> VCall(x,[])
     | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
@@ -367,6 +368,19 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             let c', s', d'' = (rename_Ctx dict c), (rename_S dict s), (rename_D dict d')
             c', Seq(s', Sample(x, d''))
         else c, Seq(s, Sample(x, d'))
+
+    | If(e, s1, s2) ->
+        let ce, se, e' = elaborate_E defs e
+        let cs1, s1' = elaborate_S defs s1
+        let cs2, s2' = elaborate_S defs s2
+
+        if Set.intersectEmpty ce cs1 && Set.intersectEmpty ce cs2 then
+            Set.union ce cs1 |> Set.union cs2, If(e', s1', s2')
+        else 
+            let dict = create_dict ce (Set.union cs1 cs2)
+            let cs1', s1'' = (rename_Ctx dict cs1), (rename_S dict s1')
+            let cs2', s2'' = (rename_Ctx dict cs2), (rename_S dict s2')
+            Set.union ce cs1' |> Set.union cs2', If(e', s1'', s2'')
 
     | VCall(x, Es) -> 
         let f = get_fun x defs

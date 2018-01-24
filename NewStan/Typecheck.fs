@@ -61,6 +61,7 @@ let rec assigns (S: S) : Set<Ide> =
     | Block((_, x), s) -> Set.remove x (assigns s)
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
+    | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
     | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
@@ -211,6 +212,13 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let ell2, gamma2, c2 = synth_S signatures gamma s2
             (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2)
 
+        | If(e, s1, s2) ->
+            let (tau, ell), ce = synth_E signatures gamma e
+            assert (tau = Bool)
+            let (gamma1, cs1), (gamma2, cs2) = check_S signatures gamma s1 ell, check_S signatures gamma s2 ell
+            ell, emptyGamma, (List.append cs1 cs2 |> List.append ce)
+            // FIXME: use correct gammas
+
         | Skip -> GenQuant, emptyGamma, []
 
         | Block(env, s') -> 
@@ -228,7 +236,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             ell, gamma, c
 
 
-    let rec check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
+    and check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
         let ell', gamma', c = synth_S signatures gamma s            
         (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
 

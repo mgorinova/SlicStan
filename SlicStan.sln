@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "NewStan", "NewStan\NewStan.fsproj", "{D7F1F128-379C-4022-90E1-0365249CCCCA}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "SlicStan", "NewStan\SlicStan.fsproj", "{D7F1F128-379C-4022-90E1-0365249CCCCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

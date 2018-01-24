@@ -15,9 +15,19 @@ real b = 0.5;
 real beta ~ normal(a, b);"
 
 
+// Ifs
+let ifs = "
+data real alpha;
+real a = alpha;
+real b = 0.5;
+real beta ~ normal(a, b);
+real c;
+if ( beta > 0 ) c = beta; "
+
+
 //Simple Normal
 let simple_normal = "
-real y ~ normal(x, 2); 
+real y ~ normal(0, 2); 
 real x = y;"
 
 

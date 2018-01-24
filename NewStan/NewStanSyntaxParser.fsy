@@ -11,7 +11,8 @@ open NewStanSyntax
 
 %token DATA INTTYPE REALTYPE  
 %token VECTOR MATRIX
-%token EQ SIM PLUS MINUS MULT DIV
+%token IF ELSE WHILE FOR
+%token EQ SIM PLUS MINUS MULT DIV LE GE LEQ GEQ
 %token ELMULT ELDIV
 %token DEF RET 
 %token LBRACE RBRACE
@@ -74,6 +75,12 @@ statement_signle:
   | lhs EQ exp { Assign($1, $3) }
   | IDE SIM dist { Sample($1, $3) }
   | IDE LEFT exps RIGHT { VCall($1, $3) }
+  | IF LEFT exp RIGHT block ELSE block { If($3, $5, $7) }
+  | IF LEFT exp RIGHT block { If($3, $5, Skip) }
+
+block:
+  | LBRACE statement_seq RBRACE { $2 }
+  | statement_signle { $1 }
   
 exp: 
   | REAL { Const($1) }
@@ -86,6 +93,10 @@ exp:
   | exp ELDIV exp { Prim("./", [$1; $3])  }
   | exp MULT exp { Mul($1, $3) }  
   | exp PLUS exp { Plus($1, $3) }  
+  | exp LE exp { Prim("<", [$1; $3]) }  
+  | exp GE exp { Prim(">", [$1; $3]) }  
+  | exp LEQ exp { Prim("<=", [$1; $3]) }  
+  | exp GEQ exp { Prim(">=", [$1; $3]) }  
   | exp MINUS exp { Prim("-", [$1; $3]) }
   | exp DIV exp { Prim("/", [$1; $3]) }
   //| MINUS REAL %prec NEG { Const(-$2) }

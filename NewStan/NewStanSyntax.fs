@@ -14,7 +14,7 @@ let NotAnySize (n: ArrSize) =
     | _ -> true
 
 type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
-type TypePrim = Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
+type TypePrim = Bool | Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
 
 type Type = TypePrim * TypeLevel
 
@@ -47,6 +47,7 @@ type S = Block of Arg * S //alpha convertible; make it have a single identifier
        | Sample of Ide * Dist // x ~ D
        | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S
        | Assign of LValue * Exp // x = E 
+       | If of Exp * S * S
        | Seq of S * S // S1; S2
        | Skip 
        | VCall of FunIde * Exp list
@@ -61,6 +62,7 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
     Map.ofList ["normal", ([Real; Real], (Real)); // normal(mu, sigma)
                 "lognormal", ([Real; Real], (Real));
                 "gamma", ([Real; Real], (Real)); // gamma(alpha, beta)
+                "inv_gamma", ([Real; Real], (Real));
                 "uniform", ([Real; Real], (Real));
                 "exp_mod_normal", ([Real; Real; Real], (Real)); // exp_mod_normal(mu, sigma, lambda)
                 "student_t", ([Real; Real; Real], (Real)); //student_t(nu, mu, sigma)
@@ -74,12 +76,19 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
                 "/", ([Real; Real], (Real));
+                ">", ([Real; Real], (Bool));
+                "<", ([Real; Real], (Bool));
+                ">=", ([Real; Real], (Bool));
+                "<=", ([Real; Real], (Bool));
                 ".*", ([Real; Real], (Real));
                 "./", ([Real; Real], (Real));
                 "pow", ([Real; Real], (Real));
                 "sqrt", ([Real], Real);
                 "exp", ([Real], Real);
                 "log", ([Real], Real);
+                "inv", ([Real], Real);
+                "mean", ([Real], Real);
+                "sd", ([Real], Real);
                 "cholesky_decompose", ([Matrix(AnySize, AnySize)], Matrix(AnySize, AnySize));
                 "multi_normal", ([Vector(AnySize); Matrix(AnySize, AnySize)], (Vector(AnySize)));
                 "num_elements", ([Vector(AnySize)], Int);
@@ -150,7 +159,9 @@ let rec E_pretty E =
   | Mul(e1, e2) -> sprintf "%s * %s" (E_pretty e1) (E_pretty e2)
   | Prim(p,[]) -> sprintf "%s()" p
   | Prim(p,Es) -> 
-    if (p = "+" || p = "*" || p = "-" || p = "/" || p = ".*" || p = "./") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
+    if (p = "+" || p = "*" || p = "-" || p = "/" || 
+        p = ".*" || p = "./" ||
+        p = ">" || p = "<" || p = ">=" || p = "<=") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
     else sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty Es))
   | ECall(x,[]) -> sprintf "%s()" x 
   | ECall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
@@ -173,11 +184,12 @@ let rec S_pretty ident S =
   | DataDecl(t, x, s) -> sprintf "%sdata %s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
   | Block(env, S) -> //
     let (p, l), n = env
-
     sprintf "%s%s %s;\n%s" ident (TPrim_pretty p) n (S_pretty ident  S)
     //sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
+  | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident
+  | If(E, S1, S2) -> sprintf "%sif(%s){\n%s\n%s}%selse{\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident ident (S_pretty ("  " + ident) S2) ident
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
   | VCall(x,[]) -> sprintf "%s%s()" ident x 

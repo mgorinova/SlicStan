@@ -14,6 +14,10 @@ let keywords =
         "matrix", MATRIX;
         "data", DATA;
         "return",  RET;
+        "if", IF;
+        "else", ELSE;
+        "while", WHILE;
+        "for", FOR;
     ] |> Map.ofList   
   
 let ops =   
@@ -25,7 +29,11 @@ let ops =
         "-", MINUS;
         "/", DIV; 
         ".*", ELMULT;
-        "./", ELDIV
+        "./", ELDIV;
+        ">", GE;
+        "<", LE;
+        ">=", GEQ;
+        "<=", LEQ
     ] |> Map.ofList  
 
 let lexeme = LexBuffer.LexemeString
@@ -41,7 +49,7 @@ let frac = '.' digit*
 let float =  digit* frac? 
 
 let identifier  = char(char|digit|['-' '_' '.'])*   
-let operator    = "~" | "=" | "+" | "*" | "-" | "/" | ".*" | "./"
+let operator    = "~" | "=" | "+" | "*" | "-" | "/" | ".*" | "./" | ">" | "<" | ">=" | "<="
 
 let whitespace = [' ' '\t']+
 let newline = '\r' | '\n' | "\r\n"
@@ -57,8 +65,12 @@ rule read =
                       | Some(token) -> token   
                       | None -> IDE(string (lexeme lexbuf)) }  
 	| "def"         { DEF }
-	| "return"         { RET }
+	| "return"      { RET }
 	| "data"		{ DATA }
+    | "if"			{ IF }
+    | "else"		{ ELSE }
+    | "while"		{ WHILE }
+    | "for"			{ FOR }
 	| "real"        { REALTYPE }
 	| "int"         { INTTYPE }
 	| "vector"      { VECTOR }
