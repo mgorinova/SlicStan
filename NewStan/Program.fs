@@ -80,7 +80,7 @@ let parse slicstan =
 *)  
     
 
-let example = Examples.ifs
+let example = Examples.mynormal
 
 [<EntryPoint>]
 let main argv =   
