@@ -24,6 +24,12 @@ type Statements = Let of LValue * Exp // TODO: add more statements
                 | If of Exp * Statements * Statements
                 | SNone
 
+// S; S; E; S; 
+// S; S; foo = E; S
+
+// E ::= E+E | .... | x = E | ....
+// 5 + x = 5; it's going to parse and fail type checking. 
+
 
 type Data = DBlock of VarDecls | DNone
 type TData = TDBlock of VarDecls * Statements | TDNone

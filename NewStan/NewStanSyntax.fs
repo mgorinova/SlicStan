@@ -18,7 +18,7 @@ type TypePrim = Bool | Real | Int | Array of TypePrim * ArrSize | Vector of ArrS
 
 type Type = TypePrim * TypeLevel
 
-type Ide = string
+type Ide = string // indentifier
 type FunIde = string
 type Arg = Type * Ide
 
@@ -38,21 +38,26 @@ type Exp = Var of Ide
 // M1 .* M2 = elementwise multiplication
 // M1 ./ M2 = elementwise devision
 
-type LValue = I of Ide | A of LValue * Exp
+type LValue = I of Ide | A of LValue * Exp // x[E]
 
 type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
           | DCall of FunIde * Exp list
 
-type S = Block of Arg * S //alpha convertible; make it have a single identifier
-       | Sample of Ide * Dist // x ~ D
-       | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S
+type S = Block of Arg * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
+       | Sample of Ide * Dist // x ~ D // general case should be E ~ D
+       | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S // should be just a special case of Block(((real, DATA), x), S)
        | Assign of LValue * Exp // x = E 
-       | If of Exp * S * S
+       | If of Exp * S * S // if-else
        | Seq of S * S // S1; S2
        | Skip 
        | VCall of FunIde * Exp list
 
 
+// there should be instead only one type of function definition:
+// type FunDef = Fun of FunIde * Arg list * S * Type
+// (void, GENQUANT) is a Type
+// Distrubution: E ~ foo(E') is a syntactic sugar target += foo(E | E')
+// the definition of foo(real x | real theta)
 type FunDef = FunE of FunIde * Arg list * S * Exp
             | FunD of FunIde * Arg list * S * Dist
             | FunV of FunIde * Arg list * S * unit

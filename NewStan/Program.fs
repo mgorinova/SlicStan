@@ -103,11 +103,16 @@ let main argv =
             |> typecheck_Prog 
             |> elaborate_NewStanProg
 
+    // ide is "identifier", it's a string.
+    // gamma, ctx, context, etc are \Gamma from the latex typing rules.
 
     let ctx, s = elab
 
     let stan = translate ctx s
     
+    // Not in this version:
+    // string -> parse -> elborate -> typecheck -> shred -> translate
+
     printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
 
     0

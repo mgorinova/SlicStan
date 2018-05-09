@@ -3,8 +3,8 @@
 open NewStanSyntax
 open System.Runtime.CompilerServices
 
-type Dict = Map<Ide,Ide> 
-type Context = Set.Context
+type Dict = Map<Ide,Ide>   // Gamma
+type Context = Set.Context // Gamma
 
 type Ret = ERet of Exp | DRet of Dist | Unit 
 
