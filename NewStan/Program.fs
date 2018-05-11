@@ -19,6 +19,7 @@ open System.IO
 
 let parse slicstan = 
     let lexbuf = LexBuffer<char>.FromString slicstan
+    //let res = [], (Seq(Skip, Skip))
     let res = Parser.start Lexer.read lexbuf
     res
 

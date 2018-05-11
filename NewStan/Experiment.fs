@@ -20,11 +20,6 @@ type Stats = {inference_times :int64 list; elaboration_time:int64 list; translat
               data:int list; trans_data:int list; paramss:int list; trans_params:int list; gen_quants:int list;
               stan_lines:int list; stan_assignments:int list; stan_sampling:int list}
 
-let parse slicstan = 
-    let lexbuf = Microsoft.FSharp.Text.Lexing.LexBuffer<char>.FromString slicstan
-    let res = Parser.start Lexer.read lexbuf
-    res
-
 
 // Returns:
 // (inference_time, elaboration_time, translation_time) *
