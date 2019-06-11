@@ -77,6 +77,7 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 "beta", ([Real; Real], (Real)); 
                 "poisson", ([Real], (Int)); 
                 "poisson_log", ([Real], (Int)); 
+                "categorical", ([Int], Vector(AnySize));
                 "-", ([Real; Real], (Real));
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
@@ -149,7 +150,17 @@ let rec TLev_pretty tl =
     | LevelVar(s) -> s
     | Lub(ls) -> sprintf "lub %A" (List.map TLev_pretty ls)
     | Glb(ls) -> sprintf "glb %A" (List.map TLev_pretty ls)
-    
+ 
+
+let TLev_compact_pretty tl =
+    match tl with
+    | Data -> "data"
+    | Model -> "model"
+    | GenQuant -> "quant"
+    | LevelVar(s) -> ""
+    | Lub(ls) -> ""
+    | Glb(ls) -> ""
+
 let Type_pretty t =
     match t with 
     | tp, tl -> sprintf "%s %s" (TLev_pretty tl) (TPrim_pretty tp)
@@ -189,8 +200,7 @@ let rec S_pretty ident S =
   | DataDecl(t, x, s) -> sprintf "%sdata %s %s;\n%s" ident (TPrim_pretty t) x (S_pretty ident s)
   | Block(env, S) -> //
     let (p, l), n = env
-    sprintf "%s%s %s;\n%s" ident (TPrim_pretty p) n (S_pretty ident  S)
-    //sprintf "%s%A{\n%s\n%s}" ident env (S_pretty ("  " + ident) S) ident
+    sprintf "%s%s %s %s;\n%s" ident (TLev_compact_pretty l) (TPrim_pretty p) n (S_pretty ident  S)
   | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
   | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident

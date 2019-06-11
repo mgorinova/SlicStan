@@ -9,6 +9,7 @@ open Lexer
 
 open Examples
 open Typecheck
+open Enumerate
 open Elaborate
 open Translate
 
@@ -19,69 +20,10 @@ open System.IO
 
 let parse slicstan = 
     let lexbuf = LexBuffer<char>.FromString slicstan
-    //let res = [], (Seq(Skip, Skip))
     let res = Parser.start Lexer.read lexbuf
-    res
+    res    
 
-
-(*let before = 
-    let mynormal = parse Examples.mynormal 
-    let fs = fst mynormal
-    //let ex = parse Examples.mynormal 
-     
-    let s = Generation.generate_manyS 30
-    let ex = fs, s
-    //printfn "%A\n\n" ex 
-
-    let gamma = Map.empty
-    let defs, prog = ex
-    
-    printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
-    
-    
-    let stopwatch = new Stopwatch()
-    
-    stopwatch.Start()
-    let inferred = typecheck_Prog ex 
-    let inference_time = stopwatch.ElapsedMilliseconds;
-    //printfn "%s" (NewStanSyntax.NewStanProg_pretty inferred)
-
-    stopwatch.Restart()
-    let context, elab = Elaborate.elaborate_NewStanProg inferred
-    let elaboration_time = stopwatch.ElapsedMilliseconds;
-    //printfn "Context: %A" (context)
-    //printfn "Elaborated:\n%s" (NewStanSyntax.S_pretty "" elab)
-
-    stopwatch.Restart()
-    let translated = (Translate.translate context elab)
-    let translation_time = stopwatch.ElapsedMilliseconds;
-    printfn "Translated:\n%s" (MiniStanSyntax.Prog_pretty translated)
-    
-    printfn "Typechecked in: %d miliseconds" inference_time
-    printfn "Elaborated  in: %d miliseconds" elaboration_time
-    printfn "Translated  in: %d miliseconds\n" translation_time
-
-    printfn "Original Program Stats:\n%A" (Generation.stats s)
-    printfn "Stan Program Stats:\n%A" (Generation.stan_stats translated)*)
-  
-(*Generation 
-    let size = int argv.[0]
-    
-    let mynormal = parse Examples.mynormal 
-    let fs = fst mynormal
-
-    //printfn "Running test..."
-    let stats_some = Experiment.multiple_runs fs size 1
-
-    //printfn "Finished. Writing to file..."
-    let result = sprintf "%A" stats_some
-    let name = sprintf "results/%d lines at %d-%d-%d-%d.txt" size (System.DateTime.Now.Hour) (System.DateTime.Now.Minute) (System.DateTime.Now.Second) (System.DateTime.Now.Millisecond)
-
-    File.WriteAllText(name, result)
-*)  
-    
-
-let example = Examples.mynormal
+let example = Examples.discrete1
 
 [<EntryPoint>]
 let main argv =   
@@ -97,24 +39,44 @@ let main argv =
 
                | _ -> option
 
-    // printfn "%s" slic 
+    printfn "%s\n\n" slic 
+
+    (*  On discrete parameters support
+        
+        The keyword `enum` from the Overleaf document, really coinsides with
+        the scope of each discrete parameter (level MODEL variable).
+        This is possibly similar to Pyro's `plate`.
+
+        Our goal is essentially to figure out how to minimise and 
+        decouple scopes as much as possible. 
+
+        Then each discrete variable declaration, together with the statment 
+        in its scope, is transformed to explicit ennumeration and 
+        generation of discrete variables using BP-guided sampling.
+    *)
 
     let elab = slic
             |> parse
             |> typecheck_Prog 
-            |> elaborate_NewStanProg
+            |> enumerate_Prog
+            // |> elaborate_NewStanProg
+
+    printf "\n\n%s" (NewStanSyntax.NewStanProg_pretty elab)
 
     // ide is "identifier", it's a string.
     // gamma, ctx, context, etc are \Gamma from the latex typing rules.
-
+    (*
     let ctx, s = elab
+
+    printf "%A\n\n%A\n\n" ctx (NewStanSyntax.S_pretty "" s)
 
     let stan = translate ctx s
     
     // Not in this version:
     // string -> parse -> elborate -> typecheck -> shred -> translate
 
-    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
+    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      *)
+
 
     0
 

@@ -1,10 +1,26 @@
 ﻿module Examples
 
+// Simple discrete 
+let discrete = "
+int d ~ categorical([1/3, 1/3, 1/3]);
+"
+
+// d_1 -> c; d_2 -> c
+let discrete1 = "
+vector[3] pi1 = [1/3, 1/3, 1/3];
+int d1 ~ categorical(pi1);
+
+vector[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
+int d2 ~ categorical(pi2);
+
+real c ~ normal(d1, d2);
+"
+
 // All Data
 let alldata = "
 data real x;
 real a = 2*x;
-data real y ~ normal(a,1);
+data real y ~ normal(a, 1);
 "
 
 // Simple

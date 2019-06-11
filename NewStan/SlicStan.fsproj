@@ -16,6 +16,7 @@
     <Compile Include="Set.fs" />
     <Compile Include="Constraints.fs" />
     <Compile Include="Typecheck.fs" />
+    <Compile Include="Enumerate.fs" />
     <Compile Include="Elaborate.fs" />
     <Compile Include="MiniStanSyntax.fs" />
     <Compile Include="Translate.fs" />
