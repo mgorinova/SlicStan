@@ -62,6 +62,7 @@ let rec assigns (S: S) : Set<Ide> =
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
+    | For(x, l, u, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
     | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
@@ -94,6 +95,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                       | Array(t, n) -> t
                       | Vector(n) -> Real
                       | Matrix(n1, n2) -> Vector(n1)
+                      | _ -> failwith "unexpected"
 
             let (tau2, ell2), c2 = synth_E signatures gamma e2
             assert (tau2 = Real) // FIXME: should be assert tau2 = Int
@@ -182,6 +184,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                       | Array(t, n) -> t
                       | Vector(n) -> Real
                       | Matrix(n1, n2) -> Vector(n1)
+                      | _ -> failwith "unexpected"
 
             let (tau2, ell2), c2 = synth_E signatures gamma e'
             assert (tau2 = Real) // FIXME: change that assumption to an Int, when you figure types out
@@ -229,6 +232,11 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                 if (Set.contains x (assigns s')) then c
                 else (Leq(Model, l)) :: c
             l', ( Map.add x (p, l) g ), c'
+
+        | For(env, l, u, s') -> 
+            let (p, l), x = env
+            let gamma' = Map.add x (p, l) gamma
+            synth_S signatures gamma' s'
 
         | VCall(name, Es) -> 
             let (tau, ell), c = synth_E signatures gamma (ECall(name, Es))

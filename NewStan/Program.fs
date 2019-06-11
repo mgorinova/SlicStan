@@ -3,7 +3,7 @@
 
 open NewStanSyntax
 
-open Microsoft.FSharp.Text.Lexing
+open FSharp.Text.Lexing
 open Parser
 open Lexer 
 
@@ -23,7 +23,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.discrete1
+let example = Examples.simple_for
 
 [<EntryPoint>]
 let main argv =   

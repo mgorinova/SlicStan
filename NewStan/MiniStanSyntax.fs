@@ -48,6 +48,7 @@ let D_pretty = NewStanSyntax.D_pretty
 
 let rec Type_pretty typeprim =
     match typeprim with 
+    | Bool -> "bool"
     | Real -> "real"
     | Int -> "int"
     | Array(t, n) -> (Type_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")

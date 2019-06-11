@@ -1,5 +1,12 @@
 ﻿module Examples
 
+// Simple for
+let simple_for = "
+real c ~ normal(0, 1);
+real acc = 0;
+for(int i in 1 : 5) acc = acc + i;
+"
+
 // Simple discrete 
 let discrete = "
 int d ~ categorical([1/3, 1/3, 1/3]);

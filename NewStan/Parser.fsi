@@ -4,6 +4,7 @@ type token =
   | EOF
   | COMMA
   | SEMICOLON
+  | COLON
   | ALEFT
   | ARIGHT
   | LEFT
@@ -28,6 +29,7 @@ type token =
   | ELSE
   | WHILE
   | FOR
+  | IN
   | VECTOR
   | MATRIX
   | DATA
@@ -41,6 +43,7 @@ type tokenId =
     | TOKEN_EOF
     | TOKEN_COMMA
     | TOKEN_SEMICOLON
+    | TOKEN_COLON
     | TOKEN_ALEFT
     | TOKEN_ARIGHT
     | TOKEN_LEFT
@@ -65,6 +68,7 @@ type tokenId =
     | TOKEN_ELSE
     | TOKEN_WHILE
     | TOKEN_FOR
+    | TOKEN_IN
     | TOKEN_VECTOR
     | TOKEN_MATRIX
     | TOKEN_DATA
@@ -103,4 +107,4 @@ val prodIdxToNonTerminal: int -> nonTerminalId
 
 /// This function gets the name of a token as a string
 val token_to_string: token -> string
-val start : (Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> Microsoft.FSharp.Text.Lexing.LexBuffer<'cty> -> (NewStanSyntax.NewStanProg) 
+val start : (FSharp.Text.Lexing.LexBuffer<'cty> -> token) -> FSharp.Text.Lexing.LexBuffer<'cty> -> (NewStanSyntax.NewStanProg) 

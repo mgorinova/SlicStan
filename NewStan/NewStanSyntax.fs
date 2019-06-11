@@ -48,6 +48,7 @@ type S = Block of Arg * S //alpha convertible; make it have a single identifier 
        | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S // should be just a special case of Block(((real, DATA), x), S)
        | Assign of LValue * Exp // x = E 
        | If of Exp * S * S // if-else
+       | For of Arg * ArrSize * ArrSize * S
        | Seq of S * S // S1; S2
        | Skip 
        | VCall of FunIde * Exp list
@@ -137,6 +138,7 @@ let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
     | Int -> "int"
+    | Bool -> "int"
     | Array(t, n) -> (TPrim_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
     | Vector(n) -> if n > AnySize then (sprintf "vector[%s]" (SizeToString n)) else "vector"
     | Matrix(n1, n2) -> if NotAnySize(n1) && NotAnySize(n2) then (sprintf "matrix[%s, %s]" (SizeToString n1) (SizeToString n2)) else "matrix"
@@ -205,6 +207,7 @@ let rec S_pretty ident S =
   | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
   | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident
   | If(E, S1, S2) -> sprintf "%sif(%s){\n%s\n%s}%selse{\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident ident (S_pretty ("  " + ident) S2) ident
+  | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
   | VCall(x,[]) -> sprintf "%s%s()" ident x 

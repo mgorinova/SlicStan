@@ -74,6 +74,7 @@ let rec to_Stan_statements (S: S) : Statements =
     match S with 
     | NewStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
     | NewStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
+    | NewStanSyntax.For(x, l, u, s) -> failwith "for can't be translated to Stan yet"
     | NewStanSyntax.Assign(a1, a2) -> Let(a1, a2)
     | NewStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
     | NewStanSyntax.Skip -> SNone

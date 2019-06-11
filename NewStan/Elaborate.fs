@@ -110,6 +110,8 @@ let rec rename_S (dict:Dict) (s: S):S =
     | Sample(x, d) -> Sample(Map.safeFind x dict, rename_D dict d)
     | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
     | If(e, s1, s2) -> If(rename_E dict e, rename_S dict s1, rename_S dict s2)
+    // FIXME: array sizes might need to be renamed too 
+    | For(x, lower, upper, s) -> For(rename_arg dict x, lower, upper, rename_S dict s) 
     | Seq(s1, s2) -> Seq(rename_S dict s1, rename_S dict s2)
     | VCall(x, []) -> VCall(x,[])
     | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
@@ -156,6 +158,8 @@ let rec getType_Exp (ctx: Context) (e: Exp): TypePrim =
 
     | Plus(e1, e2) -> getType_Exp ctx (Prim("+", [e1; e2]))
     | Mul(e1, e2) -> getType_Exp ctx (Prim("*", [e1; e2]))
+
+    | ECall(_) -> failwith "not supported"
 
 let resolve_S (c:Context) (cs:Context) (s:S) =
     if Set.intersectEmpty c cs then cs, s
@@ -381,6 +385,8 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             let cs1', s1'' = (rename_Ctx dict cs1), (rename_S dict s1')
             let cs2', s2'' = (rename_Ctx dict cs2), (rename_S dict s2')
             Set.union ce cs1' |> Set.union cs2', If(e', s1'', s2'')
+
+    | For(x, lower, upper, s) -> failwith "for not implemented in elaboration yet"
 
     | VCall(x, Es) -> 
         let f = get_fun x defs

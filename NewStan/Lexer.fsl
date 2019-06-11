@@ -1,7 +1,6 @@
 {   
-module Lexer
 
-open Microsoft.FSharp.Text.Lexing
+open FSharp.Text.Lexing
 open System   
 open Parser   
   
@@ -18,6 +17,7 @@ let keywords =
         "else", ELSE;
         "while", WHILE;
         "for", FOR;
+        "in", IN;
     ] |> Map.ofList   
   
 let ops =   
@@ -33,7 +33,7 @@ let ops =
         ">", GE;
         "<", LE;
         ">=", GEQ;
-        "<=", LEQ
+        "<=", LEQ;
     ] |> Map.ofList  
 
 let lexeme = LexBuffer.LexemeString
@@ -71,6 +71,7 @@ rule read =
     | "else"		{ ELSE }
     | "while"		{ WHILE }
     | "for"			{ FOR }
+    | "in"          { IN }
 	| "real"        { REALTYPE }
 	| "int"         { INTTYPE }
 	| "vector"      { VECTOR }
@@ -83,5 +84,6 @@ rule read =
 	| ']'			{ ARIGHT } 
 	| ','           { COMMA }
 	| ';'			{ SEMICOLON }
+	| ":"			{ COLON }
 	| eof           { EOF }
 	| _ { raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) }
