@@ -37,7 +37,7 @@ let run_single fs n : SingleStats =
     let inference_time = stopwatch.ElapsedMilliseconds
 
     stopwatch.Restart()
-    let context, elab = Elaborate.elaborate_NewStanProg inferred
+    let context, elab = Elaborate.elaborate_Prog inferred
     let elaboration_time = stopwatch.ElapsedMilliseconds //
 
     stopwatch.Restart()

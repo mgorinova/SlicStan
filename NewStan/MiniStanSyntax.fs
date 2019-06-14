@@ -19,7 +19,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
               | VNone
 
 type Statements = Let of LValue * Exp // TODO: add more statements
-                | Sample of Ide * Dist
+                | Sample of LValue * Dist
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
                 | SNone
@@ -51,6 +51,7 @@ let rec Type_pretty typeprim =
     | Bool -> "bool"
     | Real -> "real"
     | Int -> "int"
+    | Constrained(tp', size) -> sprintf "%s<%s>" (Type_pretty tp') (SizeToString size)
     | Array(t, n) -> (Type_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
     | Vector(n) -> (if NotAnySize(n) then (sprintf "vector[%s]" (SizeToString n)) else "vector")
     | Matrix(n, m) -> (if NotAnySize(n) then 
@@ -67,7 +68,7 @@ let rec Decls_pretty decls =
 let rec Statements_pretty decls =
     match decls with 
     | Let (lhs, expr) -> "\t" + LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (name, dist) -> "\t" + name + " ~ " + D_pretty dist + ";\n"
+    | Sample (name, dist) -> "\t" + (LValue_pretty name) + " ~ " + D_pretty dist + ";\n"
     | SSeq (s1, s2) -> Statements_pretty s1 + Statements_pretty s2
     | If(e, s1, SNone) -> sprintf "\tif(%s){\n\t%s\t}" (E_pretty e) (Statements_pretty s1)
     | If(e, s1, s2) -> sprintf "\tif(%s){\n\t%s\n}\telse{\n\t%s}\n" (E_pretty e) (Statements_pretty s1) (Statements_pretty s2)
@@ -116,32 +117,5 @@ let rec Prog_pretty (p:Prog) : string=
         funcs + data + tdata + parms + tparms + model + gens
 
 
-
-let example = P (DNone, 
-                 TDNone, 
-                 PNone, 
-                 TPNone, 
-                 MBlock(VNone, Sample("x",Dist("normal",[Const(0.0); Const(1.0)]))),
-                 GQNone)
-                 
-(*  data y1;
-    alpha = 0.1; 
-    beta = 0.1; 
-    tau_y ~ gamma(alpha,beta); 
-    sigma_y = pow(tau_y,-0.5); 
-    mu_y ~ normal(0,1); 
-    y1 ~ normal(mu_y,sigma_y); 
-    variance_y = *(sigma_y,sigma_y);
-*)
-
-(*let example2 = P(DBlock(Declr(Real, "y1")), 
-                 TDBlock(VSeq(Declr(Real, "alpha"),
-                              Declr(Real, "beta")), 
-                         SSeq(Let("alpha", Const(0.1)), 
-                              Let("beta", Const(0.1)))), 
-                 PBlock(VSeq(Declr(Real, "tau_y"),Declr(Real, "mu_y"))), 
-                 TPBlock(Declr(Real, "sigma_y"),Let("sigma_y", Prim("pow",[Var("tau_y");Const(-0.5)]))), 
-                 MBlock(VNone, SSeq(SSeq(Sample("tau_y", Dist("gamma",[Var("alpha"); Var("beta")])),
-                                         Sample("mu_y", Dist("normal",[Const(0.0); Const(1.0)]))),
-                                         Sample("y1", Dist("normal",[Var("mu_y"); Var("sigma_y")])))),
-                 GQBlock(Declr(Real, "variance_y"),Let("variance_y", Prim("pow", [Var("sigma_y");Const(2.0)]))))*)
+        
+ 

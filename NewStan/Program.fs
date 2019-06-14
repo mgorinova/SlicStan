@@ -23,7 +23,11 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.simple_for
+let example = Examples.soft_k_means
+ 
+// look into array elements dependance analysis literature
+  
+// enumerate only ints of level models that are not TP
 
 [<EntryPoint>]
 let main argv =   
@@ -55,13 +59,20 @@ let main argv =
         generation of discrete variables using BP-guided sampling.
     *)
 
-    let elab = slic
-            |> parse
-            |> typecheck_Prog 
-            |> enumerate_Prog
-            // |> elaborate_NewStanProg
+    let typechecked = slic
+                    |> parse
+                    |> typecheck_Prog 
 
-    printf "\n\n%s" (NewStanSyntax.NewStanProg_pretty elab)
+    printf "%A" typechecked
+    //let ctx, elab =  elaborate_Prog typechecked
+
+    //printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
+
+    let enum = enumerate_Prog (snd typechecked)
+
+    printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
+            
+    
 
     // ide is "identifier", it's a string.
     // gamma, ctx, context, etc are \Gamma from the latex typing rules.

@@ -14,7 +14,8 @@ let NotAnySize (n: ArrSize) =
     | _ -> true
 
 type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
-type TypePrim = Bool | Real | Int | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit
+type TypePrim = Bool | Real | Int | Constrained of TypePrim * ArrSize 
+              | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit 
 
 type Type = TypePrim * TypeLevel
 
@@ -44,7 +45,7 @@ type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
           | DCall of FunIde * Exp list
 
 type S = Block of Arg * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
-       | Sample of Ide * Dist // x ~ D // general case should be E ~ D
+       | Sample of LValue * Dist // x ~ D // general case should be E ~ D
        | DataDecl of TypePrim * Ide * S //not up to alpha conversion  // data x; S // should be just a special case of Block(((real, DATA), x), S)
        | Assign of LValue * Exp // x = E 
        | If of Exp * S * S // if-else
@@ -78,7 +79,7 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 "beta", ([Real; Real], (Real)); 
                 "poisson", ([Real], (Int)); 
                 "poisson_log", ([Real], (Int)); 
-                "categorical", ([Int], Vector(AnySize));
+                "categorical", ([Array(Real, AnySize)], (Int));
                 "-", ([Real; Real], (Real));
                 "+", ([Real; Real], (Real));
                 "*", ([Real; Real], (Real));
@@ -102,7 +103,6 @@ let Primitives: Map<string, TypePrim list * TypePrim> =
                 ]
 
 
-
 let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     match l1, l2 with
     | Data, _ -> true
@@ -117,12 +117,32 @@ let rec (==) (p1: TypePrim) (p2: TypePrim) : bool =
     match p1, p2 with
     | Int, Int -> true
     | Real, Real -> true
+    | Bool, Bool -> true
+    | Constrained(tp1, n1), Constrained(tp2, n2) -> n1 = n2 && tp1 == tp2 
+    //| Constrained(tp1, n1), tp2 -> tp1 == tp2 // FIXME: this should probably be done in a smarter way
+    //| tp1, Constrained(tp2, n2) -> tp1 == tp2 // FIXME: this should probably be done in a smarter way
     | Vector(n1), Vector(n2) -> n1 = AnySize || n2 = AnySize || n1 = n2
     | Matrix(m1, n1), Matrix(m2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (m1 = AnySize || m2 = AnySize || m1 = m2)
     | Array(tp1, n1), Array(tp2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (tp1 == tp2)
-    | Array(tp, _), p -> p = tp
-    | Vector _, p -> p = Real
+    | Array(tp, _), p -> p = tp // vectorisation
+    | Vector _, p -> p = Real   // vectorisation
     | _ -> false
+
+let rec (<.) (p1: TypePrim) (p2: TypePrim) : bool =
+    p2 == p1 || (
+    match p1, p2 with
+    | Int, Real -> true 
+    | Constrained(t1, n1), Constrained(t2, n2) -> 
+        // The second part is commented, so that int<2> = foo(int<4>) is OK. 
+        // Otherwise weird, because what if we want int<2> = int<4> / 2 ?
+        t1 <. t2 // && (function | N(n1'), N(n2') -> n1' < n2' || n1' = n2' | _ -> true) (n1, n2)
+    | Constrained(t1, _), t2 -> t1 <. t2
+    | t1, Constrained(t2, _) -> 
+        // Perhaps a bit weird, but otherwise things such as int<3> = foo(int)
+        // are disallowed and that may be weird.
+        t1 <. t2 
+    | _ -> false
+    )
 
 let name fundef =
     match fundef with 
@@ -139,6 +159,7 @@ let rec TPrim_pretty tp =
     | Real -> "real"
     | Int -> "int"
     | Bool -> "int"
+    | Constrained(tp', size) -> sprintf "%s<%s>" (TPrim_pretty tp') (SizeToString size)
     | Array(t, n) -> (TPrim_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
     | Vector(n) -> if n > AnySize then (sprintf "vector[%s]" (SizeToString n)) else "vector"
     | Matrix(n1, n2) -> if NotAnySize(n1) && NotAnySize(n2) then (sprintf "matrix[%s, %s]" (SizeToString n1) (SizeToString n2)) else "matrix"
@@ -203,8 +224,16 @@ let rec S_pretty ident S =
   | Block(env, S) -> //
     let (p, l), n = env
     sprintf "%s%s %s %s;\n%s" ident (TLev_compact_pretty l) (TPrim_pretty p) n (S_pretty ident  S)
-  | Sample(x,D) -> sprintf "%s%s ~ %s;" ident x (D_pretty D)
-  | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
+  | Sample(x, D) -> sprintf "%s%s ~ %s;" ident (LValue_pretty x) (D_pretty D)
+  | Assign(lhs,E) -> 
+    match E with 
+    | Plus(e1, e2) ->
+        let left = LValue_pretty lhs 
+        let right = E_pretty e1
+        if left = right then 
+            sprintf "%s%s += %s" ident left (E_pretty e2)
+        else sprintf "%s%s = %s + %s" ident left right (E_pretty e2)
+    | _ -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
   | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident
   | If(E, S1, S2) -> sprintf "%sif(%s){\n%s\n%s}%selse{\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident ident (S_pretty ("  " + ident) S2) ident
   | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
@@ -235,32 +264,6 @@ let rec NewStanProg_pretty prog =
     match prog with 
     | defs, s -> sprintf "%s\n%s\n" (DefList_pretty defs) (S_pretty "" s)
 
-// helper function to build a statement from a statement list
-let rec SofList ss =
-  match ss with
-  | [] -> Skip
-  | [s] -> s
-  | s::ss' -> Seq(s, SofList ss')
-
-
-let rec BlockOfList (env, s) = 
-    match env with 
-    | [] -> s
-    | x::xs -> Block(x, BlockOfList (xs, s))
-
-
-let rec LValueBaseName (lhs: LValue): Ide =    
-    match lhs with
-    | I(name) -> name
-    | A(lhs', _) -> LValueBaseName lhs'
-
-
-let BaseTypeLevel (tau: TypeLevel) =
-    match tau with
-    | Data -> true
-    | Model -> true
-    | GenQuant -> true
-    | _ -> false
 
 
 let typeLevelNames = Seq.initInfinite (fun index ->

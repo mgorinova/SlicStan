@@ -5,7 +5,7 @@ open MiniStanSyntax
 open Elaborate
 
 
-let assigns = Typecheck.assigns
+let assigns = Util.assigns
 
 let emptyStanProg = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
 
@@ -108,7 +108,7 @@ let translate (C: Context) (S: S) : Prog =
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
 
         | NewStanSyntax.Assign(lhs, E) -> 
-            let t, lr = get_type gamma (LValueBaseName lhs) 
+            let t, lr = get_type gamma (Util.LValueBaseName lhs) 
             match lr with 
             | Data     -> P(DNone, TDBlock(VNone, Let(lhs,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
             | Model    -> P(DNone, TDNone, PNone, TPBlock(VNone, Let(lhs,E)), MBlock(VNone,SNone), GQNone)

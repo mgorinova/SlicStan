@@ -2,6 +2,7 @@
 
 open NewStanSyntax
 open Constraints
+open Util
 
 type Dict = Map<Ide,Type> 
 type FunSignature = (TypePrim list) * (TypeLevel list) * Type
@@ -14,13 +15,14 @@ let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Mod
 let join (p:Map<'a,'b>) (q:Map<'a,'b>) = 
     Map(Seq.concat [ (Map.toSeq p) ; (Map.toSeq q) ])
 
-let flip (a,b) = (b,a)
-
 let emptyGamma = Map.empty
 
+
 let ty x: TypePrim = 
-    // FIXME: implement this properly
-    Real
+    if box x :? double then Real
+    elif box x :? int then Int
+    elif box x :? bool then Bool
+    else failwith "unexpected constant"
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -54,20 +56,6 @@ let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim li
     if k = N 0 then ret
     else Array(ret, k)
 
-
-let rec assigns (S: S) : Set<Ide> =
-    match S with
-    | DataDecl(_, x, s) -> assigns s
-    | Block((_, x), s) -> Set.remove x (assigns s)
-    | Sample(x, _) -> Set.empty
-    | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
-    | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
-    | For(x, l, u, s) -> assigns s
-    | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
-    | Skip -> Set.empty
-    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
-
-
 let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =        
 
     let rec synth_E (signatures: Signatures) (gamma: Dict) (e: Exp): Type*(Constraint list) =
@@ -98,7 +86,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                       | _ -> failwith "unexpected"
 
             let (tau2, ell2), c2 = synth_E signatures gamma e2
-            assert (tau2 = Real) // FIXME: should be assert tau2 = Int
+            assert (Int <. tau2) 
 
             (tau, Lub ([ell1; ell2])), (List.append c1 c2)
 
@@ -142,7 +130,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let rec check_E (signatures: Signatures)  (gamma: Dict) (e: Exp) ((tau,ell): Type) : Constraint list =    
         let (tau', ell'), c = synth_E signatures gamma e
-        assert (tau == tau')
+        assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
         (Leq(ell',ell))::c 
 
 
@@ -170,7 +158,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let rec check_D (signatures: Signatures) (gamma: Dict) (d: Dist) ((tau,ell): Type) : Constraint list =
         let (tau', ell'), c = synth_D signatures gamma d
-        assert (tau == tau') 
+        assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
         (Leq(ell',ell))::c
 
     let rec synth_L (signatures: Signatures) (gamma: Dict) (l: LValue): Type*(Constraint list) =
@@ -187,7 +175,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                       | _ -> failwith "unexpected"
 
             let (tau2, ell2), c2 = synth_E signatures gamma e'
-            assert (tau2 = Real) // FIXME: change that assumption to an Int, when you figure types out
+            assert (Int <. tau2) 
 
             (tau, Lub ([ell1; ell2])), (List.append c1 c2)
 
@@ -199,8 +187,8 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let c2 = check_E signatures gamma e (tau, ell)
             ell, emptyGamma, (List.append c1 c2)
 
-        | Sample(x, d) -> 
-            let (tau, ell), ce = synth_E signatures gamma (Var(x))                
+        | Sample(lhs, d) -> 
+            let (tau, ell), ce = synth_L signatures gamma (lhs)                
             let cd = check_D signatures gamma d (tau, Model)
 
             Model, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
@@ -256,7 +244,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let argsgamma = (Map.ofList (List.map flip args))
+            let argsgamma = (Map.ofList (List.map Util.flip_tuple args))
             let ell, gamma, cs = synth_S signatures argsgamma S //Data
 
             let ret, ce = synth_E signatures (join argsgamma gamma) E            
@@ -266,7 +254,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let argsgamma = (Map.ofList (List.map flip args))
+            let argsgamma = (Map.ofList (List.map Util.flip_tuple args))
             let _, gamma, cs = synth_S signatures argsgamma S // Data
 
             let ret, cd = synth_D signatures (join argsgamma gamma) D            
@@ -276,7 +264,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let argsgamma = (Map.ofList (List.map flip args))
+            let argsgamma = (Map.ofList (List.map Util.flip_tuple args))
             let ell, gamma, c = synth_S signatures argsgamma S // Data
             let _, def_types = Map.toList gamma 
                             |> List.unzip

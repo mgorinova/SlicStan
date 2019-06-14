@@ -1,5 +1,63 @@
 ﻿module Examples
 
+// d_1 -> c; d_2 -> c
+let discrete1 = "
+real[3] pi1 = [0.3, 0.3, 0.3];
+int<3> d1 ~ categorical(pi1);
+
+real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
+int<3> d2 ~ categorical(pi2);
+
+real c ~ normal(d1, d2);
+"
+
+// # c1 -> d1 -> c2; c1 -> d2 -> c2; 
+let discrete2 = "
+real c1 ~ normal(0, 1);
+
+real[3] pi1 = [0.3 * c1, 0.3, 0.3];
+int<3> d1 ~ categorical(pi1);
+
+int<2> d_tp1 = d1; 
+real tp2 = pi1[1];
+
+real[3] pi2 = [0.3 * d_tp1, 0.3 * c1, 0.3 * tp2];
+int<3> d2 ~ categorical(pi2);
+
+real c2 ~ normal(d1, d2);
+"
+
+// d_1 -> d_2 -> c
+let discrete3 = "
+real[3] pi1 = [1/3, 1/3, 1/3];
+int<3> d1 ~ categorical(pi1);
+
+real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
+int<3> d2 ~ categorical(pi2);
+
+real c ~ normal(d2, 1);
+"
+
+let soft_k_means = "
+data int N;  
+data int D;  
+data int K;  
+data real pi;
+data real[D][N] y;  
+
+real[D][K] mu; 
+for(int d in 1 : D) {
+    mu[d] ~ normal(0, 1);
+}
+
+int<K>[N] z;  
+
+for(int n in 1 : N) {
+    z[n] ~ categorical(pi);
+    y[n] ~ normal(mu[z[n]], 1);
+}
+"
+
 // Simple for
 let simple_for = "
 real c ~ normal(0, 1);
@@ -7,20 +65,11 @@ real acc = 0;
 for(int i in 1 : 5) acc = acc + i;
 "
 
-// Simple discrete 
+// Simple discrete  
 let discrete = "
-int d ~ categorical([1/3, 1/3, 1/3]);
-"
-
-// d_1 -> c; d_2 -> c
-let discrete1 = "
-vector[3] pi1 = [1/3, 1/3, 1/3];
-int d1 ~ categorical(pi1);
-
-vector[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
-int d2 ~ categorical(pi2);
-
-real c ~ normal(d1, d2);
+data int N;
+data real[N] pi;
+int<N> d ~ categorical(pi);
 "
 
 // All Data
@@ -45,7 +94,13 @@ real a = alpha;
 real b = 0.5;
 real beta ~ normal(a, b);
 real c;
-if ( beta > 0 ) c = beta; "
+if ( beta > 0 ) c = beta; 
+
+if ( beta > 0 ) 
+{
+    c = beta;
+}; 
+"
 
 
 //Simple Normal
@@ -170,7 +225,7 @@ mu ~ normal(0, 1);
 x = MyNormal(mu + 5, 2); 
 y ~ normal(MyNormal(x, 2), 1);"
 
-
+ 
 // Arrays Simple
 let arrays = "
 data int N;

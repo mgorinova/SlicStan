@@ -21,6 +21,7 @@
     <Compile Include="Parser.fs" />
     <Compile Include="Lexer.fs" />
     <Compile Include="Set.fs" />
+    <Compile Include="Util.fs" />
     <Compile Include="Constraints.fs" />
     <Compile Include="Typecheck.fs" />
     <Compile Include="Enumerate.fs" />

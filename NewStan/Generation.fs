@@ -31,7 +31,7 @@ let varNames = Seq.initInfinite (fun index -> if (index < 123) then Char.Convert
 
 let mutable curvar = 97
 let nextvar() =
-    let ret = Seq.nth curvar varNames
+    let ret = Seq.item curvar varNames
     curvar <- curvar + 1
     ret
 
@@ -90,7 +90,7 @@ let generate_S () =
             let name = getrandom_s dists
             let x1 = getrandom_v (Array.ofList vars)
             let x2, x3 = getrandom_v (no x1 (both())), getrandom_v (no x1 (both()))          
-            NewStanSyntax.Sample(x1, Dist(name, [Var x2; Var x3]))
+            NewStanSyntax.Sample(I(x1), Dist(name, [Var x2; Var x3]))
 
 
 let rec generate_manyS (n:int) =

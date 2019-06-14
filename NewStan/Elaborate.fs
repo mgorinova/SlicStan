@@ -2,6 +2,7 @@
 
 open NewStanSyntax
 open System.Runtime.CompilerServices
+open Util 
 
 type Dict = Map<Ide,Ide>   // Gamma
 type Context = Set.Context // Gamma
@@ -107,7 +108,7 @@ let rec rename_S (dict:Dict) (s: S):S =
     match s with
     | DataDecl(t, x, s') -> DataDecl(t, Map.safeFind x dict, rename_S dict s')
     | Block(env, s') -> Block(rename_arg dict env, rename_S dict s')
-    | Sample(x, d) -> Sample(Map.safeFind x dict, rename_D dict d)
+    | Sample(lhs, d) -> Sample(rename_LValue dict lhs, rename_D dict d)
     | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
     | If(e, s1, s2) -> If(rename_E dict e, rename_S dict s1, rename_S dict s2)
     // FIXME: array sizes might need to be renamed too 
@@ -367,8 +368,8 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
 
     | Sample(x, d) -> 
         let c, s, d' = elaborate_D defs d 
-        if Set.contextContains x c then
-            let dict = create_dict (Set.singleton x) c 
+        if Set.contextContains (LValueBaseName x) c then
+            let dict = create_dict (Set.singleton (LValueBaseName x)) c 
             let c', s', d'' = (rename_Ctx dict c), (rename_S dict s), (rename_D dict d')
             c', Seq(s', Sample(x, d''))
         else c, Seq(s, Sample(x, d'))
@@ -498,7 +499,7 @@ let rec safetycheck defs =
 
          
 
-let elaborate_NewStanProg (prog: NewStanProg) : Context*S =
+let elaborate_Prog (prog: NewStanProg) : Context*S =
     match prog with
     | defs, s -> 
         let _ = safetycheck defs

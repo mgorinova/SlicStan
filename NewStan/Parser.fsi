@@ -88,9 +88,14 @@ type nonTerminalId =
     | NONTERM_deff
     | NONTERM_args
     | NONTERM_arg
-    | NONTERM_statement_seq
-    | NONTERM_statement_signle
-    | NONTERM_block
+    | NONTERM_statement
+    | NONTERM_compound_statement
+    | NONTERM_block_item_list
+    | NONTERM_block_item
+    | NONTERM_declaration
+    | NONTERM_iteration_statement
+    | NONTERM_selection_statement
+    | NONTERM_statement_single
     | NONTERM_exp
     | NONTERM_exps
     | NONTERM_lhs
