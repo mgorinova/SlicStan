@@ -38,6 +38,18 @@ int<3> d2 ~ categorical(pi2);
 real c ~ normal(d2, 1);
 "
 
+let discrete4 = "
+real[3] pi = [1/3, 1/3, 1/3];
+{
+int<3> d1 ~ categorical(pi);
+real c1 ~ normal(d1, 1);
+}
+{
+int<3> d2 ~ categorical(pi);
+real c2 ~ normal(d2, 1);
+}
+"
+
 let soft_k_means = "
 data int N;  
 data int D;  

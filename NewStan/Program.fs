@@ -23,7 +23,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.soft_k_means
+let example = Examples.discrete4
  
 // look into array elements dependance analysis literature
   
@@ -63,16 +63,17 @@ let main argv =
                     |> parse
                     |> typecheck_Prog 
                     
-    //let ctx, elab =  elaborate_Prog typechecked
+    let ctx, elab =  elaborate_Prog typechecked
 
-    //printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
+    printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
 
-    let enum = enumerate_Prog (snd typechecked)
+    let enum = enumerate_Prog (elab)
 
     printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
     
     // TODO for next working day: 
-    // (1) fix parser
+    // (1) figure out a lighter form of elaboration --- data and parameters 
+    //     declarations need to happen at the top level.
     // (2) think about how to implement the array discrete variables support
     
 

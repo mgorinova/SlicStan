@@ -387,7 +387,16 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             let cs2', s2'' = (rename_Ctx dict cs2), (rename_S dict s2')
             Set.union ce cs1' |> Set.union cs2', If(e', s1'', s2'')
 
-    | For(x, lower, upper, s) -> failwith "for not implemented in elaboration yet"
+    | For((T, x), lower, upper, s) -> 
+    
+        let c, s' = elaborate_S defs s
+        
+        if Set.contextContains x c then
+            let dict = create_dict (Set.singleton x) c 
+            let c', s'' = (rename_Ctx dict c), (rename_S dict s')
+            c', For((T, x), lower, upper, s'')
+        else
+            c, For((T, x), lower, upper, s') 
 
     | VCall(x, Es) -> 
         let f = get_fun x defs
@@ -422,14 +431,26 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
         | FunD(_) -> failwith "function was not expected to have a return value, but returns a distribution instead"
 
     | Block((T,x), s) ->
+
+        let assset = Util.assigns_global s
         let c, s' = elaborate_S defs s
-        if Set.contextContains x c then
-            let dict = create_dict (Set.singleton x) c 
-            let c', s'' = (rename_Ctx dict c), (rename_S dict s')
-            (Set.add (T,x) c'), s''
+
+        if Set.contains x assset || (fst T) <. Int then
+            if Set.contextContains x c then
+                let dict = create_dict (Set.singleton x) c 
+                let c', s'' = (rename_Ctx dict c), (rename_S dict s')
+                c', Block((T,x), s'')
+            else
+                c, Block((T,x), s')
+
         else
-            let c' = Set.add (T,x) c 
-            c', s'    
+            if Set.contextContains x c then
+                let dict = create_dict (Set.singleton x) c 
+                let c', s'' = (rename_Ctx dict c), (rename_S dict s')
+                (Set.add (T,x) c'), s''
+            else
+                let c' = Set.add (T,x) c 
+                c', s'    
                 
     | Skip -> empty, Skip
 
