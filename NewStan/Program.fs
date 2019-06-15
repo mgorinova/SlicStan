@@ -62,8 +62,7 @@ let main argv =
     let typechecked = slic
                     |> parse
                     |> typecheck_Prog 
-
-    printf "%A" typechecked
+                    
     //let ctx, elab =  elaborate_Prog typechecked
 
     //printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
@@ -71,7 +70,10 @@ let main argv =
     let enum = enumerate_Prog (snd typechecked)
 
     printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
-            
+    
+    // TODO for next working day: 
+    // (1) fix parser
+    // (2) think about how to implement the array discrete variables support
     
 
     // ide is "identifier", it's a string.

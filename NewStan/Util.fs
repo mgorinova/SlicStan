@@ -90,7 +90,7 @@ let rec assigns_global (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns_global s
     | Seq(s1, s2) -> Set.union (assigns_global s1) (assigns_global s2)
     | Skip -> Set.empty
-    | VCall _ -> failwith "not implemented"
+    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments?
 
 
 

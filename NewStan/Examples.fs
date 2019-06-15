@@ -468,4 +468,3 @@ def MyNormal(real m, real v){
 real y ~ normal(0, 1);
 real x = MyNormal(sqrt(y - y), 1);
 "
-

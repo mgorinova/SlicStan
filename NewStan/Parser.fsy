@@ -50,6 +50,11 @@ deff:
   | IDE LEFT args RIGHT LBRACE block_item_list RBRACE{ FunV($1, $3, $6, ()) }
   | IDE LEFT RIGHT LBRACE block_item_list RBRACE{ FunV($1, [], $5, ()) }
 
+  | IDE LEFT args RIGHT LBRACE RET exp SEMICOLON RBRACE { FunE($1, $3, Skip, $7) }
+  | IDE LEFT RIGHT LBRACE RET exp SEMICOLON RBRACE { FunE($1, [], Skip, $6) }
+  | IDE LEFT args RIGHT LBRACE RET SIM dist SEMICOLON RBRACE { FunD($1, $3, Skip, $8) }
+  | IDE LEFT RIGHT LBRACE RET SIM dist SEMICOLON RBRACE { FunD($1, [], Skip, $7) }
+
 args:
   | arg COMMA args { $1 :: $3 }
   | arg { [$1] }
@@ -89,7 +94,13 @@ declaration:
   | tp IDE SEMICOLON block_item_list { Block((($1, LevelVar (next())), $2), $4) }
   //| tp IDE EQ exp SEMICOLON { Block((($1, LevelVar (next())), $2), Assign(I($2), $4), $6) }
   //| tp IDE SIM dist SEMICOLON { Block((($1, LevelVar (next())), $2), Sample(I($2), $4), $6) }
- 
+  
+  | tp IDE EQ exp SEMICOLON { Block((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), Skip)) }
+  | tp IDE SIM dist SEMICOLON { Block((($1, LevelVar (next())), $2), Seq(Sample(I($2), $4), Skip)) }
+  | DATA tp IDE SEMICOLON { DataDecl($2, $3, Skip) }
+  | DATA tp IDE SIM dist SEMICOLON { DataDecl($2, $3, Seq(Sample(I($3), $5), Skip)) }
+  | tp IDE SEMICOLON { Block((($1, LevelVar (next())), $2), Skip) }
+
 
 iteration_statement:
   | FOR LEFT tp IDE IN INT COLON INT RIGHT statement { For(((Int, Model), $4), N($6), N($8), $10) }
