@@ -70,22 +70,10 @@ let rec get_type (env: (Type*Ide) list) (x: Ide) : Type =
     | (ty, name) :: ns -> if name = x then ty else get_type ns x
 
 
-let rec to_Stan_statements (S: S) : Statements =
-    match S with 
-    | NewStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
-    | NewStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
-    | NewStanSyntax.For(x, l, u, s) -> failwith "for can't be translated to Stan yet"
-    | NewStanSyntax.Assign(a1, a2) -> Let(a1, a2)
-    | NewStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
-    | NewStanSyntax.Skip -> SNone
-    | NewStanSyntax.Block _ -> failwith "unexpected in translation"
-    | NewStanSyntax.DataDecl _ -> failwith "unexpected in translation"
-    | NewStanSyntax.VCall _ -> failwith "unexpected in translation"
-
 let translate (C: Context) (S: S) : Prog =
 
     let gamma = Set.toList C
-    let assset = assigns S
+    let assset = Util.assigns_global S
 
     let rec translate_Gamma (gamma: (Type * Ide) list) =
         let allocate_declaration (T: Type, x: Ide) =
@@ -101,6 +89,18 @@ let translate (C: Context) (S: S) : Prog =
             | _ -> failwith "unexpected"
 
         List.fold (fun p d -> join_stan_p p (allocate_declaration d)) emptyStanProg gamma
+
+    let rec to_Stan_statements (S: S) : Statements =
+        match S with 
+        | NewStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
+        | NewStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
+        | NewStanSyntax.For(x, l, u, s) -> For(snd x, l, u, to_Stan_statements s)
+        | NewStanSyntax.Assign(a1, a2) -> Let(a1, a2)
+        | NewStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
+        | NewStanSyntax.Skip -> SNone
+        | NewStanSyntax.Block ((T, x), s)  -> LocalDecl((fst T), x, (to_Stan_statements s))
+        | NewStanSyntax.DataDecl (t, x, s) -> failwith "unexpected in translation"
+        | NewStanSyntax.VCall _ -> failwith "unexpected in translation"
 
     let rec _translate (S:S) : Prog =        
         match S with     
@@ -126,8 +126,17 @@ let translate (C: Context) (S: S) : Prog =
 
         | Skip        -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
 
-        | DataDecl(_,_,s) -> _translate s  // FIXME: make that case fail too
-        | NewStanSyntax.Block _ -> failwith "unexpected"            
+        | NewStanSyntax.For(x, l, u, s) -> 
+            // FIXME: like with If; needs to be done properly
+            P(DNone, TDNone, PNone, TPBlock(VNone, For((snd x), l, u, to_Stan_statements s)), MBlock(VNone,SNone), GQNone)
+
+        | DataDecl(_,_,s) -> _translate s  // FIXME ?
+        | NewStanSyntax.Block((T, x), s) ->
+            match (snd T) with
+            | Data     -> join_stan_p (translate_Gamma [(T, x)]) (P(DNone, TDBlock(VNone,  to_Stan_statements s), PNone, TPNone, MBlock(VNone,SNone), GQNone))
+            | Model    -> join_stan_p (translate_Gamma [(T, x)]) (P(DNone, TDNone, PNone, TPBlock(VNone,  to_Stan_statements s), MBlock(VNone,SNone), GQNone))
+            | GenQuant -> join_stan_p (translate_Gamma [(T, x)]) (P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone,  to_Stan_statements s)))
+
         | NewStanSyntax.VCall _ ->  failwith "unexpected"
 
     let p = translate_Gamma gamma

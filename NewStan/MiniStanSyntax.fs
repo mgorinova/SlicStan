@@ -22,6 +22,8 @@ type Statements = Let of LValue * Exp // TODO: add more statements
                 | Sample of LValue * Dist
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
+                | For of Ide * ArrSize * ArrSize * Statements
+                | LocalDecl of TIde * Ide * Statements
                 | SNone
 
 // S; S; E; S; 
@@ -65,13 +67,15 @@ let rec Decls_pretty decls =
     | VSeq (d1, d2) ->  Decls_pretty d1 + Decls_pretty d2
     | VNone -> ""
 
-let rec Statements_pretty decls =
+let rec Statements_pretty ident decls =
     match decls with 
-    | Let (lhs, expr) -> "\t" + LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (name, dist) -> "\t" + (LValue_pretty name) + " ~ " + D_pretty dist + ";\n"
-    | SSeq (s1, s2) -> Statements_pretty s1 + Statements_pretty s2
-    | If(e, s1, SNone) -> sprintf "\tif(%s){\n\t%s\t}" (E_pretty e) (Statements_pretty s1)
-    | If(e, s1, s2) -> sprintf "\tif(%s){\n\t%s\n}\telse{\n\t%s}\n" (E_pretty e) (Statements_pretty s1) (Statements_pretty s2)
+    | Let (lhs, expr) -> ident +  LValue_pretty lhs + " = " + E_pretty expr + ";\n"
+    | Sample (name, dist) -> ident  + (LValue_pretty name) + " ~ " + D_pretty dist + ";\n"
+    | SSeq (s1, s2) -> Statements_pretty ident s1 + Statements_pretty ident s2
+    | If(e, s1, SNone) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty e) (Statements_pretty ident s1) ident
+    | If(e, s1, s2) -> sprintf "%sif(%s){\n%s\n%s}\n%selse{\n%s\n%s}" ident (E_pretty e) (Statements_pretty (ident+"\t") s1) ident ident (Statements_pretty (ident+"\t") s2) ident
+    | For(x, l, u, s) -> sprintf "%sfor(%s in %s : %s){\n%s\n%s}" ident (x) (SizeToString l) (SizeToString u) (Statements_pretty (ident+"\t") s) ident
+    | LocalDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (Type_pretty t) x (Statements_pretty ident s)
     | SNone -> ""
 
 let Data_pretty d =
@@ -81,7 +85,7 @@ let Data_pretty d =
 
 let TData_pretty d =
     match d with 
-    | TDBlock (ds, ss) -> Decls_pretty ds + Statements_pretty ss
+    | TDBlock (ds, ss) -> Decls_pretty ds + Statements_pretty "\t" ss
     | TDNone -> ""
 
 let Params_pretty d =
@@ -91,16 +95,16 @@ let Params_pretty d =
 
 let TParams_pretty d =
     match d with 
-    | TPBlock (ds, ss) -> Decls_pretty ds + Statements_pretty ss
+    | TPBlock (ds, ss) -> Decls_pretty ds + Statements_pretty "\t" ss
     | TPNone -> ""
 
 let Model_pretty d =
     match d with 
-    | MBlock (ds, ss) -> Decls_pretty ds + Statements_pretty ss
+    | MBlock (ds, ss) -> Decls_pretty ds + Statements_pretty "\t" ss
 
 let GenQuant_pretty d =
     match d with 
-    | GQBlock (ds, ss) -> Decls_pretty ds + Statements_pretty ss
+    | GQBlock (ds, ss) -> Decls_pretty ds + Statements_pretty "\t" ss
     | GQNone -> ""
 
 let rec Prog_pretty (p:Prog) : string= 
