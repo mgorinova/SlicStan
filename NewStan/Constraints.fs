@@ -7,7 +7,7 @@
 
 open NewStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel //| Eq of TypeLevel * TypeLevel
+type Constraint = Leq of TypeLevel * TypeLevel | Neq of TypeLevel * TypeLevel
 
 let rec constraints_pretty (cs : Constraint list) =
     

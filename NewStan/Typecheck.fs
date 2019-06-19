@@ -57,15 +57,47 @@ let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim li
 
 let rec assigns (S: S) : Set<Ide> =
     match S with
-    | DataDecl(_, x, s) -> assigns s
-    | Block((_, x), s) -> Set.remove x (assigns s)
+    | Decl((_, x), s) -> Set.remove x (assigns s)
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
 
+
+let read_at_level (l: TypeLevel) (s: S) : Map<Ide, TypeLevel> =
+    failwith "not impl"
+
+let assigned_of_level (l: TypeLevel) (s: S) : Map<Ide, TypeLevel> =
+    failwith "not impl"
+
+let map_intersect a b = Map (seq {
+    for KeyValue(k, va) in a do
+        match Map.tryFind k b with
+        | Some vb -> yield k, (va, vb)
+        | None    -> () })
+
+let shreddable (s1: S) (s2: S): Constraint list = 
+    let possible_level_pairs = [(Model, Data); (GenQuant, Data); (GenQuant, Model)]
+
+
+    // check what's in read_at_level and assignedto_of_level for each pair
+    // Then this will record the actual type level of each variable (because it could be 
+    // a variable type level)
+    let check_single_pair (l1: TypeLevel) (l2: TypeLevel) : Constraint list =
+   
+        let R = read_at_level l1 s1
+        let W = assigned_of_level l2 s2
+
+        map_intersect R W 
+            |> Map.map (fun x (l1, l2) -> Neq(l1, l2))
+            |> Map.toList
+            |> List.map (fun (_, v) -> v)
+
+
+    // Finally, construct the final constraints based on that.
+    List.fold (fun acc (l1, l2) -> List.append acc (check_single_pair l1 l2)) [] possible_level_pairs
+    
 
 let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =        
 
@@ -196,20 +228,16 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             let c2 = check_E signatures gamma e (tau, ell)
             ell, emptyGamma, (List.append c1 c2)
 
-        | Sample(x, d) -> 
-            let (tau, ell), ce = synth_E signatures gamma (Var(x))                
+        | Sample(e, d) ->                
+            let (tau, ell), ce = synth_E signatures gamma e
             let cd = check_D signatures gamma d (tau, Model)
 
             Model, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
 
-        | DataDecl(tp, x, s') -> 
-            let gamma' = Map.add x (tp, Data) gamma
-            let l', g, c = synth_S signatures gamma' s'
-            l', ( Map.add x (tp, Data) g ), c
-
         | Seq(s1, s2) -> 
             let ell1, gamma1, c1 = synth_S signatures gamma s1
             let ell2, gamma2, c2 = synth_S signatures gamma s2
+            let c = shreddable s1 s2
             (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2)
 
         | If(e, s1, s2) ->
@@ -221,7 +249,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
         | Skip -> GenQuant, emptyGamma, []
 
-        | Block(env, s') -> 
+        | Decl(env, s') -> 
             let (p, l), x = env
             let gamma' = Map.add x (p, l) gamma
             let l', g, c = synth_S signatures gamma' s'
@@ -229,11 +257,6 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
                 if (Set.contains x (assigns s')) then c
                 else (Leq(Model, l)) :: c
             l', ( Map.add x (p, l) g ), c'
-
-        | VCall(name, Es) -> 
-            let (tau, ell), c = synth_E signatures gamma (ECall(name, Es))
-            assert (tau = Unit)
-            ell, gamma, c
 
 
     and check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
@@ -243,37 +266,16 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     let typecheck_Def (signatures: Signatures) (def: FunDef) : Signatures*(Constraint list) =             
         match def with 
-        | FunE (name, args, S, E) -> 
+        | Fun (name, args, S, (T, ret_var)) -> 
             
             let Ts, _ = List.unzip args
             let Ps, Ls = List.unzip Ts
 
-            let argsgamma = (Map.ofList (List.map flip args))
-            let ell, gamma, cs = synth_S signatures argsgamma S //Data
+            let argsgamma = (Map.ofList (List.map flip args)) |> Map.add ret_var T
+            let ell, gamma, cs = synth_S signatures argsgamma S 
+         
+            Map.add name (Ps, Ls, T) signatures, cs   
 
-            let ret, ce = synth_E signatures (join argsgamma gamma) E            
-            Map.add name (Ps, Ls, ret) signatures, (List.append cs ce)   
-
-        | FunD (name, args, S, D) -> 
-            let Ts, _ = List.unzip args
-            let Ps, Ls = List.unzip Ts
-
-            let argsgamma = (Map.ofList (List.map flip args))
-            let _, gamma, cs = synth_S signatures argsgamma S // Data
-
-            let ret, cd = synth_D signatures (join argsgamma gamma) D            
-            Map.add name (Ps, Ls, ret) signatures, (List.append cs cd)  
-
-        | FunV (name, args, S, _) -> 
-            let Ts, _ = List.unzip args
-            let Ps, Ls = List.unzip Ts
-
-            let argsgamma = (Map.ofList (List.map flip args))
-            let ell, gamma, c = synth_S signatures argsgamma S // Data
-            let _, def_types = Map.toList gamma 
-                            |> List.unzip
-
-            Map.add name (Ps, Ls, (Unit, ell)) signatures, c
 
     let rename_NewStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
         
@@ -286,16 +288,14 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
         let rec rename_S s =
             match s with 
-            | Block (a, s') -> Block(rename_arg a, rename_S s')
-            | DataDecl(t, x, s') ->  DataDecl(t, x, rename_S s')
+            | Decl (a, s') -> Decl(rename_arg a, rename_S s')
             | Seq(s1, s2) -> Seq(rename_S s1, rename_S s2)
             | s' -> s'
         
         let rename_def def = 
             match def with
-            | FunE (name, args, s, e) -> FunE(name, (List.map rename_arg args), (rename_S s), e)
-            | FunD (name, args, s, d) -> FunD(name, (List.map rename_arg args), (rename_S s), d)
-            | FunV (name, args, s, ()) -> FunV(name, (List.map rename_arg args), (rename_S s), ())
+            // FIXME: renaming probably not really done properly here
+            | Fun (name, args, s, ret_arg) -> Fun(name, (List.map rename_arg args), (rename_S s), rename_arg ret_arg)
              
         
         List.map rename_def defs, rename_S s

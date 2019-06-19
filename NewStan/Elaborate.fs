@@ -49,7 +49,7 @@ let assign_all (lhs: Arg list) (rhs:Exp list) : S =
 /// Example: block_from_list_env ({x,y}, S1) 
 /// Returns: Block(x, Block(y, S1)).
 let rec block_from_list_env (env: List<Arg>, body) =    
-    List.fold (fun s v -> Block(v, s)) body env 
+    List.fold (fun s v -> Decl(v, s)) body env 
 
 
 let create_dict (mainC: Context) (secondaryC: Context) :Dict =
@@ -105,14 +105,12 @@ let rec rename_LValue (dict:Dict) (lhs:LValue): LValue =
 /// Renames all bound variables in s, as specified by dict.
 let rec rename_S (dict:Dict) (s: S):S =
     match s with
-    | DataDecl(t, x, s') -> DataDecl(t, Map.safeFind x dict, rename_S dict s')
-    | Block(env, s') -> Block(rename_arg dict env, rename_S dict s')
-    | Sample(x, d) -> Sample(Map.safeFind x dict, rename_D dict d)
+    //| DataDecl(t, x, s') -> DataDecl(t, Map.safeFind x dict, rename_S dict s')
+    | Decl(env, s') -> Decl(rename_arg dict env, rename_S dict s')
+    | Sample(e, d) -> Sample(rename_E dict e, rename_D dict d)
     | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
     | If(e, s1, s2) -> If(rename_E dict e, rename_S dict s1, rename_S dict s2)
     | Seq(s1, s2) -> Seq(rename_S dict s1, rename_S dict s2)
-    | VCall(x, []) -> VCall(x,[])
-    | VCall(x, Es) -> VCall(x, List.map (rename_E dict) Es)
     | Skip -> Skip
   
 
