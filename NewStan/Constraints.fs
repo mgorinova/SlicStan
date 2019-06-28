@@ -61,6 +61,9 @@ let expand_and_filter (cs: Constraint list): Constraint list =
 
         | _ -> [c]
 
+
+    // printf "Constrint list: %A" cs
+
     List.fold (fun s c -> List.append s (expand_constraint c)) [] cs
     |> List.filter check_not_tautology_nf
 

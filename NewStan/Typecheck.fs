@@ -233,14 +233,13 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
         | Sample(e, d) ->                
             let (tau, ell), ce = synth_E signatures gamma e
             let cd = check_D signatures gamma d (tau, Model)
-
             Model, emptyGamma, (Leq(ell, Model))::(List.append ce cd) // assert (ell <= Model)
 
         | Seq(s1, s2) -> 
             let ell1, gamma1, c1 = synth_S signatures gamma s1
             let ell2, gamma2, c2 = synth_S signatures gamma s2
             let c = shreddable s1 s2
-            (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2)
+            (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c)
 
         | If(e, s1, s2) ->
             let (tau, ell), ce = synth_E signatures gamma e
@@ -253,16 +252,22 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
 
         | Decl(env, s') -> 
             let (p, l), x = env
+            
+            assert(Map.containsKey x gamma |> not)
+
             let gamma' = Map.add x (p, l) gamma
             let l', g, c = synth_S signatures gamma' s'
-            let c' =
-                if (Set.contains x (assigns s')) then c
-                else (Leq(Model, l)) :: c
-            l', ( Map.add x (p, l) g ), c'
-
+           
+            if (l = Data) || (assigns s' |> Set.contains x) then
+                l', ( Map.add x (p, l) g ), c
+            else 
+                // This bit is only neccessary for the algoritmic typing rules,
+                // in order to make sure that variables that are not explicitly 
+                // declared as data, and are unassigned, will be parameters.
+                l', ( Map.add x (p, l) g ), (Leq(Model, l))::c
 
     and check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
-        let ell', gamma', c = synth_S signatures gamma s            
+        let ell', gamma', c = synth_S signatures gamma s   
         (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
 
 
