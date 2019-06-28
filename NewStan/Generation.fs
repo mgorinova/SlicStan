@@ -136,7 +136,7 @@ let stats (S:S) =
 
 
 /// Returns NumbDecls(d, td, p, tp, m, gq) * num_lines, num_assignments, num_sampling
-let stan_stats (P(d, td, p, tp, m, gq) : MiniStanSyntax.Prog) = 
+let stan_stats (P(d, td, p, tp, m, gq) : MiniStanSyntax.MiniStanProg) = 
     
     let rec decl_count (decls : VarDecls) : int = 
         match decls with 

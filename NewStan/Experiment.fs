@@ -8,13 +8,12 @@
 open Generation
 open Typecheck
 open Elaborate
-open Translate
 
 open System.Diagnostics;
 
 
 
-type SingleStats = (int64*int64*int64)*(int*int*int*int*int*int)*((int*int*int*int*int)*(int*int*int))
+type SingleStats = (int64*int64*int64*int64)*(int*int*int*int*int*int)*((int*int*int*int*int)*(int*int*int))
 type Stats = {inference_times :int64 list; elaboration_time:int64 list; translation_time: int64 list;
               slic_lines:int list; slic_datadecl:int list; slic_decl:int list; slic_assignments:int list; slic_sampling:int list; slic_ecalls:int list;
               data:int list; trans_data:int list; paramss:int list; trans_params:int list; gen_quants:int list;
@@ -41,10 +40,14 @@ let run_single fs n : SingleStats =
     let elaboration_time = stopwatch.ElapsedMilliseconds //
 
     stopwatch.Restart()
-    let translated = (Translate.translate context elab)
+    let shredded = Shredding.shred_S context elab
+    let shredding_time = stopwatch.ElapsedMilliseconds
+
+    stopwatch.Restart()
+    let translated = (Transformation.transform context shredded)
     let translation_time = stopwatch.ElapsedMilliseconds
 
-    (inference_time, elaboration_time, translation_time), (Generation.stats s), (Generation.stan_stats translated)
+    (inference_time, elaboration_time, shredding_time, translation_time), (Generation.stats s), (Generation.stan_stats translated)
 
 
 
@@ -56,7 +59,7 @@ let empty_stats: Stats = {inference_times=[]; elaboration_time=[]; translation_t
 
 
 let concat (stats: SingleStats) (record: Stats) =
-    let (inference_time, elaboration_time, translation_time),
+    let (inference_time, elaboration_time, shredding_time, translation_time),
         (slic_lines, slic_datadecl, slic_decl, slic_assignments, slic_sampling, slic_ecalls),
         ((d, td, p, tp, gq), (num_lines, num_assignments, num_sampling)) = stats 
 

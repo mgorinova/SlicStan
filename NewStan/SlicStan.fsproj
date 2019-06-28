@@ -24,15 +24,14 @@
     <Compile Include="Constraints.fs" />
     <Compile Include="Typecheck.fs" />
     <Compile Include="Elaborate.fs" />
+    <Compile Include="Shredding.fs" />
     <Compile Include="MiniStanSyntax.fs" />
-    <Compile Include="Translate.fs" />
+    <Compile Include="Transformation.fs" />
     <Compile Include="Examples.fs" />
     <Compile Include="Generation.fs" />
     <Compile Include="Experiment.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
-
-  <ItemGroup />
 
   <ItemGroup>
     <PackageReference Include="FsLexYacc" Version="9.0.2" />

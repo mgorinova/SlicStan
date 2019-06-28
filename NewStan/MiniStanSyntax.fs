@@ -40,7 +40,7 @@ type GenQuant = GQBlock of VarDecls * Statements | GQNone
 
 type Block = VarDecls * Statements 
 
-type Prog = P of Data * TData * Params * TParams * Model * GenQuant
+type MiniStanProg = P of Data * TData * Params * TParams * Model * GenQuant
 
 
 let E_pretty = SlicStanSyntax.E_pretty
@@ -101,7 +101,7 @@ let GenQuant_pretty d =
     | GQBlock (ds, ss) -> Decls_pretty ds + Statements_pretty ss
     | GQNone -> ""
 
-let rec Prog_pretty (p:Prog) : string= 
+let rec Prog_pretty (p:MiniStanProg) : string= 
     match p with
     | P(d, td, p, tp, m, gq) -> 
         let funcs  = "" // TODO add function pretty printing

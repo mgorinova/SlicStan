@@ -7,23 +7,19 @@ open FSharp.Text.Lexing
 open Parser
 open Lexer 
 
-open Examples
 open Typecheck
 open Elaborate
-open Translate
+open Shredding
+open Transformation
 
-open Constraints
-
-open System.Diagnostics;
 open System.IO
 
 let parse slicstan = 
     let lexbuf = LexBuffer<char>.FromString slicstan
-    //let res = [], (Seq(Skip, Skip))
     let res = Parser.start Lexer.read lexbuf
     res
    
-let example = Examples.simple_normal
+let example = Examples.ifs
 
 [<EntryPoint>]
 let main argv =   
@@ -50,8 +46,9 @@ let main argv =
     // gamma, ctx, context, etc are \Gamma from the latex typing rules.
 
     let ctx, s = elab
+    let sd, sm, sq = shred_S ctx s 
 
-    let stan = translate ctx s
+    let stan = transform ctx (sd, sm, sq)
     
     // Not in this version:
     // string -> parse -> elborate -> typecheck -> shred -> translate
