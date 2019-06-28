@@ -24,6 +24,7 @@
     <Compile Include="Util.fs" />
     <Compile Include="Constraints.fs" />
     <Compile Include="Typecheck.fs" />
+    <Compile Include="Factorgraph.fs" />
     <Compile Include="Enumerate.fs" />
     <Compile Include="Elaborate.fs" />
     <Compile Include="MiniStanSyntax.fs" />

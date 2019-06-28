@@ -6,16 +6,14 @@ open NewStanSyntax
 let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg = 
 
     let assset = Util.assigns_global s
-    let hidden_discrete_variables = Set.empty
-
-    printf "Assigned to variables are %A" assset
+    let hidden_discrete_variables = Set.empty // variables we don't want to re-sample at the end
 
     let rec enum (accumulator_type: TypePrim) (accumulator: LValue) (indexed_by: Exp list) (S: S) : (S list * S * S list) =
         match S with
         | Block((T, x), s) -> 
             if Set.contains x assset then 
                 let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
-                defs, Block((T, x), prog), gen
+                Block((T, x), Skip)::defs, prog, gen
             else match T with
             | Constrained(Int, upper), Model ->
                 (* x is discrete; want to enumerate it
@@ -60,7 +58,7 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
             | Array(Constrained(Int, upper), n), Model  -> failwith "not implemented"
             | _ -> 
                 let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
-                defs, Block((T, x), prog), gen
+                Block((T, x), Skip) :: defs,  prog,  gen
 
         | Sample(x, d) -> 
             match accumulator with

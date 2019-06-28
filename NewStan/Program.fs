@@ -13,6 +13,8 @@ open Enumerate
 open Elaborate
 open Translate
 
+open Factorgraph
+
 open Constraints
 
 open System.Diagnostics;
@@ -23,7 +25,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.discrete2
+let example = Examples.discrete3
  
 // look into array elements dependance analysis literature
   
@@ -65,11 +67,15 @@ let main argv =
                     
     //let ctx, elab =  elaborate_Prog typechecked
 
+    let graph = Factorgraph.to_graph (snd typechecked)
+
+    printfn "%A" (pp_graph graph)
+
     //printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
 
     let enum = enumerate_Prog (snd typechecked)
 
-    printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
+    //printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
     
 
     //let stan = translate ctx enum
