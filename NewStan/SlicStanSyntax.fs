@@ -1,4 +1,4 @@
-﻿module NewStanSyntax
+﻿module SlicStanSyntax
 
 type ArrSize = N of int | SizeVar of string
 let AnySize = N(-1)//
@@ -41,9 +41,8 @@ type Exp = Var of Ide
 type LValue = I of Ide | A of LValue * Exp // x[E]
 
 type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
-          | DCall of FunIde * Exp list
 
-type S = Decl of (Type * Ide) * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
+type S = Decl of Arg * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
        | Sample of Exp * Dist // x ~ D // general case should be E ~ D
        | Assign of LValue * Exp // x = E 
        | If of Exp * S * S // if-else
@@ -133,7 +132,7 @@ let name fundef =
     match fundef with 
     | Fun(n, _, _, _) -> n
 
-type NewStanProg = FunDef list * S
+type SlicStanProg = FunDef list * S
 
 let empty = Set.empty
 
@@ -181,8 +180,6 @@ and D_pretty D =
   match D with
   | Dist(p,[]) -> sprintf "%s()" p
   | Dist(p,Es) -> sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
-  | DCall(x,[]) -> sprintf "%s()" x 
-  | DCall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
 
 let rec LValue_pretty (x:LValue) =
         match x with 
@@ -218,7 +215,7 @@ let rec DefList_pretty defs =
                 else 
                     sprintf "def %s(%s){\n%s\n  return %s;\n}\n%s" name (List_pretty args) (S_pretty "  " s) (x) (DefList_pretty ps)
 
-let rec NewStanProg_pretty prog = 
+let rec SlicStanProg_pretty prog = 
     match prog with 
     | defs, s -> sprintf "%s\n%s\n" (DefList_pretty defs) (S_pretty "" s)
 

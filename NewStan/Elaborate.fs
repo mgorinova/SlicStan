@@ -1,6 +1,6 @@
 ﻿module Elaborate
 
-open NewStanSyntax
+open SlicStanSyntax
 open System.Runtime.CompilerServices
 
 type Dict = Map<Ide,Ide>   // Gamma
@@ -94,7 +94,6 @@ let rec rename_E (dict:Dict) (e: Exp):Exp =
 let rec rename_D (dict:Dict) (d: Dist):Dist =
     match d with
     | Dist(name, Es) -> Dist(name, List.map (rename_E dict) Es)
-    | DCall(name, Es) -> DCall(name, List.map (rename_E dict) Es) // this shouldn't be possible
 
 let rec rename_LValue (dict:Dict) (lhs:LValue): LValue =
     match lhs with
@@ -217,7 +216,8 @@ let adjust_types (ctx: Context) (args: Arg list) (types: TypePrim list) : Contex
 /// input expression is a function, are also elaborated.
 let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
     match exp with 
-    | ECall(x, Es) -> 
+    // TODO: need to include user-defined functions again
+    (*| ECall(x, Es) -> 
         let f = get_fun x defs
         match f with 
         | FunE(_, args, s, ret) ->             
@@ -248,11 +248,7 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
                     let all = Set.union (ces) cf_all''
                     body, all, ef'
 
-            all, body, ef'
-
-
-        | FunD(_) -> failwith "function is expected to return an expression, but returns a distribution instead"
-        | FunV(_) -> failwith "function is expected to return a distribution, but returns void instead"
+            all, body, ef' *)
 
     | Plus(E1, E2) -> 
         let c1, s1, e1 = elaborate_E defs E1
@@ -287,37 +283,6 @@ let rec elaborate_E (defs: FunDef list) (exp: Exp) : Context*S*Exp =
 /// input expression is a function, are also elaborated.
 and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
     match dist with
-    | DCall(x, Es) ->
-        let f = get_fun x defs
-        match f with 
-        | FunD(_, args, s, ret) -> 
-                    
-            let all_es = List.map (elaborate_E defs) Es
-            let ces, ss, es = tripple_Rename_and_Fold all_es
-
-            let fvs = Set.unionMany (List.map (fun e -> (fv(e))) es)
-            let ces_all = Set.union fvs ces
-
-            let argsf, cf_all, sf, DRet(df) = elaborate_F defs f
-
-            let body, all, df' = 
-                if Set.intersectEmpty ces_all cf_all then
-                    let body = Seq(SofList ss, Seq((assign_all argsf es), sf))
-                    let all = Set.union (ces) cf_all
-                    body, all, df
-                else 
-                    let dict = create_dict ces_all cf_all 
-                    let cf_all', sf', df' = (rename_Ctx dict cf_all), (rename_S dict sf), (rename_D dict df)
-                    let argsf' = rename_args dict argsf
-                    let body = Seq(SofList ss, Seq((assign_all argsf' es), sf'))
-                    let all = Set.union (ces) cf_all'
-                    body, all, df'
-
-            all, body, df'
-
-        | FunE(_) -> failwith "function is expected to return a distribution, but returns an expression instead"
-        | FunV(_) -> failwith "function is expected to return a distribution, but returns void instead"
-    
     | Dist(name, Es) -> 
         let all = List.map (elaborate_E defs) Es 
 
@@ -331,13 +296,15 @@ and elaborate_D (defs: FunDef list) (dist: Dist) : Context*S*Dist =
 /// elaborated versions are also dealt with.
 and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
     match s with 
-    | DataDecl(t,x,s) -> 
+    | Decl((T,x), s) ->
         let c, s' = elaborate_S defs s
         if Set.contextContains x c then
             let dict = create_dict (Set.singleton x) c 
             let c', s'' = (rename_Ctx dict c), (rename_S dict s')
-            (Set.add ((t, Data),x) c'), DataDecl(t,x,s'')
-        else (Set.add ((t, Data),x) c), DataDecl(t,x,s')
+            (Set.add (T,x) c'), s''
+        else
+            let c' = Set.add (T,x) c 
+            c', s'    
 
     | Seq(s1, s2) -> 
         let c1, s1' = elaborate_S defs s1
@@ -359,13 +326,17 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             c', Seq(s', Assign(lhs, e''))
         else c, Seq(s, Assign(lhs, e'))
 
-    | Sample(x, d) -> 
-        let c, s, d' = elaborate_D defs d 
-        if Set.contextContains x c then
-            let dict = create_dict (Set.singleton x) c 
-            let c', s', d'' = (rename_Ctx dict c), (rename_S dict s), (rename_D dict d')
-            c', Seq(s', Sample(x, d''))
-        else c, Seq(s, Sample(x, d'))
+    | Sample(e, d) -> 
+        
+        let ce, se, e' = elaborate_E defs e
+        let cd, sd, d' = elaborate_D defs d 
+
+        if Set.intersectEmpty ce cd then 
+            Set.union ce cd, Seq(se, Seq(sd, Sample(e', d')))
+        else 
+           let dict = create_dict ce cd
+           let cd', sd', d'' = (rename_Ctx dict cd), (rename_S dict sd), (rename_D dict d')
+           Set.union ce cd', Seq(se, Seq(sd', Sample(e', d'')))
 
     | If(e, s1, s2) ->
         let ce, se, e' = elaborate_E defs e
@@ -380,7 +351,7 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
             let cs2', s2'' = (rename_Ctx dict cs2), (rename_S dict s2')
             Set.union ce cs1' |> Set.union cs2', If(e', s1'', s2'')
 
-    | VCall(x, Es) -> 
+    (*| VCall(x, Es) -> 
         let f = get_fun x defs
         match f with 
         | FunV(_, args, s, _) -> 
@@ -406,29 +377,15 @@ and elaborate_S (defs: FunDef list ) (s: S) : Context*S =
                     let all = Set.union (ces) cf_all'
                     body, all
 
-            all, body
-
-
-        | FunE(_) -> failwith "function was not expected to have a return value, but returns an expression instead"
-        | FunD(_) -> failwith "function was not expected to have a return value, but returns a distribution instead"
-
-    | Block((T,x), s) ->
-        let c, s' = elaborate_S defs s
-        if Set.contextContains x c then
-            let dict = create_dict (Set.singleton x) c 
-            let c', s'' = (rename_Ctx dict c), (rename_S dict s')
-            (Set.add (T,x) c'), s''
-        else
-            let c' = Set.add (T,x) c 
-            c', s'    
+            all, body *)
                 
     | Skip -> empty, Skip
 
 and elaborate_F (defs: FunDef list) (f: FunDef) =
-    let args, s, ret = match f with
-                       | FunE(_, args, s, ret) -> args, s, ERet(ret)
-                       | FunD(_, args, s, ret) -> args, s, DRet(ret)
-                       | FunV(_, args, s, _) -> args, s, Unit
+    
+    failwith "need to implement elaboration of user-defined functions"
+    (*
+    let args, s, ret = match f with Fun(_, args, s, ret) -> args, s, ERet(ret)
    
     let cs, ss = elaborate_S defs s
 
@@ -449,7 +406,7 @@ and elaborate_F (defs: FunDef list) (f: FunDef) =
         | Unit ->
             empty, Skip, Unit  
     
-    args', (Set.union (Set.union cs ce) (Set.ofList args')), (Seq(ss, se)), ret
+    args', (Set.union (Set.union cs ce) (Set.ofList args')), (Seq(ss, se)), ret *)
    
 
 /// Runs basic checks on the function definitions, 
@@ -461,7 +418,7 @@ let rec safetycheck defs =
     let get_locals (s: S) : List<Arg> =
         let rec rec_locals s acc = 
             match s with
-            | Block(env, s') ->  rec_locals s' (env::acc)
+            | Decl(env, s') ->  rec_locals s' (env::acc)
             | Seq(s1, s2) -> rec_locals s1 (rec_locals s2 acc)
             | _ -> acc
 
@@ -482,15 +439,13 @@ let rec safetycheck defs =
     | d::ds -> 
 
         let name, args, s = match d with
-                            | FunE(name, args, s, ret) -> name, args, s
-                            | FunD(name, args, s, ret) -> name, args, s
-                            | FunV(name, args, s, _) -> name, args, s
+                            | Fun(name, args, s, ret) -> name, args, s
 
         checkdefs name args s
 
          
 
-let elaborate_NewStanProg (prog: NewStanProg) : Context*S =
+let elaborate_SlicStanProg (prog: SlicStanProg) : Context*S =
     match prog with
     | defs, s -> 
         let _ = safetycheck defs

@@ -1,6 +1,6 @@
 ﻿module Set
 
-open NewStanSyntax
+open SlicStanSyntax
 
 type Context = (Type * Ide) Set 
 

@@ -2,10 +2,10 @@
 
 #if INTERACTIVE
 #I __SOURCE_DIRECTORY__
-#r "bin\Debug\NewStanSyntax.exe"
+#r "bin\Debug\SlicStanSyntax.exe"
 #endif
 
-open NewStanSyntax
+open SlicStanSyntax
 
 type Constraint = Leq of TypeLevel * TypeLevel | Neq of TypeLevel * TypeLevel
 

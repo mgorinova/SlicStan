@@ -1,8 +1,7 @@
-# 1 "NewStanSyntaxLexer.fsl"
-    
 module Lexer
-
-open Microsoft.FSharp.Text.Lexing
+# 1 "Lexer.fsl"
+  
+open FSharp.Text.Lexing
 open System   
 open Parser   
   
@@ -42,7 +41,7 @@ let lexeme = LexBuffer.LexemeString
 let newline (lexbuf: LexBuffer<_>) = 
     lexbuf.StartPos <- lexbuf.StartPos.NextLine
 
-# 45 "NewStanSyntaxLexer.fs"
+# 44 "Lexer.fs"
 let trans : uint16[] array = 
     [| 
     (* State 0 *)
@@ -191,150 +190,148 @@ let trans : uint16[] array =
      [| 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 71us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 71us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; 65535us; |];
     |] 
 let actions : uint16[] = [|3us; 0us; 1us; 1us; 2us; 4us; 3us; 4us; 4us; 4us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 17us; 18us; 19us; 20us; 21us; 22us; 23us; 24us; 25us; 26us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 5us; 4us; 3us; 2us; 2us; 2us; 3us; 1us; 0us; |]
-let _fslex_tables = Microsoft.FSharp.Text.Lexing.UnicodeTables.Create(trans,actions)
+let _fslex_tables = FSharp.Text.Lexing.UnicodeTables.Create(trans,actions)
 let rec _fslex_dummy () = _fslex_dummy() 
-(* Rule read *)
-and read  (lexbuf : Microsoft.FSharp.Text.Lexing.LexBuffer<_>) = _fslex_read  0 lexbuf
-(* Rule read *)
-and _fslex_read  _fslex_state lexbuf =
-  match _fslex_tables.Interpret(_fslex_state,lexbuf) with
+// Rule read
+and read  lexbuf =
+  match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 59 "NewStanSyntaxLexer.fsl"
+# 57 "Lexer.fsl"
                                   read lexbuf 
-# 204 "NewStanSyntaxLexer.fs"
+# 201 "Lexer.fs"
           )
   | 1 -> ( 
-# 60 "NewStanSyntaxLexer.fsl"
+# 58 "Lexer.fsl"
                                 newline lexbuf; read lexbuf 
-# 209 "NewStanSyntaxLexer.fs"
+# 206 "Lexer.fs"
           )
   | 2 -> ( 
-# 61 "NewStanSyntaxLexer.fsl"
+# 59 "Lexer.fsl"
                                 INT (int (lexeme lexbuf)) 
-# 214 "NewStanSyntaxLexer.fs"
+# 211 "Lexer.fs"
           )
   | 3 -> ( 
-# 62 "NewStanSyntaxLexer.fsl"
+# 60 "Lexer.fsl"
                                 REAL (float (lexeme lexbuf)) 
-# 219 "NewStanSyntaxLexer.fs"
+# 216 "Lexer.fs"
           )
   | 4 -> ( 
-# 63 "NewStanSyntaxLexer.fsl"
+# 61 "Lexer.fsl"
                                   ops.[lexeme lexbuf] 
-# 224 "NewStanSyntaxLexer.fs"
+# 221 "Lexer.fs"
           )
   | 5 -> ( 
-# 64 "NewStanSyntaxLexer.fsl"
+# 62 "Lexer.fsl"
                                   match keywords.TryFind(lexeme lexbuf) with   
                                      | Some(token) -> token   
                                      | None -> IDE(string (lexeme lexbuf)) 
-# 231 "NewStanSyntaxLexer.fs"
+# 228 "Lexer.fs"
           )
   | 6 -> ( 
-# 67 "NewStanSyntaxLexer.fsl"
+# 65 "Lexer.fsl"
                                   DEF 
-# 236 "NewStanSyntaxLexer.fs"
+# 233 "Lexer.fs"
           )
   | 7 -> ( 
-# 68 "NewStanSyntaxLexer.fsl"
+# 66 "Lexer.fsl"
                                   RET 
-# 241 "NewStanSyntaxLexer.fs"
+# 238 "Lexer.fs"
           )
   | 8 -> ( 
-# 69 "NewStanSyntaxLexer.fsl"
+# 67 "Lexer.fsl"
                             DATA 
-# 246 "NewStanSyntaxLexer.fs"
+# 243 "Lexer.fs"
           )
   | 9 -> ( 
-# 70 "NewStanSyntaxLexer.fsl"
+# 68 "Lexer.fsl"
                               IF 
-# 251 "NewStanSyntaxLexer.fs"
+# 248 "Lexer.fs"
           )
   | 10 -> ( 
-# 71 "NewStanSyntaxLexer.fsl"
+# 69 "Lexer.fsl"
                                ELSE 
-# 256 "NewStanSyntaxLexer.fs"
+# 253 "Lexer.fs"
           )
   | 11 -> ( 
-# 72 "NewStanSyntaxLexer.fsl"
+# 70 "Lexer.fsl"
                                 WHILE 
-# 261 "NewStanSyntaxLexer.fs"
+# 258 "Lexer.fs"
           )
   | 12 -> ( 
-# 73 "NewStanSyntaxLexer.fsl"
+# 71 "Lexer.fsl"
                                FOR 
-# 266 "NewStanSyntaxLexer.fs"
+# 263 "Lexer.fs"
           )
   | 13 -> ( 
-# 74 "NewStanSyntaxLexer.fsl"
+# 72 "Lexer.fsl"
                                   REALTYPE 
-# 271 "NewStanSyntaxLexer.fs"
+# 268 "Lexer.fs"
           )
   | 14 -> ( 
-# 75 "NewStanSyntaxLexer.fsl"
+# 73 "Lexer.fsl"
                                   INTTYPE 
-# 276 "NewStanSyntaxLexer.fs"
+# 273 "Lexer.fs"
           )
   | 15 -> ( 
-# 76 "NewStanSyntaxLexer.fsl"
+# 74 "Lexer.fsl"
                                   VECTOR 
-# 281 "NewStanSyntaxLexer.fs"
+# 278 "Lexer.fs"
           )
   | 16 -> ( 
-# 77 "NewStanSyntaxLexer.fsl"
+# 75 "Lexer.fsl"
                                   MATRIX 
-# 286 "NewStanSyntaxLexer.fs"
+# 283 "Lexer.fs"
           )
   | 17 -> ( 
-# 78 "NewStanSyntaxLexer.fsl"
+# 76 "Lexer.fsl"
                           LBRACE 
-# 291 "NewStanSyntaxLexer.fs"
+# 288 "Lexer.fs"
           )
   | 18 -> ( 
-# 79 "NewStanSyntaxLexer.fsl"
+# 77 "Lexer.fsl"
                           RBRACE 
-# 296 "NewStanSyntaxLexer.fs"
+# 293 "Lexer.fs"
           )
   | 19 -> ( 
-# 80 "NewStanSyntaxLexer.fsl"
+# 78 "Lexer.fsl"
                           LEFT 
-# 301 "NewStanSyntaxLexer.fs"
+# 298 "Lexer.fs"
           )
   | 20 -> ( 
-# 81 "NewStanSyntaxLexer.fsl"
+# 79 "Lexer.fsl"
                           RIGHT 
-# 306 "NewStanSyntaxLexer.fs"
+# 303 "Lexer.fs"
           )
   | 21 -> ( 
-# 82 "NewStanSyntaxLexer.fsl"
+# 80 "Lexer.fsl"
                           ALEFT 
-# 311 "NewStanSyntaxLexer.fs"
+# 308 "Lexer.fs"
           )
   | 22 -> ( 
-# 83 "NewStanSyntaxLexer.fsl"
+# 81 "Lexer.fsl"
                           ARIGHT 
-# 316 "NewStanSyntaxLexer.fs"
+# 313 "Lexer.fs"
           )
   | 23 -> ( 
-# 84 "NewStanSyntaxLexer.fsl"
+# 82 "Lexer.fsl"
                                   COMMA 
-# 321 "NewStanSyntaxLexer.fs"
+# 318 "Lexer.fs"
           )
   | 24 -> ( 
-# 85 "NewStanSyntaxLexer.fsl"
+# 83 "Lexer.fsl"
                           SEMICOLON 
-# 326 "NewStanSyntaxLexer.fs"
+# 323 "Lexer.fs"
           )
   | 25 -> ( 
-# 86 "NewStanSyntaxLexer.fsl"
+# 84 "Lexer.fsl"
                                   EOF 
-# 331 "NewStanSyntaxLexer.fs"
+# 328 "Lexer.fs"
           )
   | 26 -> ( 
-# 87 "NewStanSyntaxLexer.fsl"
+# 85 "Lexer.fsl"
                       raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) 
-# 336 "NewStanSyntaxLexer.fs"
+# 333 "Lexer.fs"
           )
   | _ -> failwith "read"
 
-# 3000000 "NewStanSyntaxLexer.fs"
+# 3000000 "Lexer.fs"

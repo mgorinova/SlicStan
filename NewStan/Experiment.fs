@@ -2,7 +2,7 @@
 
 #if INTERACTIVE
 #I __SOURCE_DIRECTORY__
-#r "bin\Debug\NewStan.exe"
+#r "bin\Debug\SlicStan.exe"
 #endif
 
 open Generation
@@ -37,7 +37,7 @@ let run_single fs n : SingleStats =
     let inference_time = stopwatch.ElapsedMilliseconds
 
     stopwatch.Restart()
-    let context, elab = Elaborate.elaborate_NewStanProg inferred
+    let context, elab = Elaborate.elaborate_SlicStanProg inferred
     let elaboration_time = stopwatch.ElapsedMilliseconds //
 
     stopwatch.Restart()

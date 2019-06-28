@@ -1,6 +1,6 @@
 ﻿module Translate
 
-open NewStanSyntax
+open SlicStanSyntax
 open MiniStanSyntax
 open Elaborate
 
@@ -72,14 +72,12 @@ let rec get_type (env: (Type*Ide) list) (x: Ide) : Type =
 
 let rec to_Stan_statements (S: S) : Statements =
     match S with 
-    | NewStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
-    | NewStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
-    | NewStanSyntax.Assign(a1, a2) -> Let(a1, a2)
-    | NewStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
-    | NewStanSyntax.Skip -> SNone
-    | NewStanSyntax.Block _ -> failwith "unexpected in translation"
-    | NewStanSyntax.DataDecl _ -> failwith "unexpected in translation"
-    | NewStanSyntax.VCall _ -> failwith "unexpected in translation"
+    | SlicStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
+    | SlicStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
+    | SlicStanSyntax.Assign(a1, a2) -> Let(a1, a2)
+    | SlicStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
+    | SlicStanSyntax.Skip -> SNone
+    | SlicStanSyntax.Decl _ -> failwith "unexpected in translation"
 
 let translate (C: Context) (S: S) : Prog =
 
@@ -103,10 +101,10 @@ let translate (C: Context) (S: S) : Prog =
 
     let rec _translate (S:S) : Prog =        
         match S with     
-        | NewStanSyntax.Sample(x, D) -> 
+        | SlicStanSyntax.Sample(x, D) -> 
             P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(x,D)), GQNone)
 
-        | NewStanSyntax.Assign(lhs, E) -> 
+        | SlicStanSyntax.Assign(lhs, E) -> 
             let t, lr = get_type gamma (LValueBaseName lhs) 
             match lr with 
             | Data     -> P(DNone, TDBlock(VNone, Let(lhs,E)), PNone, TPNone, MBlock(VNone,SNone), GQNone)
@@ -114,20 +112,18 @@ let translate (C: Context) (S: S) : Prog =
             | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(lhs,E)))
             | _ -> failwith "unexpected error!"
         
-        | NewStanSyntax.Seq(S1, S2) -> 
+        | SlicStanSyntax.Seq(S1, S2) -> 
             let p1 = _translate S1  
             let p2 = _translate S2  
             join_stan_p p1 p2
 
-        | NewStanSyntax.If(E, S1, S2) ->
+        | SlicStanSyntax.If(E, S1, S2) ->
             // FIXME: figure out how to do this correctly
             P(DNone, TDNone, PNone, TPBlock(VNone, If(E, to_Stan_statements S1, to_Stan_statements S2)), MBlock(VNone,SNone), GQNone)
 
         | Skip        -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
-
-        | DataDecl(_,_,s) -> _translate s  // FIXME: make that case fail too
-        | NewStanSyntax.Block _ -> failwith "unexpected"            
-        | NewStanSyntax.VCall _ ->  failwith "unexpected"
+        
+        | SlicStanSyntax.Decl _ -> failwith "unexpected"  
 
     let p = translate_Gamma gamma
     join_stan_p p (_translate S)

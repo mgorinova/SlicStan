@@ -1,6 +1,6 @@
 ﻿module Typecheck
 
-open NewStanSyntax
+open SlicStanSyntax
 open Constraints
 
 type Dict = Map<Ide,Type> 
@@ -8,7 +8,7 @@ type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
 // give Model level, say, to all build-ins
-let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) NewStanSyntax.Primitives
+let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) SlicStanSyntax.Primitives
 
 
 let join (p:Map<'a,'b>) (q:Map<'a,'b>) = 
@@ -78,8 +78,11 @@ let map_intersect a b = Map (seq {
         | None    -> () })
 
 let shreddable (s1: S) (s2: S): Constraint list = 
+    
+    // FIXME: need to add appropriate constraints
+    // FIXME: Uncomment when ready to add appropriate shredding constraints:
+    (*
     let possible_level_pairs = [(Model, Data); (GenQuant, Data); (GenQuant, Model)]
-
 
     // check what's in read_at_level and assignedto_of_level for each pair
     // Then this will record the actual type level of each variable (because it could be 
@@ -94,12 +97,13 @@ let shreddable (s1: S) (s2: S): Constraint list =
             |> Map.toList
             |> List.map (fun (_, v) -> v)
 
-
     // Finally, construct the final constraints based on that.
     List.fold (fun acc (l1, l2) -> List.append acc (check_single_pair l1 l2)) [] possible_level_pairs
-    
+    *)
 
-let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =        
+    []
+
+let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =        
 
     let rec synth_E (signatures: Signatures) (gamma: Dict) (e: Exp): Type*(Constraint list) =
         match e with
@@ -195,8 +199,6 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
             (tau', Lub Ls), c
 
-        | DCall(name, Es) -> 
-            synth_E signatures gamma (ECall(name, Es))
 
     let rec check_D (signatures: Signatures) (gamma: Dict) (d: Dist) ((tau,ell): Type) : Constraint list =
         let (tau', ell'), c = synth_D signatures gamma d
@@ -277,7 +279,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
             Map.add name (Ps, Ls, T) signatures, cs   
 
 
-    let rename_NewStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
+    let rename_SlicStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
         
         let rename_arg (((t,l), x):Arg) =
              match l with
@@ -310,7 +312,7 @@ let typecheck_Prog ((defs, s): NewStanProg): NewStanProg =
 
     //printfn "Inferred type levels:  %A\n" (inferred_levels)
 
-    rename_NewStanProg inferred_levels (defs, s)
+    rename_SlicStanProg inferred_levels (defs, s)
 
     
 

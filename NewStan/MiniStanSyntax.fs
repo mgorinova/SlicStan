@@ -1,14 +1,14 @@
 ﻿module MiniStanSyntax
 
-open NewStanSyntax
+open SlicStanSyntax
 
-type Ide = NewStanSyntax.Ide 
-//type T = NewStan.T
-//type ArrEl = NewStan.ArrEl
-type Exp = NewStanSyntax.Exp 
-type Dist = NewStanSyntax.Dist 
+type Ide = SlicStanSyntax.Ide 
+//type T = SlicStan.T
+//type ArrEl = SlicStan.ArrEl
+type Exp = SlicStanSyntax.Exp 
+type Dist = SlicStanSyntax.Dist 
 
-type LValue = NewStanSyntax.LValue
+type LValue = SlicStanSyntax.LValue
 
 type TIde = TypePrim
 
@@ -19,7 +19,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
               | VNone
 
 type Statements = Let of LValue * Exp // TODO: add more statements
-                | Sample of Ide * Dist
+                | Sample of Exp * Dist
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
                 | SNone
@@ -43,8 +43,8 @@ type Block = VarDecls * Statements
 type Prog = P of Data * TData * Params * TParams * Model * GenQuant
 
 
-let E_pretty = NewStanSyntax.E_pretty
-let D_pretty = NewStanSyntax.D_pretty
+let E_pretty = SlicStanSyntax.E_pretty
+let D_pretty = SlicStanSyntax.D_pretty
 
 let rec Type_pretty typeprim =
     match typeprim with 
@@ -66,7 +66,7 @@ let rec Decls_pretty decls =
 let rec Statements_pretty decls =
     match decls with 
     | Let (lhs, expr) -> "\t" + LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (name, dist) -> "\t" + name + " ~ " + D_pretty dist + ";\n"
+    | Sample (e, dist) -> "\t" + (E_pretty e) + " ~ " + D_pretty dist + ";\n"
     | SSeq (s1, s2) -> Statements_pretty s1 + Statements_pretty s2
     | If(e, s1, SNone) -> sprintf "\tif(%s){\n\t%s\t}" (E_pretty e) (Statements_pretty s1)
     | If(e, s1, s2) -> sprintf "\tif(%s){\n\t%s\n}\telse{\n\t%s}\n" (E_pretty e) (Statements_pretty s1) (Statements_pretty s2)
@@ -120,7 +120,7 @@ let example = P (DNone,
                  TDNone, 
                  PNone, 
                  TPNone, 
-                 MBlock(VNone, Sample("x",Dist("normal",[Const(0.0); Const(1.0)]))),
+                 MBlock(VNone, Sample(Var("x"), Dist("normal",[Const(0.0); Const(1.0)]))),
                  GQNone)
                  
 (*  data y1;
