@@ -1,5 +1,5 @@
 ﻿%{
-open NewStanSyntax 
+open SlicStanSyntax 
 %}   
 
 %start start 
@@ -25,35 +25,26 @@ open NewStanSyntax
 %left DIV
 %left NEG
 %token EOF 
-%type <NewStanSyntax.NewStanProg> start   
+%type <SlicStanSyntax.SlicStanProg> start   
   
-%%
+%%   
   
 start: prog { $1 }
 
 prog:
-  | defs block_item_list { $1, $2 }
-  | block_item_list { [], $1 }
-  | defs { $1, Skip }  
+  //| defs block_item_list  { $1, $2 }
+  | block_item_list  { [], $1 }
+  //| defs { $1, Skip }  
 
 
-defs:
-  | DEF deff defs { $2 :: $3 }
-  | DEF deff { [$2] }
+//defs:
+//  | DEF deff defs { $2 :: $3 }
+//  | DEF deff { [$2] }
 
 
-deff:
-  | IDE LEFT args RIGHT LBRACE block_item_list RET exp SEMICOLON RBRACE { FunE($1, $3, $6, $8) }
-  | IDE LEFT RIGHT LBRACE block_item_list RET exp SEMICOLON RBRACE { FunE($1, [], $5, $7) }
-  | IDE LEFT args RIGHT LBRACE block_item_list RET SIM dist SEMICOLON RBRACE { FunD($1, $3, $6, $9) }
-  | IDE LEFT RIGHT LBRACE block_item_list RET SIM dist SEMICOLON RBRACE { FunD($1, [], $5, $8) }
-  | IDE LEFT args RIGHT LBRACE block_item_list RBRACE{ FunV($1, $3, $6, ()) }
-  | IDE LEFT RIGHT LBRACE block_item_list RBRACE{ FunV($1, [], $5, ()) }
-
-  | IDE LEFT args RIGHT LBRACE RET exp SEMICOLON RBRACE { FunE($1, $3, Skip, $7) }
-  | IDE LEFT RIGHT LBRACE RET exp SEMICOLON RBRACE { FunE($1, [], Skip, $6) }
-  | IDE LEFT args RIGHT LBRACE RET SIM dist SEMICOLON RBRACE { FunD($1, $3, Skip, $8) }
-  | IDE LEFT RIGHT LBRACE RET SIM dist SEMICOLON RBRACE { FunD($1, [], Skip, $7) }
+//deff:
+//  | IDE LEFT args RIGHT LBRACE block_item_list  RET arg SEMICOLON RBRACE { Fun($1, $3, $6, $8) }
+//  | IDE LEFT RIGHT LBRACE block_item_list  RET exp SEMICOLON RBRACE { Fun($1, [], $5, $7) }
 
 args:
   | arg COMMA args { $1 :: $3 }
@@ -62,12 +53,13 @@ args:
 arg: 
   | tp IDE { ($1, LevelVar (next())), $2 }
 
+
+
 statement:
   | statement_single { $1 }
   | compound_statement { $1 }
   | selection_statement { $1 }
   | iteration_statement { $1 }
-  //| declaration
 
 compound_statement:
 	| LBRACE RBRACE { Skip }
@@ -81,27 +73,21 @@ block_item_list:
 	
 block_item:
 	| statement { $1 }
-
-// statement_seq:
-//  | statement_single SEMICOLON statement_seq { Seq($1, $3) }
-//  | statement_single SEMICOLON { $1 }
+	
 
 declaration:  
-  | tp IDE EQ exp SEMICOLON block_item_list { Block((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), $6)) }
-  | tp IDE SIM dist SEMICOLON block_item_list { Block((($1, LevelVar (next())), $2), Seq(Sample(I($2), $4), $6)) }
-  | DATA tp IDE SEMICOLON block_item_list { DataDecl($2, $3, $5) }
-  | DATA tp IDE SIM dist SEMICOLON block_item_list { DataDecl($2, $3, Seq(Sample(I($3), $5), $7)) }
-  | tp IDE SEMICOLON block_item_list { Block((($1, LevelVar (next())), $2), $4) }
-  //| tp IDE EQ exp SEMICOLON { Block((($1, LevelVar (next())), $2), Assign(I($2), $4), $6) }
-  //| tp IDE SIM dist SEMICOLON { Block((($1, LevelVar (next())), $2), Sample(I($2), $4), $6) }
-  
-  | tp IDE EQ exp SEMICOLON { Block((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), Skip)) }
-  | tp IDE SIM dist SEMICOLON { Block((($1, LevelVar (next())), $2), Seq(Sample(I($2), $4), Skip)) }
-  | DATA tp IDE SEMICOLON { DataDecl($2, $3, Skip) }
-  | DATA tp IDE SIM dist SEMICOLON { DataDecl($2, $3, Seq(Sample(I($3), $5), Skip)) }
-  | tp IDE SEMICOLON { Block((($1, LevelVar (next())), $2), Skip) }
+  | DATA tp IDE SEMICOLON block_item_list  { Decl((($2, Data), $3), $5) }
+  | DATA tp IDE SIM dist SEMICOLON block_item_list  { Decl((($2, Data), $3), Seq(Sample(Var($3), $5), $7)) }
+  | tp IDE SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), $4) }
+  | tp IDE EQ exp SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), $6)) }
+  | tp IDE SIM dist SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), Seq(Sample(Var($2), $4), $6)) }
+  | statement_single SEMICOLON block_item_list  { Seq($1, $3) }
+  | statement_single SEMICOLON { $1 }
+  | tp IDE EQ exp SEMICOLON { Decl((($1, LevelVar (next())), $2), Assign(I($2), $4)) }
+  | tp IDE SIM dist SEMICOLON { Decl((($1, LevelVar (next())), $2), Sample(Var($2), $4)) }
+  | EOF { Skip }
 
-
+	
 iteration_statement:
   | FOR LEFT tp IDE IN INT COLON INT RIGHT statement { For(((Int, Model), $4), N($6), N($8), $10) }
   | FOR LEFT tp IDE IN INT COLON IDE RIGHT statement { For(((Int, Model), $4), N($6), SizeVar($8), $10) }
@@ -111,17 +97,12 @@ iteration_statement:
 selection_statement:
   | IF LEFT exp RIGHT statement ELSE statement { If($3, $5, $7) }
   | IF LEFT exp RIGHT statement { If($3, $5, Skip) }
-  
-  
+  	
+	
 statement_single:
-  | lhs EQ exp SEMICOLON { Assign($1, $3) }
-  | lhs SIM dist SEMICOLON { Sample($1, $3) }
-  | IDE LEFT exps RIGHT SEMICOLON { VCall($1, $3) }
-  
-
-//block:
-//  | LBRACE statement_single SEMICOLON statement_seq RBRACE { Seq($2, $4) }
-//  | statement_single { $1 }
+  | lhs EQ exp { Assign($1, $3) }
+  | exp SIM dist { Sample($1, $3) }
+	
   
 exp: 
   | REAL { Const($1) }
@@ -140,8 +121,7 @@ exp:
   | exp GEQ exp { Prim(">=", [$1; $3]) }  
   | exp MINUS exp { Prim("-", [$1; $3]) }
   | exp DIV exp { Prim("/", [$1; $3]) }
-  //| MINUS REAL %prec NEG { Const(-$2) }
-  | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Prim($1, $3) else ECall($1, $3) }
+  | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Prim($1, $3) else failwith "TODO: fix user-defined functions" }
 
 exps:
   | exp COMMA exps { $1 :: $3 }
@@ -153,12 +133,12 @@ lhs:
   | IDE ALEFT exp ARIGHT { A(I $1, $3) }
   
 dist:
-  | IDE LEFT exps RIGHT { if (Map.containsKey $1 Primitives) then Dist($1, $3) else DCall($1, $3) }
+  | IDE LEFT exps RIGHT { Dist($1, $3) }
 
 tp: 
-  | tp LE IDE GE { Constrained($1, SizeVar($3)) }
+	| tp LE IDE GE { Constrained($1, SizeVar($3)) }
   | tp LE INT GE { Constrained($1, N($3)) }
-  | tp ALEFT IDE ARIGHT { Array($1, SizeVar($3)) }
+  | tp ALEFT IDE ARIGHT {Array($1, SizeVar($3)) }
   | tp ALEFT INT ARIGHT { Array($1, N($3)) }
   | tp ALEFT ARIGHT { Array($1, N(-1)) }
   | VECTOR ALEFT IDE ARIGHT {Vector(SizeVar($3)) }

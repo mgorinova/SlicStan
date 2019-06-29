@@ -1,6 +1,6 @@
 ﻿module Factorgraph
 
-open NewStanSyntax 
+open SlicStanSyntax 
 open Util
 
 type Marginalisation = bool
@@ -99,22 +99,20 @@ let add_factor (S: S) (graph: Graph) =
         graph |> add_in_factor_to_vars [Util.LValueBaseName lhs] 
               |> add_out_factor_to_vars involved_vars
 
-    | Sample(lhs, d) -> 
+    | Sample(e, d) -> 
         match d with 
         | Dist(_, exps) ->
             let involved_vars = reads (Arr exps)
-            graph |> add_in_factor_to_vars [Util.LValueBaseName lhs] 
+            graph |> add_in_factor_to_vars (Typecheck.read_exp e |> Set.toList)
                   |> add_out_factor_to_vars involved_vars
         | _ -> failwith "unexpected"
 
     | If _ -> failwith "not yet implemented"
     | For _ -> failwith "not yet implemented"
     
-    | Block _ -> failwith "unexpected"
-    | DataDecl _ -> failwith "unexpected"
+    | Decl _ -> failwith "unexpected"
     | Seq _ -> failwith "unexpected"
     | Skip -> failwith "unexpected"
-    | VCall _ -> failwith "unexpected"
     
 
 let to_graph (S: S) : Graph =
@@ -122,9 +120,7 @@ let to_graph (S: S) : Graph =
     let rec _to_graph (S: S) (current: Graph) : Graph =
         let varctx, factorctx = current
         match S with 
-        | DataDecl(t, x, s) -> 
-            _to_graph s ( (VarContext([], ((t, Data), x), []) :: varctx),  factorctx)
-        | Block(arg, s) -> 
+        | Decl(arg, s) -> 
             _to_graph s ( (VarContext([], arg, []) :: varctx),  factorctx)
         | Seq(s1, s2) -> 
             _to_graph s1 (current) |> _to_graph s2 

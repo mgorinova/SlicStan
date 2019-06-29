@@ -1,6 +1,6 @@
 ﻿module Enumerate
 
-open NewStanSyntax
+open SlicStanSyntax
 //open Util
 
 let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg = 
@@ -10,10 +10,10 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
 
     let rec enum (accumulator_type: TypePrim) (accumulator: LValue) (indexed_by: Exp list) (S: S) : (S list * S * S list) =
         match S with
-        | Block((T, x), s) -> 
+        | Decl((T, x), s) -> 
             if Set.contains x assset then 
                 let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
-                Block((T, x), Skip)::defs, prog, gen
+                Decl((T, x), Skip)::defs, prog, gen
             else match T with
             | Constrained(Int, upper), Model ->
                 (* x is discrete; want to enumerate it
@@ -34,7 +34,7 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
                 
                     let line2 = Assign(accumulator, Plus(Util.lhs_to_exp accumulator, Prim("log_sum_exp", [Var(this_acc_name)])))
                     let line1 = Seq( For( ((Int, Model), x), N(1), upper, prog ), line2 )
-                    let ret_prog = Block( ((this_acc_type, Model), this_acc_name), line1 )
+                    let ret_prog = Decl( ((this_acc_type, Model), this_acc_name), line1 )
 
                     defs, ret_prog, gen
                 else
@@ -49,8 +49,8 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
                     let ret_prog = Seq( For( ((Int, Model), x), N(1), upper, prog), line1 )
                     
                     
-                    let ret_defs = Block(((new_acc_type, Model), new_acc_name), Skip) :: defs
-                    let ret_gen = Block( ((Int, GenQuant), x), Assign(I(x), Prim("categorical_rng", [Util.lhs_to_exp new_acc_var])) ) :: gen
+                    let ret_defs = Decl(((new_acc_type, Model), new_acc_name), Skip) :: defs
+                    let ret_gen = Decl( ((Int, GenQuant), x), Assign(I(x), Prim("categorical_rng", [Util.lhs_to_exp new_acc_var])) ) :: gen
                     
                     ret_defs, ret_prog, ret_gen
 
@@ -58,12 +58,12 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
             | Array(Constrained(Int, upper), n), Model  -> failwith "not implemented"
             | _ -> 
                 let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
-                Block((T, x), Skip) :: defs,  prog,  gen
+                Decl((T, x), Skip) :: defs,  prog,  gen
 
-        | Sample(x, d) -> 
+        | Sample(e, d) -> 
             match accumulator with
-            | I("target") -> [], Sample(x, d), []
-            | _ -> [], Assign(accumulator, Plus(Util.lhs_to_exp accumulator, (Util.to_lpf d x))), []
+            | I("target") -> [], Sample(e, d), []
+            | _ -> [], Assign(accumulator, Plus(Util.lhs_to_exp accumulator, (Util.to_lpf d e))), []
         
         | Assign(I("target"), e) -> [], Assign(accumulator, Plus(Util.lhs_to_exp accumulator, e)), []
         
@@ -76,9 +76,6 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
             let defs1, prog1, gen1 = enum accumulator_type accumulator indexed_by s1
             let defs2, prog2, gen2 = enum accumulator_type accumulator indexed_by s2 
             List.append defs1 defs2, Seq(prog1, prog2), List.append gen1 gen2
-        | DataDecl(t, x, s) -> 
-            let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
-            defs, DataDecl(t, x, prog), gen
         | For(x, l, u, s) -> 
             let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
             defs, For(x, l, u, prog), gen

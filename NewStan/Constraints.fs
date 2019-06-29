@@ -2,12 +2,12 @@
 
 #if INTERACTIVE
 #I __SOURCE_DIRECTORY__
-#r "bin\Debug\NewStanSyntax.exe"
+#r "bin\Debug\SlicStanSyntax.exe"
 #endif
 
-open NewStanSyntax
+open SlicStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel //| Eq of TypeLevel * TypeLevel
+type Constraint = Leq of TypeLevel * TypeLevel | Neq of TypeLevel * TypeLevel
 
 let rec constraints_pretty (cs : Constraint list) =
     
@@ -60,6 +60,9 @@ let expand_and_filter (cs: Constraint list): Constraint list =
 
 
         | _ -> [c]
+
+
+    // printf "Constrint list: %A" cs
 
     List.fold (fun s c -> List.append s (expand_constraint c)) [] cs
     |> List.filter check_not_tautology_nf

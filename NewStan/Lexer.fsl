@@ -1,5 +1,4 @@
-{   
-
+{
 open FSharp.Text.Lexing
 open System   
 open Parser   
@@ -57,9 +56,9 @@ let newline = '\r' | '\n' | "\r\n"
 rule read = 
 	parse   
 	| whitespace    { read lexbuf }
-    | newline  { newline lexbuf; read lexbuf }
-    | int      { INT (int (lexeme lexbuf)) }
-    | float    { REAL (float (lexeme lexbuf)) }
+  | newline  { newline lexbuf; read lexbuf }
+  | int      { INT (int (lexeme lexbuf)) }
+  | float    { REAL (float (lexeme lexbuf)) }
 	| operator      { ops.[lexeme lexbuf] }
 	| identifier    { match keywords.TryFind(lexeme lexbuf) with   
                       | Some(token) -> token   
@@ -67,11 +66,11 @@ rule read =
 	| "def"         { DEF }
 	| "return"      { RET }
 	| "data"		{ DATA }
-    | "if"			{ IF }
-    | "else"		{ ELSE }
-    | "while"		{ WHILE }
-    | "for"			{ FOR }
-    | "in"          { IN }
+  | "if"			{ IF }
+  | "else"		{ ELSE }
+  | "while"		{ WHILE }
+  | "for"			{ FOR }
+  | "in"          { IN }
 	| "real"        { REALTYPE }
 	| "int"         { INTTYPE }
 	| "vector"      { VECTOR }

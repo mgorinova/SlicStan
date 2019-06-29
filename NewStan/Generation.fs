@@ -2,10 +2,10 @@
 
 #if INTERACTIVE
 #I __SOURCE_DIRECTORY__
-#r "bin\Debug\NewStan.exe"
+#r "bin\Debug\SlicStan.exe"
 #endif
 
-open NewStanSyntax
+open SlicStanSyntax
 open MiniStanSyntax
 open System
 
@@ -13,7 +13,7 @@ let rnd_s = System.Random()
 let rnd_a = System.Random()
 let rnd_v = System.Random()
 
-let typeLevelNames = NewStanSyntax.typeLevelNames
+let typeLevelNames = SlicStanSyntax.typeLevelNames
 let varNames = Seq.initInfinite (fun index -> if (index < 123) then Char.ConvertFromUtf32(index) 
                                               elif (index < 701) then 
                                                 let s1 = Char.ConvertFromUtf32(index/26 + 96)
@@ -90,10 +90,11 @@ let generate_S () =
             let name = getrandom_s dists
             let x1 = getrandom_v (Array.ofList vars)
             let x2, x3 = getrandom_v (no x1 (both())), getrandom_v (no x1 (both()))          
-            NewStanSyntax.Sample(I(x1), Dist(name, [Var x2; Var x3]))
+
+            SlicStanSyntax.Sample(Var(x1), Dist(name, [Var x2; Var x3]))
 
 
-let rec generate_manyS (n:int) =
+let rec generate_manyS (n:int) : S =
     if n < 1 then Skip
     else 
         match getrandom_a sequences with
@@ -103,12 +104,14 @@ let rec generate_manyS (n:int) =
         | "data" -> 
             let name = nextvar()
             datavars <- name::datavars
-            DataDecl(Real, name, generate_manyS (n-1))
+            let arg = (Real, Data), name 
+            Decl(arg, generate_manyS (n-1))
+        
         | "block" -> 
             let name = nextvar()
             vars <- name::vars
             let level = next()
-            Block(((Real, LevelVar(level)), name), generate_manyS (n-1))
+            Decl(((Real, LevelVar(level)), name), generate_manyS (n-1))
 
 /// Generates statistics for the main body of a program S
 /// returns (num_lines, num_datadecl, num_decl, num_assignments, num_sampling, num_ecalls)
@@ -120,23 +123,21 @@ let stats (S:S) =
     
     let rec stats_rec s (num_lines, num_datadecl, num_decl, num_assignments, num_sampling, num_ecalls) : int*int*int*int*int*int =
         match s with
-        | DataDecl (_, _, s') -> stats_rec s' (num_lines + 1, num_datadecl + 1, num_decl, num_assignments, num_sampling, num_ecalls)
-        | Block (_, s') -> stats_rec s' (num_lines + 1, num_datadecl, num_decl + 1, num_assignments, num_sampling, num_ecalls)
+        | SlicStanSyntax.Decl (_, s') -> stats_rec s' (num_lines + 1, num_datadecl, num_decl + 1, num_assignments, num_sampling, num_ecalls)
         | Assign (_,e) -> 
             let n = stats_e e 0
             (num_lines + 1, num_datadecl, num_decl, num_assignments + 1, num_sampling, num_ecalls + n)
-        | NewStanSyntax.Sample _ -> (num_lines + 1, num_datadecl, num_decl, num_assignments, num_sampling + 1, num_ecalls)
+        | SlicStanSyntax.Sample _ -> (num_lines + 1, num_datadecl, num_decl, num_assignments, num_sampling + 1, num_ecalls)
         | Seq (s1, s2) -> 
             let (n1, n2, n3, n4, n5, n6) = stats_rec s1 (num_lines, num_datadecl, num_decl, num_assignments, num_sampling, num_ecalls)
             stats_rec s2 (n1, n2, n3, n4, n5, n6)
         | Skip -> (num_lines, num_datadecl, num_decl, num_assignments, num_sampling, num_ecalls)
-        | VCall _ -> (num_lines + 1, num_datadecl, num_decl, num_assignments, num_sampling, num_ecalls)
 
     stats_rec S (0,0,0,0,0,0)
 
 
 /// Returns NumbDecls(d, td, p, tp, m, gq) * num_lines, num_assignments, num_sampling
-let stan_stats (P(d, td, p, tp, m, gq) : MiniStanSyntax.Prog) = 
+let stan_stats (P(d, td, p, tp, m, gq) : MiniStanSyntax.MiniStanProg) = 
     
     let rec decl_count (decls : VarDecls) : int = 
         match decls with 
@@ -187,12 +188,12 @@ let stan_stats (P(d, td, p, tp, m, gq) : MiniStanSyntax.Prog) =
     decls_all, common_merged
     
  
-//let ex : NewStanSyntax.NewStanProg = [], generate_manyS 100
-//printfn "%s" (NewStanSyntax.NewStanProg_pretty ex)
+//let ex : SlicStanSyntax.SlicStanProg = [], generate_manyS 100
+//printfn "%s" (SlicStanSyntax.SlicStanProg_pretty ex)
 
 
 let reset() =
-    NewStanSyntax.reset_levels()
+    SlicStanSyntax.reset_levels()
     curvar <- 97
     datavars <- []
     vars <- []

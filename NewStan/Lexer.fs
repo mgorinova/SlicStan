@@ -1,7 +1,6 @@
 module Lexer
 # 1 "Lexer.fsl"
-    
-
+ 
 open FSharp.Text.Lexing
 open System   
 open Parser   
@@ -43,7 +42,7 @@ let lexeme = LexBuffer.LexemeString
 let newline (lexbuf: LexBuffer<_>) = 
     lexbuf.StartPos <- lexbuf.StartPos.NextLine
 
-# 46 "Lexer.fs"
+# 45 "Lexer.fs"
 let trans : uint16[] array = 
     [| 
     (* State 0 *)
@@ -200,151 +199,151 @@ let rec _fslex_dummy () = _fslex_dummy()
 and read  lexbuf =
   match _fslex_tables.Interpret(0,lexbuf) with
   | 0 -> ( 
-# 59 "Lexer.fsl"
+# 58 "Lexer.fsl"
                                   read lexbuf 
-# 205 "Lexer.fs"
+# 204 "Lexer.fs"
           )
   | 1 -> ( 
-# 60 "Lexer.fsl"
-                                newline lexbuf; read lexbuf 
-# 210 "Lexer.fs"
+# 59 "Lexer.fsl"
+                              newline lexbuf; read lexbuf 
+# 209 "Lexer.fs"
           )
   | 2 -> ( 
-# 61 "Lexer.fsl"
-                                INT (int (lexeme lexbuf)) 
-# 215 "Lexer.fs"
+# 60 "Lexer.fsl"
+                              INT (int (lexeme lexbuf)) 
+# 214 "Lexer.fs"
           )
   | 3 -> ( 
-# 62 "Lexer.fsl"
-                                REAL (float (lexeme lexbuf)) 
-# 220 "Lexer.fs"
+# 61 "Lexer.fsl"
+                              REAL (float (lexeme lexbuf)) 
+# 219 "Lexer.fs"
           )
   | 4 -> ( 
-# 63 "Lexer.fsl"
+# 62 "Lexer.fsl"
                                   ops.[lexeme lexbuf] 
-# 225 "Lexer.fs"
+# 224 "Lexer.fs"
           )
   | 5 -> ( 
-# 64 "Lexer.fsl"
+# 63 "Lexer.fsl"
                                   match keywords.TryFind(lexeme lexbuf) with   
                                      | Some(token) -> token   
                                      | None -> IDE(string (lexeme lexbuf)) 
-# 232 "Lexer.fs"
+# 231 "Lexer.fs"
           )
   | 6 -> ( 
-# 67 "Lexer.fsl"
+# 66 "Lexer.fsl"
                                   DEF 
-# 237 "Lexer.fs"
+# 236 "Lexer.fs"
           )
   | 7 -> ( 
-# 68 "Lexer.fsl"
+# 67 "Lexer.fsl"
                                   RET 
-# 242 "Lexer.fs"
+# 241 "Lexer.fs"
           )
   | 8 -> ( 
-# 69 "Lexer.fsl"
+# 68 "Lexer.fsl"
                             DATA 
-# 247 "Lexer.fs"
+# 246 "Lexer.fs"
           )
   | 9 -> ( 
-# 70 "Lexer.fsl"
-                              IF 
-# 252 "Lexer.fs"
+# 69 "Lexer.fsl"
+                            IF 
+# 251 "Lexer.fs"
           )
   | 10 -> ( 
-# 71 "Lexer.fsl"
-                               ELSE 
-# 257 "Lexer.fs"
+# 70 "Lexer.fsl"
+                             ELSE 
+# 256 "Lexer.fs"
           )
   | 11 -> ( 
-# 72 "Lexer.fsl"
-                                WHILE 
-# 262 "Lexer.fs"
+# 71 "Lexer.fsl"
+                              WHILE 
+# 261 "Lexer.fs"
           )
   | 12 -> ( 
-# 73 "Lexer.fsl"
-                               FOR 
-# 267 "Lexer.fs"
+# 72 "Lexer.fsl"
+                             FOR 
+# 266 "Lexer.fs"
           )
   | 13 -> ( 
-# 74 "Lexer.fsl"
-                                     IN 
-# 272 "Lexer.fs"
+# 73 "Lexer.fsl"
+                                   IN 
+# 271 "Lexer.fs"
           )
   | 14 -> ( 
-# 75 "Lexer.fsl"
+# 74 "Lexer.fsl"
                                   REALTYPE 
-# 277 "Lexer.fs"
+# 276 "Lexer.fs"
           )
   | 15 -> ( 
-# 76 "Lexer.fsl"
+# 75 "Lexer.fsl"
                                   INTTYPE 
-# 282 "Lexer.fs"
+# 281 "Lexer.fs"
           )
   | 16 -> ( 
-# 77 "Lexer.fsl"
+# 76 "Lexer.fsl"
                                   VECTOR 
-# 287 "Lexer.fs"
+# 286 "Lexer.fs"
           )
   | 17 -> ( 
-# 78 "Lexer.fsl"
+# 77 "Lexer.fsl"
                                   MATRIX 
-# 292 "Lexer.fs"
+# 291 "Lexer.fs"
           )
   | 18 -> ( 
-# 79 "Lexer.fsl"
+# 78 "Lexer.fsl"
                           LBRACE 
-# 297 "Lexer.fs"
+# 296 "Lexer.fs"
           )
   | 19 -> ( 
-# 80 "Lexer.fsl"
+# 79 "Lexer.fsl"
                           RBRACE 
-# 302 "Lexer.fs"
+# 301 "Lexer.fs"
           )
   | 20 -> ( 
-# 81 "Lexer.fsl"
+# 80 "Lexer.fsl"
                           LEFT 
-# 307 "Lexer.fs"
+# 306 "Lexer.fs"
           )
   | 21 -> ( 
-# 82 "Lexer.fsl"
+# 81 "Lexer.fsl"
                           RIGHT 
-# 312 "Lexer.fs"
+# 311 "Lexer.fs"
           )
   | 22 -> ( 
-# 83 "Lexer.fsl"
+# 82 "Lexer.fsl"
                           ALEFT 
-# 317 "Lexer.fs"
+# 316 "Lexer.fs"
           )
   | 23 -> ( 
-# 84 "Lexer.fsl"
+# 83 "Lexer.fsl"
                           ARIGHT 
-# 322 "Lexer.fs"
+# 321 "Lexer.fs"
           )
   | 24 -> ( 
-# 85 "Lexer.fsl"
+# 84 "Lexer.fsl"
                                   COMMA 
-# 327 "Lexer.fs"
+# 326 "Lexer.fs"
           )
   | 25 -> ( 
-# 86 "Lexer.fsl"
+# 85 "Lexer.fsl"
                           SEMICOLON 
-# 332 "Lexer.fs"
+# 331 "Lexer.fs"
           )
   | 26 -> ( 
-# 87 "Lexer.fsl"
+# 86 "Lexer.fsl"
                           COLON 
-# 337 "Lexer.fs"
+# 336 "Lexer.fs"
           )
   | 27 -> ( 
-# 88 "Lexer.fsl"
+# 87 "Lexer.fsl"
                                   EOF 
-# 342 "Lexer.fs"
+# 341 "Lexer.fs"
           )
   | 28 -> ( 
-# 89 "Lexer.fsl"
+# 88 "Lexer.fsl"
                       raise (Exception (sprintf "SyntaxError: Unexpected char: '%s' Line: %d Column: %d" (lexeme lexbuf) (lexbuf.StartPos.Line+1) lexbuf.StartPos.Column)) 
-# 347 "Lexer.fs"
+# 346 "Lexer.fs"
           )
   | _ -> failwith "read"
 

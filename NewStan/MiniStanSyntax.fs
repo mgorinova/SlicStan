@@ -1,14 +1,14 @@
 ﻿module MiniStanSyntax
 
-open NewStanSyntax
+open SlicStanSyntax
 
-type Ide = NewStanSyntax.Ide 
-//type T = NewStan.T
-//type ArrEl = NewStan.ArrEl
-type Exp = NewStanSyntax.Exp 
-type Dist = NewStanSyntax.Dist 
+type Ide = SlicStanSyntax.Ide 
+//type T = SlicStan.T
+//type ArrEl = SlicStan.ArrEl
+type Exp = SlicStanSyntax.Exp 
+type Dist = SlicStanSyntax.Dist 
 
-type LValue = NewStanSyntax.LValue
+type LValue = SlicStanSyntax.LValue
 
 type TIde = TypePrim
 
@@ -19,7 +19,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
               | VNone
 
 type Statements = Let of LValue * Exp // TODO: add more statements
-                | Sample of LValue * Dist
+                | Sample of Exp * Dist
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
                 | For of Ide * ArrSize * ArrSize * Statements
@@ -42,11 +42,11 @@ type GenQuant = GQBlock of VarDecls * Statements | GQNone
 
 type Block = VarDecls * Statements 
 
-type Prog = P of Data * TData * Params * TParams * Model * GenQuant
+type MiniStanProg = P of Data * TData * Params * TParams * Model * GenQuant
 
 
-let E_pretty = NewStanSyntax.E_pretty
-let D_pretty = NewStanSyntax.D_pretty
+let E_pretty = SlicStanSyntax.E_pretty
+let D_pretty = SlicStanSyntax.D_pretty
 
 let rec Type_pretty typeprim =
     match typeprim with 
@@ -70,7 +70,7 @@ let rec Decls_pretty decls =
 let rec Statements_pretty ident decls =
     match decls with 
     | Let (lhs, expr) -> ident +  LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (name, dist) -> ident  + (LValue_pretty name) + " ~ " + D_pretty dist + ";\n"
+    | Sample (e, dist) -> "\t" + (E_pretty e) + " ~ " + D_pretty dist + ";\n"
     | SSeq (s1, s2) -> Statements_pretty ident s1 + Statements_pretty ident s2
     | If(e, s1, SNone) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty e) (Statements_pretty ident s1) ident
     | If(e, s1, s2) -> sprintf "%sif(%s){\n%s\n%s}\n%selse{\n%s\n%s}" ident (E_pretty e) (Statements_pretty (ident+"\t") s1) ident ident (Statements_pretty (ident+"\t") s2) ident
@@ -107,7 +107,7 @@ let GenQuant_pretty d =
     | GQBlock (ds, ss) -> Decls_pretty ds + Statements_pretty "\t" ss
     | GQNone -> ""
 
-let rec Prog_pretty (p:Prog) : string= 
+let rec Prog_pretty (p:MiniStanProg) : string= 
     match p with
     | P(d, td, p, tp, m, gq) -> 
         let funcs  = "" // TODO add function pretty printing
@@ -119,7 +119,3 @@ let rec Prog_pretty (p:Prog) : string=
         let gens   = if GenQuant_pretty gq <> "" then ("generated quantities {\n"+ GenQuant_pretty gq + "\n}") else ""
 
         funcs + data + tdata + parms + tparms + model + gens
-
-
-        
- 

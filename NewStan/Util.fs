@@ -1,6 +1,6 @@
 ﻿module Util
 
-open NewStanSyntax
+open SlicStanSyntax
 
 let flip_tuple (a,b) = (b,a)
 
@@ -15,7 +15,7 @@ let rec SofList ss =
 let rec BlockOfList (env, s) = 
     match env with 
     | [] -> s
-    | x::xs -> Block(x, BlockOfList (xs, s))
+    | x::xs -> Decl(x, BlockOfList (xs, s))
 
 
 let rec LValueBaseName (lhs: LValue): Ide =    
@@ -52,10 +52,10 @@ let rec get_arr_el_indices acc lhs =
 let get_indices lhs = 
     get_arr_el_indices [] lhs
 
-let to_lpf (d:Dist) (x:LValue) =
+let to_lpf (d:Dist) (e:Exp) =
     // FIXME: only works for discrete distributions; need to extend
     match d with
-    | Dist(name, args) -> Prim(name + "_lpmf", (lhs_to_exp x)::args )
+    | Dist(name, args) -> Prim(name + "_lpmf", e::args )
     | _ -> failwith "user defined distributions not supported"
 
 let rec indices_list_to_lhs lhs_base exp_list =
@@ -66,15 +66,13 @@ let rec indices_list_to_lhs lhs_base exp_list =
 
 let rec assigns (S: S) : Set<Ide> =
     match S with
-    | DataDecl(_, x, s) -> assigns s
-    | Block((_, x), s) -> Set.remove x (assigns s)
+    | Decl((_, x), s) -> Set.remove x (assigns s)
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
     | For(x, l, u, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments? Or should it? 
 
 
 let rec assigns_global (S: S) : Set<Ide> = 
@@ -82,15 +80,13 @@ let rec assigns_global (S: S) : Set<Ide> =
     // Should we deal with elaborated statements only?
     // Should elaboration be as is, or should we think more about locally defined parameters? 
     match S with
-    | DataDecl(_, x, s) -> assigns_global s
-    | Block((_, x), s) -> assigns_global s
+    | Decl((_, x), s) -> assigns_global s
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns_global s1) (assigns_global s2)
     | For(x, l, u, s) -> assigns_global s
     | Seq(s1, s2) -> Set.union (assigns_global s1) (assigns_global s2)
     | Skip -> Set.empty
-    | VCall _ -> Set.empty // FIXME: it should probably deal with the arguments?
 
 
 

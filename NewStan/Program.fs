@@ -1,23 +1,23 @@
 ﻿// Learn more about F# at http://fsharp.org
 // See the 'F# Tutorial' project for more help.
 
-open NewStanSyntax
+open SlicStanSyntax
 
 open FSharp.Text.Lexing
 open Parser
 open Lexer 
 
-open Examples
 open Typecheck
 open Enumerate
 open Elaborate
-open Translate
+open Shredding
+open Transformation
 
 open Factorgraph
-
 open Constraints
 
 open System.Diagnostics;
+
 open System.IO
 
 let parse slicstan = 
@@ -36,7 +36,7 @@ let main argv =
 
     let option = try argv.[0] with _ -> "--no-input"
     
-    let slic = match option with
+    let slic = match option with 
                | "--fromfile" -> 
                     let reader = File.OpenText(argv.[1])
                     reader.ReadToEnd()
@@ -46,6 +46,7 @@ let main argv =
                | _ -> option
 
     printfn "%s\n\n" slic 
+    
 
     (*  On discrete parameters support
         
@@ -64,8 +65,6 @@ let main argv =
     let typechecked = slic
                     |> parse
                     |> typecheck_Prog 
-                    
-    //let ctx, elab =  elaborate_Prog typechecked
 
     let graph = Factorgraph.to_graph (snd typechecked)
 
@@ -78,8 +77,6 @@ let main argv =
     //printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
     
 
-    //let stan = translate ctx enum
-    //printfn "%s" (MiniStanSyntax.Prog_pretty stan) 
 
     // TODO for next working day: 
     // FIXME: I'm missing the prior?
@@ -89,18 +86,14 @@ let main argv =
     // (3) translation very broken at the moment.
     
 
-    // ide is "identifier", it's a string.
-    // gamma, ctx, context, etc are \Gamma from the latex typing rules.
     (*
-    let ctx, s = elab
-
-    printf "%A\n\n%A\n\n" ctx (NewStanSyntax.S_pretty "" s)
-
-    let stan = translate ctx s
     
-    // Not in this version:
-    // string -> parse -> elborate -> typecheck -> shred -> translate
+    let ctx, s =  elaborate_Prog typechecked
 
+    let sd, sm, sq = shred_S ctx s 
+
+    let stan = transform ctx (sd, sm, sq)
+    
     printfn "%s" (MiniStanSyntax.Prog_pretty stan)      *)
 
 

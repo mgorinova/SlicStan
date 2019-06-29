@@ -84,7 +84,13 @@ for(int i in 1 : 5) acc = acc + i;
 let discrete = "
 data int N;
 data real[N] pi;
-int<N> d ~ categorical(pi);
+int<N> d ~ categorical(pi);"
+
+let shredding = "
+real d = 1;
+real m1 ~ normal(0, 1);
+real m2 = 2*d*m1;
+d = 2;
 "
 
 // All Data
