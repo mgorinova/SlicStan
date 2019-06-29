@@ -64,12 +64,95 @@ let rec assigns (S: S) : Set<Ide> =
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
 
+let rec read_exp (E: Exp) : Set<Ide> =
+    match E with 
+    | Var(x) -> Set.add x Set.empty
+    | Const _ -> Set.empty
+    | Arr(list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
+    | ArrElExp(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
+    | Prim(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
+    | ECall _ -> failwith "not impl"
+    | Plus(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
+    | Mul(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
 
-let read_at_level (l: TypeLevel) (s: S) : Map<Ide, TypeLevel> =
-    failwith "not impl"
+let read_dist (D: Dist) : Set<Ide> =
+    match D with 
+    | Dist(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
 
-let assigned_of_level (l: TypeLevel) (s: S) : Map<Ide, TypeLevel> =
-    failwith "not impl"
+let rec get_lvalue_level (gamma: Dict) lhs =
+    match lhs with 
+    | I(x) -> gamma.Item x |> snd
+    | A(lhs', _) -> get_lvalue_level gamma lhs'
+
+let rec read_at_level (gamma: Dict) (S: S) : Map<Ide, TypeLevel> =
+
+    let rec read_lhs (lhs: LValue) : Set<Ide> =
+        match lhs with
+        | I(_) -> Set.empty
+        | A(lhs', e) -> 
+            read_lhs lhs'
+            |> Set.union (read_exp e) 
+
+    let map_union_lub a b = Map (seq {
+        for KeyValue(k, va) in a do
+            match Map.tryFind k b with
+            | Some vb -> yield k, Lub [ va; vb ]
+            | None    -> yield k, va 
+        for KeyValue(k, vb) in b do
+            match Map.tryFind k a with
+            | Some va -> ()
+            | None    -> yield k, vb 
+        })
+
+    match S with
+    | Assign(lhs, e) -> 
+        let l = get_lvalue_level gamma lhs
+        let involved_vars = read_lhs lhs |> Set.union (read_exp e) 
+
+        involved_vars 
+        |> Set.toList
+        |> List.map (fun v -> v, l) 
+        |> Map.ofList 
+
+    | Sample(e, d) -> 
+        let l = Model
+        let involved_vars = read_exp e |> Set.union (read_dist d) 
+
+        involved_vars 
+        |> Set.toList
+        |> List.map (fun v -> v, l) 
+        |> Map.ofList 
+
+    | Seq (s1, s2) -> read_at_level gamma s1 |> map_union_lub (read_at_level gamma s2)
+    | If (e, s1, s2) -> 
+
+        let s1_map = read_at_level gamma s1
+        let s2_map = read_at_level gamma s2
+        
+        let all_levels = Map.toList s1_map 
+                      |> List.append (Map.toList s2_map)
+                      |> List.map snd
+                      
+        let exp_map = read_exp e 
+                   |> Set.toList 
+                   |> List.map (fun x -> x, Lub all_levels)
+                   |> Map.ofList
+
+
+        exp_map
+        |> map_union_lub s1_map
+        |> map_union_lub s2_map
+        
+    | Decl (_, s) -> read_at_level gamma s
+    | Skip -> Map.empty
+
+let assigned_of_level (gamma: Dict) (s: S) : Map<Ide, TypeLevel> =
+    let involved_vars = assigns s
+
+    involved_vars 
+    |> Set.toList
+    |> List.map (fun v -> v, (gamma.Item v |> snd))
+    |> Map.ofList
 
 let map_intersect a b = Map (seq {
     for KeyValue(k, va) in a do
@@ -77,31 +160,20 @@ let map_intersect a b = Map (seq {
         | Some vb -> yield k, (va, vb)
         | None    -> () })
 
-let shreddable (s1: S) (s2: S): Constraint list = 
+let shreddable (gamma: Dict) (s1: S) (s2: S): Constraint list = 
     
-    // FIXME: need to add appropriate constraints
-    // FIXME: Uncomment when ready to add appropriate shredding constraints:
-    (*
-    let possible_level_pairs = [(Model, Data); (GenQuant, Data); (GenQuant, Model)]
-
     // check what's in read_at_level and assignedto_of_level for each pair
     // Then this will record the actual type level of each variable (because it could be 
     // a variable type level)
-    let check_single_pair (l1: TypeLevel) (l2: TypeLevel) : Constraint list =
    
-        let R = read_at_level l1 s1
-        let W = assigned_of_level l2 s2
+    let R = read_at_level gamma s1
+    let W = assigned_of_level gamma s2
 
-        map_intersect R W 
-            |> Map.map (fun x (l1, l2) -> Neq(l1, l2))
-            |> Map.toList
-            |> List.map (fun (_, v) -> v)
-
-    // Finally, construct the final constraints based on that.
-    List.fold (fun acc (l1, l2) -> List.append acc (check_single_pair l1 l2)) [] possible_level_pairs
-    *)
-
-    []
+    map_intersect R W 
+        |> Map.map (fun x (lr, lw) -> Leq(lr, lw))
+        |> Map.toList
+        |> List.map (fun (_, v) -> v)
+            
 
 let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =        
 
@@ -238,7 +310,7 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
         | Seq(s1, s2) -> 
             let ell1, gamma1, c1 = synth_S signatures gamma s1
             let ell2, gamma2, c2 = synth_S signatures gamma s2
-            let c = shreddable s1 s2
+            let c = shreddable gamma s1 s2
             (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c)
 
         | If(e, s1, s2) ->

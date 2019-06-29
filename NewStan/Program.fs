@@ -19,7 +19,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res
    
-let example = Examples.ifs
+let example = Examples.shredding
 
 [<EntryPoint>]
 let main argv =   

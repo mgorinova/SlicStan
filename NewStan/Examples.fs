@@ -1,5 +1,13 @@
 ﻿module Examples
 
+let shredding = "
+real d = 1;
+real m1 ~ normal(0, 1);
+real m2 = 2*d*m1;
+d = 2;
+
+"
+
 // All Data
 let alldata = "
 data real x;
