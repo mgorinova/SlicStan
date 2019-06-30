@@ -32,8 +32,6 @@
     <Compile Include="MiniStanSyntax.fs" />
     <Compile Include="Transformation.fs" />
     <Compile Include="Examples.fs" />
-    <Compile Include="Generation.fs" />
-    <Compile Include="Experiment.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
 

@@ -25,7 +25,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.discrete3
+let example = Examples.discrete1
  
 // look into array elements dependance analysis literature
   
@@ -70,31 +70,28 @@ let main argv =
 
     printfn "%A" (pp_graph graph)
 
-    //printf "\n\n%s" (NewStanSyntax.S_pretty "" elab)
-
     let enum = enumerate_Prog (snd typechecked)
 
-    //printf "\n\n%s" (NewStanSyntax.S_pretty "" enum)
+    printfn "\n\n%s" (SlicStanSyntax.S_pretty "" enum)
     
 
 
     // TODO for next working day: 
-    // FIXME: I'm missing the prior?
     // (1) figure out a lighter form of elaboration --- data and parameters 
     //     declarations need to happen at the top level.
     // (2) think about how to implement the array discrete variables support.
     // (3) translation very broken at the moment.
     
 
-    (*
     
-    let ctx, s =  elaborate_Prog typechecked
+    
+    let ctx, s =  elaborate_Prog ([], enum)
 
     let sd, sm, sq = shred_S ctx s 
 
     let stan = transform ctx (sd, sm, sq)
     
-    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      *)
+    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
 
 
     0

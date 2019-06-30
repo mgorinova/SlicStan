@@ -5,7 +5,6 @@
 #r "bin\Debug\SlicStan.exe"
 #endif
 
-open Generation
 open Typecheck
 open Elaborate
 
@@ -37,7 +36,7 @@ let run_single fs n : SingleStats =
 
     stopwatch.Restart()
 
-    let context, elab = Elaborate.elaborate_SlicStanProg inferred
+    let context, elab = Elaborate.elaborate_Prog inferred
     let elaboration_time = stopwatch.ElapsedMilliseconds //
 
     stopwatch.Restart()

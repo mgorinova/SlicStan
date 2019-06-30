@@ -63,6 +63,7 @@ let rec assigns (S: S) : Set<Ide> =
     | Sample(x, _) -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
+    | For(_, _, _, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
 
@@ -145,6 +146,12 @@ let rec read_at_level (gamma: Dict) (S: S) : Map<Ide, TypeLevel> =
         |> map_union_lub s1_map
         |> map_union_lub s2_map
         
+    | For (arg, lower, upper, s) -> 
+        let s_map = read_at_level gamma s
+        // FIXME: need to add constraints for the 
+        // loop bounds too.
+        s_map
+
     | Decl (_, s) -> read_at_level gamma s
     | Skip -> Map.empty
 

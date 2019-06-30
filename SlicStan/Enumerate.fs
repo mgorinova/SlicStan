@@ -80,7 +80,6 @@ let enumerate_Prog (s : S) : S = //((defs, s): NewStanProg): NewStanProg =
             let defs, prog, gen = enum accumulator_type accumulator indexed_by s 
             defs, For(x, l, u, prog), gen
         | Skip -> [], Skip, []
-        | _ -> failwith "not implemented"
 
     let defs, prog, gen = enum (Real) (I("target")) ([]) s
 

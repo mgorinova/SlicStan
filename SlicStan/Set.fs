@@ -14,16 +14,18 @@ let contextContains (x:string) (c:Context) : bool =
     Set.contains x names
 
 let contextItemTypePrim (x:string) (c:Context) : TypePrim =
-    Set.filter (fun (_, n) -> n = x ) c
-    |> Set.toList
-    |> List.head
-    |> fst |> fst     
+    if x = "target" then Real
+    else Set.filter (fun (_, n) -> n = x ) c
+        |> Set.toList
+        |> List.head
+        |> fst |> fst     
 
 let contextItemTypeLevel (x:string) (c:Context) : TypeLevel =
-    Set.filter (fun (_, n) -> n = x ) c
-    |> Set.toList
-    |> List.head
-    |> fst |> snd
+    if x = "target" then Model
+    else Set.filter (fun (_, n) -> n = x ) c
+        |> Set.toList
+        |> List.head
+        |> fst |> snd
 
 let intersectNames (c1:Context) (c2:Context) : Set<Ide> =
     let c1' = Set.map (fun (t,v) -> v) c1 

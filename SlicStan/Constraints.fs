@@ -7,14 +7,13 @@
 
 open SlicStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel | Neq of TypeLevel * TypeLevel
+type Constraint = Leq of TypeLevel * TypeLevel 
 
 let rec constraints_pretty (cs : Constraint list) =
     
     let rec single_pretty c =
         match c with
         | Leq(l1, l2) -> TLev_pretty l1 + " <= " + TLev_pretty l2 
-        //| Eq(l1, l2) -> TLev_pretty l1 + " = " + TLev_pretty l2  
     
     match cs with
     | c::cs' -> single_pretty c + "\n" + constraints_pretty cs'

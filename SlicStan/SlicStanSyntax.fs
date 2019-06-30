@@ -79,6 +79,7 @@ let lpdfs : (string * (TypePrim list * TypePrim)) list =
                 match ret with 
                 | Real -> name + "_lpdf", (ret::args, Real)
                 | Int -> name + "_lpmf", (ret::args, Real)
+                | _ -> failwith "no support for multivariate distributions yet" 
               ) distributions
 
 let prim_funcs =  [ "-", ([Real; Real], (Real));
@@ -159,6 +160,11 @@ type SlicStanProg = FunDef list * S
 
 let empty = Set.empty
 
+let rec LValueBaseName (lhs: LValue): Ide =    
+    match lhs with
+    | I(name) -> name
+    | A(lhs', _) -> LValueBaseName lhs'
+
 let rec TPrim_pretty tp =
     match tp with
     | Real -> "real"
@@ -227,7 +233,13 @@ let rec S_pretty ident S =
     let (p, l), n = var
     sprintf "%s%s %s %s;\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ident  S)
   | Sample(E, D) -> sprintf "%s%s ~ %s;" ident (E_pretty E) (D_pretty D)
-  | Assign(lhs,E) -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) //(LValue_pretty x)
+  | Assign(lhs,E) -> 
+    if LValueBaseName lhs = "target"
+    then match E with 
+         | Plus(Var("target"), e2) -> sprintf "%starget += %s;" ident (E_pretty e2) 
+         | Prim("+", [ Var("target"); e2] ) -> sprintf "%starget += %s;" ident (E_pretty e2)
+         | _ -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) 
+    else sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) 
   | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident
   | If(E, S1, S2) -> sprintf "%sif(%s){\n%s\n%s}%selse{\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident ident (S_pretty ("  " + ident) S2) ident
   | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
@@ -269,12 +281,6 @@ let rec BlockOfList (env, s) =
     | x::xs -> Decl(x, BlockOfList (xs, s))
 
 
-let rec LValueBaseName (lhs: LValue): Ide =    
-    match lhs with
-    | I(name) -> name
-    | A(lhs', _) -> LValueBaseName lhs'
-
-
 let BaseTypeLevel (tau: TypeLevel) =
     match tau with
     | Data -> true
@@ -289,7 +295,7 @@ let typeLevelNames = Seq.initInfinite (fun index ->
 let mutable cur = 0
 
 let next() =
-    let ret = Seq.nth cur typeLevelNames
+    let ret = Seq.item cur typeLevelNames
     cur <- cur + 1
     ret
 

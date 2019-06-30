@@ -105,7 +105,6 @@ let add_factor (S: S) (graph: Graph) =
             let involved_vars = reads (Arr exps)
             graph |> add_in_factor_to_vars (Typecheck.read_exp e |> Set.toList)
                   |> add_out_factor_to_vars involved_vars
-        | _ -> failwith "unexpected"
 
     | If _ -> failwith "not yet implemented"
     | For _ -> failwith "not yet implemented"
@@ -127,8 +126,37 @@ let to_graph (S: S) : Graph =
         | Skip -> current
         | _ -> add_factor S current
 
-    _to_graph S ([], [])
+    let rev_graph (graph: Graph) : Graph = 
+        let varctx, factorctx = graph
+        
+        let rev_one_ctx (ine, node, oute) = 
+            List.rev ine, node, List.rev oute
+
+        List.map rev_one_ctx varctx,
+        List.map rev_one_ctx factorctx
+        
+    _to_graph S ([], []) |> rev_graph
     
+
+let find_ordering (graph: Graph) : Ide list = 
+    // Use depth as a way to choose ordering
+
+    failwith "not implemented"
+
+
+let eliminate_single (graph : Graph) (variable : Ide) : Graph = 
+    // See what factors are connected to that variable in the graph.
+    // Create a new factor consisting of all of those.
+    // Update the graph to now not have that variable and have a new 
+    // factor corresponding to its elimination.
+
+    failwith "not implemented"
+
+let eliminate_variables (graph : Graph) (order : Ide list) : S =
+    // Use the ordering to eliminate the discrete variables 
+    // one by one. Merge the resulting graph in a single statement.
+
+    failwith "not implemented"
 
 let pp_graph ((vc, fc): Graph) : string =
     

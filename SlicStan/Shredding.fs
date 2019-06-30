@@ -8,6 +8,7 @@ let rec skippify S =
     match S with
     | Seq(Skip, Skip) -> Skip
     | If(_, Skip, Skip) -> Skip
+    | For(_, _, _, Skip) -> Skip
     | _ -> S
 
 let rec shred_S (gamma: Context) (S: S) : (S * S * S) =
@@ -36,5 +37,12 @@ let rec shred_S (gamma: Context) (S: S) : (S * S * S) =
         If(e, sd1, sd2) |> skippify,
         If(e, sm1, sm2) |> skippify,
         If(e, sq1, sq2) |> skippify
+
+    | For(arg, lower, upper, s) -> 
+        let sd, sm, sq = shred_S gamma s
+
+        For(arg, lower, upper, sd) |> skippify,
+        For(arg, lower, upper, sm) |> skippify,
+        For(arg, lower, upper, sq) |> skippify
 
     | Skip -> Skip, Skip, Skip

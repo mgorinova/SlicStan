@@ -432,7 +432,7 @@ let rec safetycheck defs =
 
          
          
-let elaborate_SlicStanProg (prog: SlicStanProg) : Context*S =
+let elaborate_Prog (prog: SlicStanProg) : Context*S =
     match prog with
     | defs, s -> 
         let _ = safetycheck defs

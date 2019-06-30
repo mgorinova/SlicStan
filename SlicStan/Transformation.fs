@@ -68,6 +68,7 @@ let rec to_Stan_statements (S: S) : Statements =
     match S with 
     | SlicStanSyntax.Seq(S1, S2) -> SSeq(to_Stan_statements S1, to_Stan_statements S2)
     | SlicStanSyntax.If(E, S1, S2) -> If(E, to_Stan_statements S1, to_Stan_statements S2)
+    | SlicStanSyntax.For(E, l, u, S') -> For(snd E, l, u, to_Stan_statements S')
     | SlicStanSyntax.Assign(a1, a2) -> Let(a1, a2)
     | SlicStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
     | SlicStanSyntax.Skip -> SNone
@@ -85,7 +86,8 @@ let rec has_target S =
     | SlicStanSyntax.Sample _ -> true
     | Seq(s1, s2) -> has_target s1 || has_target s2
     | Decl(_, s) -> has_target s
-    | SlicStanSyntax.If(e, s1, s2) -> has_target s1 || has_target s2
+    | SlicStanSyntax.If(_, s1, s2) -> has_target s1 || has_target s2
+    | SlicStanSyntax.For(_, _, _, s) -> has_target s
     | Skip -> false
 
 
@@ -125,6 +127,10 @@ let rec transform_model (S: S) : MiniStanProg =
         if has_target s1 || has_target s2 
         then P(DNone, TDNone, PNone, TPNone, MBlock(VNone, to_Stan_statements S), GQNone)  
         else P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone)
+    | SlicStanSyntax.For(arg, lower, upper, s) -> 
+        if has_target s 
+        then P(DNone, TDNone, PNone, TPNone, MBlock(VNone, to_Stan_statements S), GQNone)  
+        else P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone) 
     | Decl _ -> failwith "unexpected"
     | Seq(s1, s2) -> 
         transform_model s1 |> 
