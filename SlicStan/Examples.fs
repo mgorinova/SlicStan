@@ -40,16 +40,12 @@ real c ~ normal(d1, d2);
 
 let discrete4 = "
 real[3] pi = [1/3, 1/3, 1/3];
-{
 int<3> d1 ~ categorical(pi);
 int td1 = d1;
 real c1 ~ normal(td1, 1);
-}
-{
 int<3> d2 ~ categorical(pi);
 int td2 = d2;
 real c2 ~ normal(td2, 1);
-}
 "
 
 

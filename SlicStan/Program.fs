@@ -25,10 +25,8 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.discrete1
- 
-// look into array elements dependance analysis literature
-  
+let example = Examples.discrete4
+
 // enumerate only ints of level models that are not TP
 
 [<EntryPoint>]
@@ -66,23 +64,18 @@ let main argv =
                     |> parse
                     |> typecheck_Prog 
 
-    let graph = Factorgraph.to_graph (snd typechecked)
 
+    let W, graph = Factorgraph.to_graph (snd typechecked)
     printfn "%A" (pp_graph graph)
 
+    let ordering = Factorgraph.find_ordering W graph
+    printfn "Ordering:\n%A" ordering
+
+    let new_s = eliminate_variables graph ordering
+    printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" new_s)
+
     let enum = enumerate_Prog (snd typechecked)
-
-    printfn "\n\n%s" (SlicStanSyntax.S_pretty "" enum)
-    
-
-
-    // TODO for next working day: 
-    // (1) figure out a lighter form of elaboration --- data and parameters 
-    //     declarations need to happen at the top level.
-    // (2) think about how to implement the array discrete variables support.
-    // (3) translation very broken at the moment.
-    
-
+    //printfn "\n\nSlicStan interm:\n%s" (SlicStanSyntax.S_pretty "" enum)
     
     
     let ctx, s =  elaborate_Prog ([], enum)
@@ -91,7 +84,7 @@ let main argv =
 
     let stan = transform ctx (sd, sm, sq)
     
-    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
+    //printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
 
 
     0
