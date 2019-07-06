@@ -45,11 +45,11 @@ let next_factor_id() =
     cur
 // **********************//
 
-let reads E = Typecheck.read_exp E |> Set.toList
+let reads E = read_exp E |> Set.toList
 
 let add_factor (S: S) (graph: Graph) =
     
-    let get_dependencies (S: S) : VarId list * VarId list  =
+    let rec get_dependencies (S: S) : VarId list * VarId list  =
         match S with
         | Assign(lhs, e) -> 
             let out_var = LValueBaseName lhs
@@ -57,18 +57,32 @@ let add_factor (S: S) (graph: Graph) =
                 reads e 
                 |> List.append (lhs_to_exp lhs |> reads) 
                 |> List.filter (fun v -> v <> out_var)
+                |> Set.ofList |> Set.toList
 
             in_vars, [out_var]
 
         | Sample(e, d) -> 
             match d with 
             | Dist(_, exps) -> 
-                let in_vars = reads (Arr exps)
-                let out_vars = reads e
+                let in_vars = reads (Arr exps) |> Set.ofList |> Set.toList
+                let out_vars = reads e |> Set.ofList |> Set.toList
                 in_vars, out_vars
 
         | If _ -> failwith "not yet implemented"
-        | For _ -> failwith "not yet implemented"
+        | For ((T, x), lower, upper, s) -> 
+            let in_s, out_s = get_dependencies s
+            let in_vars = 
+                [ match lower with N _ -> "" | SizeVar x -> x;
+                  match upper with N _ -> "" | SizeVar x -> x]
+                |> List.append in_s |> Set.ofList
+                |> fun set -> if Set.contains x set then Set.remove x set else set
+                |> Set.toList
+            let out_vars = 
+                Set.ofList out_s
+                |> fun set -> if Set.contains x set then Set.remove x set else set
+                |> Set.toList
+
+            in_vars, out_vars
     
         | Decl _ -> failwith "unexpected"
         | Seq _ -> failwith "unexpected"
@@ -192,7 +206,9 @@ let rec dfs (G : Graph) =
                             if empty_graph g then g, s else
                                 let g' = remove (Vid v) g
                                 let g'', s' = dfs g'
-                                let s'' = Seq(s, s')
+                                // FIXME: need to be more careful if we want proper scope
+                                // for non-discrete-param variables.
+                                let s'' = Seq(s, s') //let s'' = Decl(get_variable v g, Seq(s, s'))
                                 g'', s''                               
                          ) 
                          (G', S')                         
@@ -248,6 +264,46 @@ let rec merge_along_path (G : Graph) (phi : FactorId) (f : FactorId) : (Graph * 
             merge_along_path G' phi' f 
 
 
+let merge_many (factors : FactorId list) (G : Graph) : Graph * FactorId =
+    let factors_head, factors_tail = 
+        match factors with
+        | [] -> -1, []
+        | head::tail -> head, tail 
+    
+    List.fold ( fun (g, phi) f -> 
+                        if depends_on (Fid phi) (Fid f) G then 
+                            merge_along_path g phi f
+                        else 
+                            merge_simple g phi f 
+                  )
+                  (G, factors_head) factors_tail
+
+let rec merge_dependent (factors : FactorId list) (G : Graph) : Graph * FactorId = 
+    // when doing variable elimination, we can't just merge the 
+    // neighbouring factors; need to merge all dependent factors
+    
+    let fs = List.filter (fun f -> f <> -1) factors
+    if fs = [] then G, -1
+    else 
+        let G', f' = merge_many fs G
+        let children = 
+            children (Fid f') G'
+            |> List.fold (fun list v -> 
+                            children v G
+                            |> List.map (fun n -> match n with Fid f -> f)
+                            |> List.filter (fun f -> children (Fid f) G' |> List.contains v |> not)
+                            |> List.append list
+                         ) []
+            |> List.filter (fun f -> f <> -1)
+
+        if children = [] then G', f'
+        else 
+            let G'', f'' = merge_dependent children G'
+            merge_simple G'' f' f''
+        
+    
+
+
 let update_factor (update_function : S -> S) (factor_id : FactorId) (G : Graph) : Graph =
     let V, F, E = G
     let s' = get_factor factor_id G |> update_function    
@@ -259,40 +315,16 @@ let eliminate (G: Graph) (d: VarId) =
     let parents_d = parents (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
     let children_d = children (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
 
-    let parents_head, parents_tail = 
-        match parents_d with
-        | [] -> -1, []
-        | head::tail -> head, tail 
-
-    let children_head, children_tail = 
-        match children_d with
-        | [] -> -1, []
-        | head::tail -> head, tail
-
-    let G', d_factor' = 
-        List.fold ( fun (g, phi) f -> 
-                        if depends_on (Fid phi) (Fid f) G then 
-                            merge_along_path g phi f
-                        else 
-                            merge_simple g phi f 
-                  )
-                  (G, parents_head) parents_tail
-
-    let G'', d_factor'' = 
-        List.fold ( fun (g, phi) f -> 
-                        if depends_on (Fid phi) (Fid f) G then 
-                            merge_along_path g phi f
-                        else 
-                            merge_simple g phi f 
-                  )
-                  (G', children_head) children_tail
+    let G', in_factor = merge_many parents_d G
+    let G'', out_factor = merge_many children_d G'
+    let G''', out_factor' = merge_dependent [out_factor] G''
 
     let G_res, d_factor_res = 
-        match d_factor', d_factor'' with 
+        match in_factor, out_factor' with 
         | -1, -1 -> failwith "unexpected"  
-        | -1, _ -> G'', d_factor''
-        | _, -1 -> G', d_factor'
-        | _, _ -> merge_simple G'' d_factor' d_factor''
+        | -1, _ -> G''', out_factor'
+        | _, -1 -> G', in_factor
+        | _, _ -> merge_simple G''' in_factor out_factor'
 
     let decl = get_variable d G
     G_res |> update_factor (fun s -> Decl(decl, s)) d_factor_res |> remove (Vid d)
@@ -310,7 +342,13 @@ let eliminate_variables (graph : Graph) (order : Ide list) : S =
     // one by one. Merge the resulting graph in a single statement.
 
     let interm = List.fold eliminate graph order
-    interm |> direct |> dfs |> snd 
+    let vs, _, _ = interm
+
+    interm 
+    |> direct 
+    |> dfs 
+    |> snd 
+    |> DeclOfList vs
 
 
 

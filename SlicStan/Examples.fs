@@ -69,6 +69,74 @@ for(int n in 1 : N) {
 }
 "
 
+let soft_k_means_no_array = " 
+data int D;  
+data int K; 
+data real N;
+data real pi;
+
+N = 3;
+data real[D][N] y;  
+
+real[D][K] mu; 
+for(int d in 1 : D) {
+    mu[d] ~ normal(0, 1);
+}
+
+int<K> z1;
+int<K> z2;
+int<K> z3;
+
+z1 ~ categorical(pi);
+y[1] ~ normal(mu[z1], 1);
+
+z2 ~ categorical(pi);
+y[2] ~ normal(mu[z2], 1);
+
+z3 ~ categorical(pi);
+y[3] ~ normal(mu[z3], 1);
+"
+
+let discrete_many = "
+real[2] pi = [1/2, 1/2];
+int<2> d1 ~ categorical(pi); 
+int<2> d5 ~ categorical([pi[1], pi[2]]);
+int<2> d6 ~ categorical(pi);
+
+int<2> d2 ~ categorical([pi[1]*d1, pi[2]*d6]);
+int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
+int<2> d4 ~ categorical([pi[1]*d3, pi[2]*d5]);
+int<2> d7 ~ categorical([pi[1]*d3, pi[2]]);
+int<2> d8 ~ categorical([pi[1]*d1, pi[2]]);
+int<2> d9 ~ categorical(pi);
+int<2> d10 ~ categorical([pi[1], pi[2]*d9]);
+"
+
+let discrete_many_lost_ordering = "
+real[2] pi = [1/2, 1/2];
+int<2> d7;
+int<2> d6;
+int<2> d9;
+int<2> d4;
+int<2> d10;
+int<2> d8;
+int<2> d5;
+int<2> d2;
+int<2> d3;
+int<2> d1;
+
+d1 ~ categorical(pi); 
+d5 ~ categorical([pi[1], pi[2]]);
+d6 ~ categorical(pi);
+d2 ~ categorical([pi[1]*d1, pi[2]*d6]);
+d3 ~ categorical([pi[1]*d1, pi[2]]);
+d4 ~ categorical([pi[1]*d3, pi[2]*d5]);
+d7 ~ categorical([pi[1]*d3, pi[2]]);
+d8 ~ categorical([pi[1]*d1, pi[2]]);
+d9 ~ categorical(pi);
+d10 ~ categorical([pi[1], pi[2]*d9]);
+"
+
 // Simple for
 let simple_for = "
 real c ~ normal(0, 1);

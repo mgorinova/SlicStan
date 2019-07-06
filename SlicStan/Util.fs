@@ -12,10 +12,10 @@ let rec SofList ss =
   | s::ss' -> Seq(s, SofList ss')
 
 
-let rec BlockOfList (env, s) = 
+let rec DeclOfList env s = 
     match env with 
     | [] -> s
-    | x::xs -> Decl(x, BlockOfList (xs, s))
+    | x::xs -> Decl(x, DeclOfList xs s)
 
 
 let rec LValueBaseName (lhs: LValue): Ide =    
@@ -89,3 +89,40 @@ let rec assigns_global (S: S) : Set<Ide> =
     | Skip -> Set.empty
 
 
+let rec read_exp (E: Exp) : Set<Ide> =
+    match E with 
+    | Var(x) -> Set.add x Set.empty
+    | Const _ -> Set.empty
+    | Arr(list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
+    | ArrElExp(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
+    | Prim(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
+    | ECall _ -> failwith "not impl"
+    | Plus(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
+    | Mul(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
+
+
+let read_dist (D: Dist) : Set<Ide> =
+    match D with 
+    | Dist(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
+
+
+let rec reads (S: S) : Set<Ide> =
+    match S with
+    | Decl(_, s) -> reads s
+    | Sample(_, d) -> read_dist d
+    | Assign(lhs, e) -> 
+        read_exp e
+        |> fun set -> 
+            if Set.contains (LValueBaseName lhs) set 
+            then Set.union (lhs_to_exp lhs |> read_exp) set 
+            else Set.union (lhs_to_exp lhs |> read_exp) set |> Set.remove (LValueBaseName lhs)
+    | If(e, s1, s2) -> Set.union (reads s1) (reads s2) |> Set.union (read_exp e)
+    | For(x, l, u, s) -> 
+        [ ( match l with N _ -> "" | SizeVar x -> x );
+          ( match u with N _ -> "" | SizeVar x -> x ) ]
+        |> List.filter (fun x -> x <> "")
+        |> Set.ofList
+        |> Set.union (reads s)
+        |> fun set -> if Set.contains (snd x) set then Set.remove (snd x) set else set 
+    | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
+    | Skip -> Set.empty

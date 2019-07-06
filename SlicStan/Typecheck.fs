@@ -67,20 +67,7 @@ let rec assigns (S: S) : Set<Ide> =
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
 
-let rec read_exp (E: Exp) : Set<Ide> =
-    match E with 
-    | Var(x) -> Set.add x Set.empty
-    | Const _ -> Set.empty
-    | Arr(list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
-    | ArrElExp(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
-    | Prim(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
-    | ECall _ -> failwith "not impl"
-    | Plus(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
-    | Mul(e1, e2) -> Set.union (read_exp e1) (read_exp e2)
 
-let read_dist (D: Dist) : Set<Ide> =
-    match D with 
-    | Dist(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
 
 let rec get_lvalue_level (gamma: Dict) lhs =
     match lhs with 

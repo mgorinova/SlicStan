@@ -25,7 +25,7 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
-let example = Examples.discrete4
+let example = Examples.discrete_many_lost_ordering
 
 // enumerate only ints of level models that are not TP
 

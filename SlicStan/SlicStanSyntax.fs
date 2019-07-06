@@ -231,7 +231,10 @@ let rec S_pretty ident S =
   match S with
   | Decl(var, S) -> //
     let (p, l), n = var
-    sprintf "%s%s %s %s{\n%s\n%s}" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ("  " + ident) S) ident
+    if p <. Int && l = Model 
+    then sprintf "%s%s %s %s{\n%s\n%s}" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ("  " + ident) S) ident
+    else sprintf "%s%s %s %s;\n%s\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty (ident) S) ident 
+        
   | Sample(E, D) -> sprintf "%s%s ~ %s;" ident (E_pretty E) (D_pretty D)
   | Assign(lhs,E) -> 
     if LValueBaseName lhs = "target"
