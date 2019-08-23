@@ -15,6 +15,8 @@ type Graph = VarNode list * FactorNode list * Edge list
 
 type NodeId = Vid of VarId | Fid of FactorId
 
+let mutable ordering : VarId list = List.Empty 
+
 let vars ((V, _, _): Graph) = V |> List.map snd 
 let factors ((_, F, _): Graph) = F |> List.map snd 
 let edges ((_, _, E): Graph) = E
@@ -215,6 +217,9 @@ let rec dfs (G : Graph) =
         G'', S''
 
 
+let is_discrete_parameter W = 
+    fun ((tp, tl), x) -> tl = Model && tp <. Int && (Set.contains x W |> not)
+
 let find_ordering (W : Set<Ide>) (G: Graph) : Ide list = 
     // Use depth as a way to choose ordering
 
@@ -223,11 +228,24 @@ let find_ordering (W : Set<Ide>) (G: Graph) : Ide list =
     // Currently just whatever order
     // FIXME: to use the depth as order
 
-    V  
-    |> List.filter (fun ((tp, tl), x) -> tl = Model && tp <. Int && (Set.contains x W |> not))
-    |> List.map (fun (_, x) -> x) 
-    |> List.rev
+    let discrete_params = 
+        List.filter (is_discrete_parameter W) V
+        |> List.map (fun (_, x) -> x) 
+    
+    let find_ancestors (x : VarId) : VarId list =
+        discrete_params 
+        |> List.filter (fun a -> a <> x && depends_on (Vid a) (Vid x) G)
 
+    let ancestors = List.map (fun x -> x, find_ancestors x |> List.length) discrete_params
+    
+    let order = 
+        ancestors
+        |> List.sortBy (fun (x, num_ancestors) -> num_ancestors)
+        |> List.map fst 
+
+    order |> List.rev
+
+    
 
 let merge_simple (G : Graph) f1 f2 : (Graph * FactorId) = 
     let s1, s2 = get_factor f1 G , get_factor f2 G
@@ -245,8 +263,8 @@ let merge_simple (G : Graph) f1 f2 : (Graph * FactorId) =
     (V', F', E'), snd new_factor
 
 
-let rec merge_along_path (G : Graph) (phi : FactorId) (f : FactorId) : (Graph * FactorId) = 
-    if phi = f then merge_simple G phi f
+let rec merge (G : Graph) (phi : FactorId) (f : FactorId) : (Graph * FactorId) = 
+    if phi = f || (depends_on (Fid phi) (Fid f) G |> not) then merge_simple G phi f
     else 
         let next_factors =
             children (Fid phi) G
@@ -261,7 +279,7 @@ let rec merge_along_path (G : Graph) (phi : FactorId) (f : FactorId) : (Graph * 
         if next_factors = [f] then merge_simple G phi f
         else        
             let G', phi' = List.fold (fun (g, new_f) f' -> merge_simple g new_f f') (G, phi) next_factors
-            merge_along_path G' phi' f 
+            merge G' phi' f 
 
 
 let merge_many (factors : FactorId list) (G : Graph) : Graph * FactorId =
@@ -270,13 +288,9 @@ let merge_many (factors : FactorId list) (G : Graph) : Graph * FactorId =
         | [] -> -1, []
         | head::tail -> head, tail 
     
-    List.fold ( fun (g, phi) f -> 
-                        if depends_on (Fid phi) (Fid f) G then 
-                            merge_along_path g phi f
-                        else 
-                            merge_simple g phi f 
-                  )
+    List.fold ( fun (g, phi) f -> merge g phi f )
                   (G, factors_head) factors_tail
+
 
 let rec merge_dependent (factors : FactorId list) (G : Graph) : Graph * FactorId = 
     // when doing variable elimination, we can't just merge the 
@@ -286,10 +300,20 @@ let rec merge_dependent (factors : FactorId list) (G : Graph) : Graph * FactorId
     if fs = [] then G, -1
     else 
         let G', f' = merge_many fs G
+        let var_children = children (Fid f') G'
+                
+        assert(
+            var_children 
+            |> List.map (fun c -> match c with Vid x -> x) 
+            |> Set.ofList 
+            |> Collections.Set.intersect (Set.ofList ordering)
+            |> Set.isEmpty
+        )
+
         let children = 
-            children (Fid f') G'
+            var_children
             |> List.fold (fun list v -> 
-                            children v G
+                            children v G'
                             |> List.map (fun n -> match n with Fid f -> f)
                             |> List.filter (fun f -> children (Fid f) G' |> List.contains v |> not)
                             |> List.append list
@@ -309,22 +333,24 @@ let update_factor (update_function : S -> S) (factor_id : FactorId) (G : Graph) 
     let s' = get_factor factor_id G |> update_function    
     V, List.map (fun (s, f) -> if f = factor_id then (s', f) else (s, f)) F, E
 
-
-let eliminate (G: Graph) (d: VarId) = 
+/// Eliminates variable d in graph G.
+/// Returns the updated graph and the factor resulting in the elimination of d.
+let eliminate (G: Graph) (d: VarId)  = 
     
     let parents_d = parents (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
     let children_d = children (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
 
+    //assert(List.allPairs parents_d children_d |> List.exists (fun (p, c) -> depends_on (Fid c) (Fid p) G) |> not)
+
     let G', in_factor = merge_many parents_d G
-    let G'', out_factor = merge_many children_d G'
-    let G''', out_factor' = merge_dependent [out_factor] G''
+    let G'', out_factor = merge_dependent children_d G'
 
     let G_res, d_factor_res = 
-        match in_factor, out_factor' with 
+        match in_factor, out_factor with 
         | -1, -1 -> failwith "unexpected"  
-        | -1, _ -> G''', out_factor'
+        | -1, _ -> G'', out_factor
         | _, -1 -> G', in_factor
-        | _, _ -> merge_simple G''' in_factor out_factor'
+        | _, _ -> merge_simple G'' in_factor out_factor
 
     let decl = get_variable d G
     G_res |> update_factor (fun s -> Decl(decl, s)) d_factor_res |> remove (Vid d)
@@ -336,10 +362,11 @@ let direct (G: Graph) : Graph =
 
     V, F, E'
 
-
 let eliminate_variables (graph : Graph) (order : Ide list) : S =
     // Use the ordering to eliminate the discrete variables 
     // one by one. Merge the resulting graph in a single statement.
+
+    ordering <- order
 
     let interm = List.fold eliminate graph order
     let vs, _, _ = interm

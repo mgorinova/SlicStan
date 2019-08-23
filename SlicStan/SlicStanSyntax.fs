@@ -227,11 +227,22 @@ let rec LValue_pretty (x:LValue) =
         | I(name) -> name
         | A(lhs, index) -> sprintf "%s[%s]" (LValue_pretty lhs) (E_pretty index)
 
+
+let rec assigns_syntax (S: S) : Set<Ide> =
+    match S with
+    | Decl((_, x), s) -> assigns_syntax s
+    | Sample(x, _) -> Set.empty
+    | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
+    | If(e, s1, s2) -> Set.union (assigns_syntax s1) (assigns_syntax s2)
+    | For(x, l, u, s) -> assigns_syntax s
+    | Seq(s1, s2) -> Set.union (assigns_syntax s1) (assigns_syntax s2)
+    | Skip -> Set.empty
+
 let rec S_pretty ident S =
   match S with
   | Decl(var, S) -> //
     let (p, l), n = var
-    if p <. Int && l = Model 
+    if p <. Int && l = Model && (Set.contains (snd var) (assigns_syntax S) |> not)
     then sprintf "%s%s %s %s{\n%s\n%s}" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ("  " + ident) S) ident
     else sprintf "%s%s %s %s;\n%s\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty (ident) S) ident 
         

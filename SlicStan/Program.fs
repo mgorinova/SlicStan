@@ -74,7 +74,8 @@ let main argv =
     let new_s = eliminate_variables graph ordering
     printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" new_s)
 
-    let enum = enumerate_Prog (snd typechecked)
+    //let enum = enumerate_Prog (snd typechecked)
+    let enum = enumerate_Prog new_s
     //printfn "\n\nSlicStan interm:\n%s" (SlicStanSyntax.S_pretty "" enum)
     
     
@@ -84,7 +85,7 @@ let main argv =
 
     let stan = transform ctx (sd, sm, sq)
     
-    //printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
+    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
 
 
     0

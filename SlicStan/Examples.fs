@@ -97,6 +97,14 @@ z3 ~ categorical(pi);
 y[3] ~ normal(mu[z3], 1);
 "
 
+let discrete_chain = "
+real[3] pi;
+int<2> d1 ~ categorical(pi); 
+int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);
+int<2> d3 ~ categorical([pi[1]*d2, pi[2]]);
+int<2> d4 ~ categorical([pi[1]*d3, pi[2]]);
+"
+
 let discrete_many = "
 real[2] pi = [1/2, 1/2];
 int<2> d1 ~ categorical(pi); 

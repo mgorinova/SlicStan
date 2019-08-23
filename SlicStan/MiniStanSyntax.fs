@@ -53,7 +53,7 @@ let rec Type_pretty typeprim =
     | Bool -> "bool"
     | Real -> "real"
     | Int -> "int"
-    | Constrained(tp', size) -> sprintf "%s<%s>" (Type_pretty tp') (SizeToString size)
+    | Constrained(tp', size) -> sprintf "%s<lower=1,upper=%s>" (Type_pretty tp') (SizeToString size)
     | Array(t, n) -> (Type_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
     | Vector(n) -> (if NotAnySize(n) then (sprintf "vector[%s]" (SizeToString n)) else "vector")
     | Matrix(n, m) -> (if NotAnySize(n) then 
@@ -63,7 +63,10 @@ let rec Type_pretty typeprim =
 
 let rec Decls_pretty decls =
     match decls with 
-    | Declr (typestr, name) -> "\t" + (Type_pretty typestr) + " " + name + ";\n"
+    | Declr (typestr, name) -> 
+        match typestr with 
+        | Array(t, n) -> "\t" + (Type_pretty t) + " " + name + "[" + (SizeToString n) + "];\n"
+        | _ -> "\t" + (Type_pretty typestr) + " " + name + ";\n"
     | VSeq (d1, d2) ->  Decls_pretty d1 + Decls_pretty d2
     | VNone -> ""
 
