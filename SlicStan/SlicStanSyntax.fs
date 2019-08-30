@@ -30,7 +30,9 @@ type Exp = Var of Ide
          | Plus of Exp * Exp // E1 + E2
          | Mul of Exp * Exp // E1 * E2
          | Prim of string * Exp list // sqrt(E1, E2)
-         | ECall of FunIde * Exp list 
+         | ECall of FunIde * Exp list     
+          
+
 
 // M' = matrix transpose
 // inverse(M) = inverse
@@ -50,6 +52,8 @@ type S = Decl of Arg * S //alpha convertible; make it have a single identifier /
        | For of Arg * ArrSize * ArrSize * S
        | Seq of S * S // S1; S2
        | Skip 
+       | Elim of Ide list * Arg * S // Elim of message list, varaible to be eliminated and a statement
+       | Message of Arg * Ide * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
 
 
 type FunDef = Fun of FunIde * Arg list * S * Arg
@@ -102,6 +106,8 @@ let prim_funcs =  [ "-", ([Real; Real], (Real));
                     "cholesky_decompose", ([Matrix(AnySize, AnySize)], Matrix(AnySize, AnySize));
                     "multi_normal", ([Vector(AnySize); Matrix(AnySize, AnySize)], (Vector(AnySize)));
                     "num_elements", ([Vector(AnySize)], Int);
+                    "to_vector", ([Array(Real, AnySize)], Vector(AnySize));
+                    "sum", ([Array(Real, AnySize)], Real);
                     ]
 
 let Primitives: Map<string, TypePrim list * TypePrim> = 
@@ -204,7 +210,7 @@ let rec E_pretty E =
   | Var(x) -> x
   | Const(d) -> sprintf "%O" d
   | Arr(Es) -> sprintf "[ %s ]" (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
-  | ArrElExp(e1, e2) -> sprintf "%s[%s]" (E_pretty e1) (E_pretty e2) 
+  | ArrElExp(e1, e2) -> ArrElExp_pretty E + "]" //sprintf "%s[%s]" (E_pretty e1) (E_pretty e2) 
   | Plus(e1, e2) -> sprintf "(%s + %s)" (E_pretty e1) (E_pretty e2)
   | Mul(e1, e2) -> sprintf "%s * %s" (E_pretty e1) (E_pretty e2)
   | Prim(p,[]) -> sprintf "%s()" p
@@ -217,6 +223,14 @@ let rec E_pretty E =
   | ECall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
 
 
+and ArrElExp_pretty arr_el =
+    match arr_el with 
+    | ArrElExp(e1, e2) -> 
+        match e1 with
+        | ArrElExp _ -> sprintf "%s,%s" (ArrElExp_pretty e1) (E_pretty e2)
+        | _ -> sprintf "%s%s" (ArrElExp_pretty e1) (E_pretty e2)
+    | _ -> sprintf "%s[" (E_pretty arr_el)
+
 and D_pretty D =
   match D with
   | Dist(p,[]) -> sprintf "%s()" p
@@ -225,8 +239,15 @@ and D_pretty D =
 let rec LValue_pretty (x:LValue) =
         match x with 
         | I(name) -> name
-        | A(lhs, index) -> sprintf "%s[%s]" (LValue_pretty lhs) (E_pretty index)
-
+        | A(lhs, index) -> A_pretty x + "]" //sprintf "%s[%s]" (LValue_pretty lhs) (E_pretty index)
+ 
+ and A_pretty (x:LValue) = 
+    match x with 
+    | A(lhs, i) -> 
+        match lhs with
+        | A _ -> sprintf "%s,%s" (A_pretty lhs) (E_pretty i)
+        | _ -> sprintf "%s%s" (A_pretty lhs) (E_pretty i)
+    | _ -> sprintf "%s[" (LValue_pretty x)
 
 let rec assigns_syntax (S: S) : Set<Ide> =
     match S with
@@ -238,13 +259,19 @@ let rec assigns_syntax (S: S) : Set<Ide> =
     | Seq(s1, s2) -> Set.union (assigns_syntax s1) (assigns_syntax s2)
     | Skip -> Set.empty
 
+let Messages_pretty messages =
+    if List.length messages = 0 then ""
+    else if List.length messages = 1 then List.head messages
+    else List.fold (fun s m -> sprintf "%s,%s" s m) "" messages
+
 let rec S_pretty ident S =
   match S with
   | Decl(var, S) -> //
     let (p, l), n = var
-    if p <. Int && l = Model && (Set.contains (snd var) (assigns_syntax S) |> not)
-    then sprintf "%s%s %s %s{\n%s\n%s}" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ("  " + ident) S) ident
-    else sprintf "%s%s %s %s;\n%s\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty (ident) S) ident 
+    //if p <. Int && l = Model && (Set.contains (snd var) (assigns_syntax S) |> not)
+    //then sprintf "%s%s %s %s{\n%s\n%s}" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty ("  " + ident) S) ident
+    //else 
+    sprintf "%s%s %s %s;\n%s\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty (ident) S) ident 
         
   | Sample(E, D) -> sprintf "%s%s ~ %s;" ident (E_pretty E) (D_pretty D)
   | Assign(lhs,E) -> 
@@ -259,7 +286,12 @@ let rec S_pretty ident S =
   | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
-
+  | Elim(messages, var, S) ->
+    let (p, _), n = var
+    sprintf "%selim<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
+  | Message(arg, var, S) ->
+    let (p, _), name = arg
+    sprintf "%smessage<%s>(%s){\n%s\n%s}" ident name var (S_pretty ("  " + ident) S) ident
 
 let rec List_pretty lst =
     match lst with

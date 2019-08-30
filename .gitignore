@@ -336,4 +336,7 @@ copy.gitignore
 /tests/*/*/*.txt
 /tests/working/pps.slic
 
+*.png
+*.gv
+
 /packages/*

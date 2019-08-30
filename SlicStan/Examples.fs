@@ -7,12 +7,11 @@ int<3> d1 ~ categorical(pi1);
 
 real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
 int<3> d2 ~ categorical(pi2);
-
-real c ~ normal(d1, d2);
 "
 
 // # c1 -> d1 -> c2; c1 -> d2 -> c2; 
-let discrete2 = "
+let discrete2 = " 
+// LOOPS NOT YET SUPPORTED
 real c1 ~ normal(0, 1);
 
 real[3] pi1 = [0.3 * c1, 0.3, 0.3];
@@ -98,6 +97,57 @@ y[3] ~ normal(mu[z3], 1);
 "
 
 let discrete_chain = "
+vector[2] pi;
+int<2> d1 ~ categorical(pi); 
+int<2> d2 ~ categorical(to_vector([pi[1]*d1, pi[2]]) / sum([pi[1]*d1, pi[2]]));
+int<2> d3 ~ categorical(to_vector([pi[1]*d2, pi[2]]) / sum([pi[1]*d2, pi[2]]));
+int<2> d4 ~ categorical(to_vector([pi[1]*d3, pi[2]]) / sum([pi[1]*d3, pi[2]]));
+"
+
+let discrete_chain_with_tp = "
+vector[2] pi;
+int<2> d1 ~ categorical(pi); 
+real td1 = 2*d1;
+int<2> d2 ~ categorical(to_vector([pi[1]*td1, pi[2]]) / sum([pi[1]*td1, pi[2]]));
+real td2 = 2*d2;
+int<2> d3 ~ categorical(to_vector([pi[1]*td2, pi[2]]) / sum([pi[1]*td2, pi[2]]));
+real td3 = 2*d3;
+int<2> d4 ~ categorical(to_vector([pi[1]*td3, pi[2]]) / sum([pi[1]*td3, pi[2]]));
+real td4 = 2*d4;
+data real y ~ normal(td4, 1);
+"
+
+let discrete_tree = "
+real[2] pi;
+int<2> d1 ~ categorical(pi); 
+int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);
+int<2> d3 ~ categorical([pi[1]*d2, pi[2]]);
+
+int<2> d4 ~ categorical([pi[1], pi[2]*d1]);
+int<2> d5 ~ categorical([pi[1], pi[2]*d4]);
+
+"
+
+let discrete_reverse_tree = "
+real[3] pi;
+int<2> d1 ~ categorical(pi);
+int<2> d2 ~ categorical(pi);
+int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
+d3 ~ categorical([pi[1], pi[2]*d2]);
+"
+
+let discrete_reverse_bigger_tree = "
+real[3] pi;
+int<2> d1 ~ categorical(pi);
+int<2> d5 ~ categorical(pi);
+
+int<2> d2 ~ categorical([pi[1], pi[2]*d1]);
+int<2> d4 ~ categorical([pi[1], pi[2]*d5]);
+
+int<2> d3 ~ categorical([pi[1]*d2, pi[2]*d4]);
+"
+
+let discrete_dimond = "
 real[3] pi;
 int<2> d1 ~ categorical(pi); 
 int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);

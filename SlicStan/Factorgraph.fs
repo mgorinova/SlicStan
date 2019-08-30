@@ -3,6 +3,7 @@
 open SlicStanSyntax
 open Util
 open Typecheck
+open System.IO
 
 type VarId = string
 type FactorId = int 
@@ -30,6 +31,11 @@ let get_variable (v : VarId) ((V, _, _) : Graph) =
 let get_factor (f : FactorId) ((_, F, _) : Graph) : S =
     List.find (fun (s, f') -> f = f') F |> fst
 
+let has_factor (f : FactorId) ((_, F, _) : Graph) =
+    match List.tryFind (fun (s, f') -> f = f') F with
+    | None -> false
+    | Some _ -> true
+
 let get_in_edges (n : NodeId) ((_, _, E) : Graph) : Edge list =
     match n with 
     | Vid x -> List.filter (fun e -> match e with Ef (f, v) -> x = v | _ -> false) E
@@ -47,7 +53,14 @@ let next_factor_id() =
     cur
 // **********************//
 
+let mutable res_folder = ""
+let set_folder name = res_folder <- name
+
 let reads E = read_exp E |> Set.toList
+
+
+let is_discrete_parameter W = 
+    fun ((tp, tl), x) -> tl = Model && tp <. Int && (Set.contains x W |> not)
 
 let add_factor (S: S) (graph: Graph) =
     
@@ -89,6 +102,15 @@ let add_factor (S: S) (graph: Graph) =
         | Decl _ -> failwith "unexpected"
         | Seq _ -> failwith "unexpected"
         | Skip -> failwith "unexpected"
+        
+        (*| Message(name, var, s) -> 
+            // FIXME: is this enough?
+            let out_var = snd name
+            [], [out_var]*)
+
+        | Elim(messages, var, s) -> 
+            let in_vars = messages
+            in_vars, []
        
     let V, F, E = graph
 
@@ -102,7 +124,7 @@ let add_factor (S: S) (graph: Graph) =
         |> List.append (List.map (fun v -> Ef(fid, v)) out_vars )
         |> List.append E
 
-    V, f::F, E'
+    (V, f::F, E'), fid
 
 
 let to_graph (S: S) : Set<Ide> * Graph = 
@@ -117,31 +139,47 @@ let to_graph (S: S) : Set<Ide> * Graph =
         | Seq(s1, s2) -> 
             _to_graph s1 (current) |> _to_graph s2 
         | Skip -> current
-        | _ -> add_factor S current
+        | _ -> add_factor S current |> fst
         
     let V, F, E = _to_graph S ([], [], []) 
 
     W, (List.rev V, List.rev F, E)
 
 
-let pp_graph (G : Graph) =
+let pp_graph W (G : Graph) =
     
     let V, F, E = G
 
-    let vars = List.map (fun (T, x) -> sprintf "%s: (%s)" x (SlicStanSyntax.Type_pretty T)) V
-    let factors = List.map (fun (S, n) -> sprintf "%A: %s" n (SlicStanSyntax.S_pretty "" S)) F
+    let vars = 
+        List.map (fun (T, x) -> 
+                    if is_discrete_parameter W (T, x) 
+                    then sprintf "%s [style=filled, shape=doublecircle, fillcolor=mediumaquamarine]" x 
+                    else 
+                        if Set.contains x W 
+                        then sprintf "%s" x
+                        else sprintf "%s [style=filled, color=white]" x) V
+        |> fun t -> List.Cons ("\n node [shape=circle, color=black, style=\"\"]", t)
+        |> List.fold (fun state el -> state + el + "; ") ""
+    let factors =
+        List.map (fun (S, n) -> sprintf "%A [label=\"%s\"]" n (SlicStanSyntax.S_pretty "" S)) F
+        |> fun t -> List.Cons ("\n node [shape=polygon, sides=4, style=filled, color=grey]", t)
+        |> List.fold (fun state el -> state + el + "; ") ""
     let edges = List.map (fun e -> 
                             match e with
-                            | Ev(v, f) -> sprintf "%s --> %A" v f
-                            | Ef(f, v) -> sprintf "%A --> %s" f v
+                            | Ev(v, f) -> sprintf "%s -> %A" v f
+                            | Ef(f, v) -> sprintf "%A -> %s" f v
                          ) E
+                |> List.fold (fun state el -> state + el + "; ") ""
 
-    
-    List.append vars factors
-    |> List.append edges
-    |> List.fold (fun state el -> state + "\n" + el) ""
+    sprintf "digraph { %s\n %s\n %s}" vars factors edges 
 
-
+let graphviz G id info =
+    let W = SofList (G |> fun (_, F, _) -> List.map fst F) |> Util.assigns_global
+    let gv_graph = pp_graph W G 
+    let path = sprintf "../../../../graphs/%s/" res_folder
+    let file_name = sprintf "%d_%s.gv" id info
+    Directory.CreateDirectory(path) |> ignore
+    File.WriteAllText(path+file_name, gv_graph)
 
 let parents (n : NodeId) (G: Graph) : NodeId list =
     get_in_edges n G 
@@ -194,7 +232,9 @@ let rec dfs (G : Graph) =
         let G', S' =
             Fs
             |> List.fold (fun (g, s) f -> 
-                            if empty_graph g then g, s else
+                            if empty_graph g || (has_factor f g |> not) 
+                            then g, s 
+                            else
                                 let sf = get_factor f g
                                 let g' = remove (Fid f) g
                                 let g'', s' = dfs g'
@@ -217,16 +257,10 @@ let rec dfs (G : Graph) =
         G'', S''
 
 
-let is_discrete_parameter W = 
-    fun ((tp, tl), x) -> tl = Model && tp <. Int && (Set.contains x W |> not)
-
 let find_ordering (W : Set<Ide>) (G: Graph) : Ide list = 
     // Use depth as a way to choose ordering
 
     let V, _, _ = G
-
-    // Currently just whatever order
-    // FIXME: to use the depth as order
 
     let discrete_params = 
         List.filter (is_discrete_parameter W) V
@@ -243,7 +277,7 @@ let find_ordering (W : Set<Ide>) (G: Graph) : Ide list =
         |> List.sortBy (fun (x, num_ancestors) -> num_ancestors)
         |> List.map fst 
 
-    order |> List.rev
+    order //|> List.rev
 
     
 
@@ -373,8 +407,7 @@ let eliminate_variables (graph : Graph) (order : Ide list) : S =
 
     interm 
     |> direct 
-    |> dfs 
-    |> snd 
+    |> dfs |> snd 
     |> DeclOfList vs
 
 

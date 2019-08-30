@@ -48,13 +48,21 @@ type MiniStanProg = P of Data * TData * Params * TParams * Model * GenQuant
 let E_pretty = SlicStanSyntax.E_pretty
 let D_pretty = SlicStanSyntax.D_pretty
 
-let rec Type_pretty typeprim =
+let rec Array_pretty arr_type =
+    match arr_type with 
+    | Array(t, n) -> 
+        match t with
+        | Array _ -> sprintf "%s,%s" (Array_pretty t) (SizeToString n)
+        | _ -> sprintf "%s%s" (Array_pretty t) (SizeToString n)
+    | _ -> sprintf "%s[" (Type_pretty arr_type)
+
+and Type_pretty typeprim =
     match typeprim with 
     | Bool -> "bool"
     | Real -> "real"
     | Int -> "int"
     | Constrained(tp', size) -> sprintf "%s<lower=1,upper=%s>" (Type_pretty tp') (SizeToString size)
-    | Array(t, n) -> (Type_pretty t) + (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
+    | Array(t, n) -> (Array_pretty typeprim) + "]"// (if NotAnySize(n) then (sprintf "[%s]" (SizeToString n)) else "[]")
     | Vector(n) -> (if NotAnySize(n) then (sprintf "vector[%s]" (SizeToString n)) else "vector")
     | Matrix(n, m) -> (if NotAnySize(n) then 
                             if NotAnySize(m) then (sprintf "matrix[%s,%s]" (SizeToString n) (SizeToString m)) else (sprintf "matrix[%s,]" (SizeToString n)) 
@@ -65,7 +73,7 @@ let rec Decls_pretty decls =
     match decls with 
     | Declr (typestr, name) -> 
         match typestr with 
-        | Array(t, n) -> "\t" + (Type_pretty t) + " " + name + "[" + (SizeToString n) + "];\n"
+        //| Array(t, n) -> "\t" + (Type_pretty t) + " " + name + "[" + (SizeToString n) + "];\n"
         | _ -> "\t" + (Type_pretty typestr) + " " + name + ";\n"
     | VSeq (d1, d2) ->  Decls_pretty d1 + Decls_pretty d2
     | VNone -> ""

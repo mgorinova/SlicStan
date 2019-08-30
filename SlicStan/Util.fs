@@ -1,6 +1,15 @@
 ﻿module Util
 
+open Microsoft.FSharp.Quotations
+open Microsoft.FSharp.Quotations.Patterns
+
 open SlicStanSyntax
+
+let get_var_name (e:Expr) =
+  match e with
+    | PropertyGet (e, pi, li) -> pi.Name
+    | _ -> failwith "not a let-bound value"
+
 
 let flip_tuple (a,b) = (b,a)
 
@@ -87,6 +96,8 @@ let rec assigns_global (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns_global s
     | Seq(s1, s2) -> Set.union (assigns_global s1) (assigns_global s2)
     | Skip -> Set.empty
+    | Message(arg, _, s) -> Set.add (snd arg) (assigns_global s)
+    | Elim(_, _, s) -> assigns_global s
 
 
 let rec read_exp (E: Exp) : Set<Ide> =
