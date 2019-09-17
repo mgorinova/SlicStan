@@ -26,6 +26,9 @@ let parse slicstan =
     let res = Parser.start Lexer.read lexbuf
     res    
 
+
+// d1 -> d2 -> d3 <- d4 <- d5
+
 let example = Examples.discrete_tree
 let name = Util.get_var_name <@Examples.discrete_tree@>
 printfn "Name is %s" name
@@ -64,6 +67,31 @@ let main argv =
         generation of discrete variables using BP-guided sampling.
     *)
 
+    (*  BOOKMARK: ToDo next
+        * Figure out what to do in the "tree" case: possibly something like
+          instead of parents and children, we look at the side that has been
+          computed vs the side that hasn't. Always only one child/parent is 
+          on the side that hasn't been computed. This + smarter decision re
+          the order of elimination should work, I think!
+        
+        (check) * Figure out the "backward" pass: shouldn't be that hard when a 
+          chain but what do we do when the structure is more complicated?
+        
+        * Generating variables might need fixing to generated transform discrete 
+          vars correctly. 
+        
+        (!!!)* Generating in a tree seems to get messed up and/or I haven't dones
+          the backward pass properly. FIXME!
+        
+        * Think about discrete variable arrays. It will be a shame if we don't 
+          implemnt this. Yes, we can unroll the loops for loop bounds known 
+          at static time, but really I think we can do better. 
+
+        * A natural step is to implemented the junction tree algorithm, so 
+          that loops between discrete variables can also be implemented. But
+          is more of an extra; shouldn't be needed for a paper?    
+    *)
+
     let typechecked = slic
                     |> parse
                     |> typecheck_Prog 
@@ -74,7 +102,7 @@ let main argv =
     graphviz graph 0 "init"
 
     let ordering = Factorgraph.find_ordering W graph //|> List.rev
-    //let ordering = ["d1"; "d2"; "d3"; "d4"; "d5"]
+    //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
     printfn "Ordering:\n%A" ordering
 
     let new_s = MP.eliminate_variables graph ordering

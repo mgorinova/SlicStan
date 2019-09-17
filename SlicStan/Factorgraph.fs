@@ -111,6 +111,10 @@ let add_factor (S: S) (graph: Graph) =
         | Elim(messages, var, s) -> 
             let in_vars = messages
             in_vars, []
+
+        | Generate(messages, var, s) -> 
+            let in_vars = messages
+            in_vars, [snd var]
        
     let V, F, E = graph
 

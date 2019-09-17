@@ -98,6 +98,7 @@ let rec assigns_global (S: S) : Set<Ide> =
     | Skip -> Set.empty
     | Message(arg, _, s) -> Set.add (snd arg) (assigns_global s)
     | Elim(_, _, s) -> assigns_global s
+    | Generate(_, v, s) -> Set.add (snd v) (assigns_global s)
 
 
 let rec read_exp (E: Exp) : Set<Ide> =

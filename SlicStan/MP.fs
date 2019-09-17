@@ -19,6 +19,7 @@ let enum_type T : Type=
     | Constrained(t, n) -> Vector(n), Model
     | _ -> failwith "Unexpected! Tried to eliminate a variable with unknown support."
 
+
 let messagify (d : Arg) (G: Graph) (f: FactorId) : Graph * Ide =
     let rec _messagify m S =
         match S with
@@ -41,18 +42,65 @@ let messagify (d : Arg) (G: Graph) (f: FactorId) : Graph * Ide =
                                      | Ev(d', f') -> (d'=snd d && f'=f) |> not)
     G', name
 
+
 let elim (d : VarId) (messages : VarId list) (G: Graph, f: FactorId) =
     let decl = get_variable d G
     if f = -1 then 
-        let new_graph, fid = add_factor (Elim(messages, decl, Skip)) G 
-        let new_edges = List.map (fun m -> Ev(m, fid)) messages
-        (new_graph 
+        let new_graph, fid = add_factor (Elim(messages, decl, Skip)) G    
+        let new_edges = 
+            List.map (fun m -> Ev(m, fid)) messages
+
+        new_graph 
         |> remove (Vid d) 
-        |> fun (vs, fs, es) -> vs, fs, List.append new_edges es), fid   
+        |> fun (vs, fs, es) -> vs, fs, List.append new_edges es    
         
-    else (G |> update_factor (fun s -> Elim(messages, decl, s)) f 
-            |> remove (Vid d)
-            |> fun (vs, fs, es) -> vs, fs, List.append (List.map (fun m -> Ev(m, f)) messages) es), f 
+    else         
+        let new_graph = update_factor (fun s -> Elim(messages, decl, s)) f G        
+        let new_edges = 
+            List.map (fun m -> Ev(m, f)) messages
+        new_graph
+          |> remove (Vid d)
+          |> fun (vs, fs, es) -> vs, fs, List.append new_edges es
+
+
+let gen (d : VarId) (messages : VarId list) (gen_factors : FactorId list) (G: Graph, f: FactorId) =
+    let decl = get_variable d G
+    let decl_gen = (decl |> fst |> fst, GenQuant), d
+    if f = -1 then 
+        let new_graph, fid_gen = add_factor (Generate(messages, decl, Skip)) G    
+        
+        let more_dependencies = 
+            children (Fid f) G 
+            |> List.map (fun n -> match n with Vid v -> v)
+            |> List.filter (fun v -> 
+                                let T, x = get_variable v G
+                                snd T = GenQuant |> not)
+        
+        let new_edges = 
+            (Ef(fid_gen, d)) :: List.map (fun v -> Ev(v, fid_gen)) more_dependencies
+            |> List.append (List.map (fun g -> Ev(d, g)) gen_factors)
+
+        new_graph 
+        |> remove (Vid d) 
+        |> fun (vs, fs, es) -> ((decl_gen)::vs, fs, List.append new_edges es), f
+        
+    else 
+        let new_graph, fid_gen = add_factor (Generate(messages, decl, get_factor f G)) G     
+        
+        let more_dependencies = 
+            children (Fid f) G 
+            |> List.map (fun n -> match n with Vid v -> v)
+            |> List.filter (fun v -> 
+                                let T, x = get_variable v G
+                                snd T = GenQuant |> not)
+
+        let new_edges = 
+            (Ef(fid_gen, d)) :: List.map (fun v -> Ev(v, fid_gen)) more_dependencies
+            |> List.append (List.map (fun g -> Ev(d, g)) gen_factors)
+
+        new_graph
+          |> remove (Vid d)
+          |> fun (vs, fs, es) -> ((decl_gen)::vs, fs, List.append new_edges es), f
 
 let rec simplify_dependent (factors : FactorId list) (G : Graph) : Graph * FactorId = 
     // when doing variable elimination, we can't just merge the 
@@ -90,6 +138,13 @@ let rec simplify_dependent (factors : FactorId list) (G : Graph) : Graph * Facto
             merge_simple G'' f' f''
 
 
+let is_generating_only (G: Graph) (f: FactorId) : bool =
+    children (Fid f) G 
+    |> List.map (fun n -> match n with Vid v -> v)
+    |> List.map (fun v -> get_variable v G)
+    |> List.forall (fun (T, _) -> snd T = GenQuant)
+
+
 /// Eliminates variable d in graph G.
 /// Returns the updated graph and the factor resulting in the elimination of d.
 let eliminate (G: Graph) (d: VarId)  = 
@@ -97,7 +152,9 @@ let eliminate (G: Graph) (d: VarId)  =
     let d_arg = Factorgraph.get_variable d G
 
     let parents_d = parents (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
-    let children_d = children (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
+    let children_d_all = children (Vid d) G |> List.map (fun n -> match n with Fid f -> f)
+
+    let children_d_gen, children_d = List.partition (is_generating_only G) children_d_all
 
     //assert(List.allPairs parents_d children_d |> List.exists (fun (p, c) -> depends_on (Fid c) (Fid p) G) |> not)
    
@@ -106,8 +163,11 @@ let eliminate (G: Graph) (d: VarId)  =
                     let g', m' = messagify d_arg g f
                     g', m'::ms) (G, []) parents_d
                     
-    let G', in_factor = merge_many parents_d G_messagified
-    let G'', out_factor = simplify_dependent children_d G' |> elim d messages
+    let G', _ = merge_many parents_d G_messagified
+    let G'' = 
+        simplify_dependent children_d G'
+        //|> gen d messages children_d_gen
+        |> elim d messages
 
     let G_res = G''
 

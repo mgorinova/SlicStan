@@ -54,6 +54,7 @@ type S = Decl of Arg * S //alpha convertible; make it have a single identifier /
        | Skip 
        | Elim of Ide list * Arg * S // Elim of message list, varaible to be eliminated and a statement
        | Message of Arg * Ide * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
+       | Generate of Ide list * Arg * S // Generate Arg using message list and statement
 
 
 type FunDef = Fun of FunIde * Arg list * S * Arg
@@ -292,6 +293,10 @@ let rec S_pretty ident S =
   | Message(arg, var, S) ->
     let (p, _), name = arg
     sprintf "%smessage<%s>(%s){\n%s\n%s}" ident name var (S_pretty ("  " + ident) S) ident
+  | Generate(messages, var, S) ->
+    let (p, _), n = var
+    sprintf "%sgenerate<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
+    
 
 let rec List_pretty lst =
     match lst with

@@ -102,6 +102,7 @@ int<2> d1 ~ categorical(pi);
 int<2> d2 ~ categorical(to_vector([pi[1]*d1, pi[2]]) / sum([pi[1]*d1, pi[2]]));
 int<2> d3 ~ categorical(to_vector([pi[1]*d2, pi[2]]) / sum([pi[1]*d2, pi[2]]));
 int<2> d4 ~ categorical(to_vector([pi[1]*d3, pi[2]]) / sum([pi[1]*d3, pi[2]]));
+real gen_d2 = 2 * d2;
 "
 
 let discrete_chain_with_tp = "
@@ -151,8 +152,8 @@ let discrete_dimond = "
 real[3] pi;
 int<2> d1 ~ categorical(pi); 
 int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);
-int<2> d3 ~ categorical([pi[1]*d2, pi[2]]);
-int<2> d4 ~ categorical([pi[1]*d3, pi[2]]);
+int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
+int<2> d4 ~ categorical([pi[1]*d2, pi[2]*d3]);
 "
 
 let discrete_many = "
