@@ -52,9 +52,9 @@ type S = Decl of Arg * S //alpha convertible; make it have a single identifier /
        | For of Arg * ArrSize * ArrSize * S
        | Seq of S * S // S1; S2
        | Skip 
-       | Elim of Ide list * Arg * S // Elim of message list, varaible to be eliminated and a statement
+       | Elim of Arg * Ide * S // Elim of message, varaible to be eliminated and a statement
        | Message of Arg * Ide * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
-       | Generate of Ide list * Arg * S // Generate Arg using message list and statement
+       | Generate of Arg * Ide * S // Generate Arg using message list and statement
 
 
 type FunDef = Fun of FunIde * Arg list * S * Arg
@@ -260,10 +260,11 @@ let rec assigns_syntax (S: S) : Set<Ide> =
     | Seq(s1, s2) -> Set.union (assigns_syntax s1) (assigns_syntax s2)
     | Skip -> Set.empty
 
-let Messages_pretty messages =
-    if List.length messages = 0 then ""
-    else if List.length messages = 1 then List.head messages
-    else List.fold (fun s m -> sprintf "%s,%s" s m) "" messages
+let Messages_pretty message =
+    message
+    //if List.length messages = 0 then ""
+    //else if List.length messages = 1 then List.head messages
+    //else List.fold (fun s m -> sprintf "%s,%s" s m) "" messages
 
 let rec S_pretty ident S =
   match S with
@@ -287,13 +288,13 @@ let rec S_pretty ident S =
   | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
-  | Elim(messages, var, S) ->
+  | Elim(var, messages, S) ->
     let (p, _), n = var
     sprintf "%selim<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
-  | Message(arg, var, S) ->
-    let (p, _), name = arg
-    sprintf "%smessage<%s>(%s){\n%s\n%s}" ident name var (S_pretty ("  " + ident) S) ident
-  | Generate(messages, var, S) ->
+  | Message(arg, name, S) ->
+    let (p, _), var = arg
+    sprintf "%s%s = message(%s){\n%s\n%s}" ident name var (S_pretty ("  " + ident) S) ident
+  | Generate(var, messages, S) ->
     let (p, _), n = var
     sprintf "%sgenerate<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
     

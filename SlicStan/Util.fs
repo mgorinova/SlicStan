@@ -82,6 +82,9 @@ let rec assigns (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
+    | Message(arg, name, s) -> Set.remove (snd arg) (assigns s)
+    | Elim(arg, message, s) -> Set.remove (snd arg) (assigns s)
+    | Generate(arg, message, s) -> assigns s
 
 
 let rec assigns_global (S: S) : Set<Ide> = 
@@ -98,7 +101,7 @@ let rec assigns_global (S: S) : Set<Ide> =
     | Skip -> Set.empty
     | Message(arg, _, s) -> Set.add (snd arg) (assigns_global s)
     | Elim(_, _, s) -> assigns_global s
-    | Generate(_, v, s) -> Set.add (snd v) (assigns_global s)
+    | Generate(v, _, s) -> Set.add (snd v) (assigns_global s)
 
 
 let rec read_exp (E: Exp) : Set<Ide> =
@@ -121,7 +124,7 @@ let read_dist (D: Dist) : Set<Ide> =
 let rec reads (S: S) : Set<Ide> =
     match S with
     | Decl(_, s) -> reads s
-    | Sample(_, d) -> read_dist d
+    | Sample(e, d) -> Set.union (read_exp e) (read_dist d) // FIXME: changed this from something that was ignoring e: not sure what that changes?
     | Assign(lhs, e) -> 
         read_exp e
         |> fun set -> 
@@ -138,3 +141,13 @@ let rec reads (S: S) : Set<Ide> =
         |> fun set -> if Set.contains (snd x) set then Set.remove (snd x) set else set 
     | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
     | Skip -> Set.empty
+    | Message(arg, name, s) -> Set.remove (snd arg) (reads s)
+    | Elim(arg, message, s) -> Set.remove (snd arg) (reads s)
+    | Generate(arg, message, s) -> reads s
+
+
+
+
+
+
+

@@ -108,13 +108,13 @@ let add_factor (S: S) (graph: Graph) =
             let out_var = snd name
             [], [out_var]*)
 
-        | Elim(messages, var, s) -> 
-            let in_vars = messages
-            in_vars, []
+        | Elim(var, message, s) -> 
+            let in_vars = message
+            [in_vars], []
 
-        | Generate(messages, var, s) -> 
-            let in_vars = messages
-            in_vars, [snd var]
+        | Generate(var, message, s) -> 
+            let in_vars = message
+            [in_vars], [snd var]
        
     let V, F, E = graph
 

@@ -46,3 +46,7 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         For(arg, lower, upper, sq) |> skippify
 
     | Skip -> Skip, Skip, Skip
+
+    | Message _ -> Skip, S, Skip
+    | Elim _ -> Skip, S, Skip
+    | Generate _ -> Skip, Skip, S

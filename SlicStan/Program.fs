@@ -29,8 +29,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_chain
-let name = Util.get_var_name <@Examples.discrete_chain@>
+let example = Examples.discrete_chain_with_tp
+let name = Util.get_var_name <@Examples.discrete_chain_with_tp@>
 printfn "Name is %s" name
 set_folder (name)
 
@@ -105,7 +105,8 @@ let main argv =
 
     let elaborated =  elaborate_Prog typechecked
     
-    let gamma, enum = Enumerate.enum elaborated
+    let gamma, enum = 
+        List.fold (Enumerate.enum) elaborated ordering
     
     printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" enum)
 
