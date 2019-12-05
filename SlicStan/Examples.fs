@@ -102,8 +102,9 @@ int<2> d1 ~ categorical(pi);
 int<2> d2 ~ categorical(to_vector([pi[1]*d1, pi[2]]) / sum([pi[1]*d1, pi[2]]));
 int<2> d3 ~ categorical(to_vector([pi[1]*d2, pi[2]]) / sum([pi[1]*d2, pi[2]]));
 int<2> d4 ~ categorical(to_vector([pi[1]*d3, pi[2]]) / sum([pi[1]*d3, pi[2]]));
-real gen_d2 = 2 * d2;
+real y ~ normal(d4, 1);
 "
+//real gen_d2 = 2 * d2;
 
 let discrete_chain_with_tp = "
 vector[2] pi;
@@ -116,6 +117,30 @@ real td3 = 2*d3;
 int<2> d4 ~ categorical(to_vector([pi[1]*td3, pi[2]]) / sum([pi[1]*td3, pi[2]]));
 real td4 = 2*d4;
 data real y ~ normal(td4, 1);
+"
+
+let discrete_two_with_tp = "
+vector[2] pi;
+int<2> d1 ~ categorical(pi); 
+real tv1 = 2*d1;
+real tv2 = 2*tv1;
+real tv3 = 1;
+real tv4 = tv2 + tv3;
+int<2> d2 ~ categorical(to_vector([pi[1]*tv4, pi[2]]) / sum([pi[1]*tv4, pi[2]]));
+data real y ~ normal(d2, 1);
+"
+
+let discrete_statement_reordering = "
+int<2> d1 ~ categorical([1/2, 1/2]);
+int<2> d2 ~ categorical([d1/2, 1/2]);
+
+real v1 = 2 * d1;
+real v2 = 2 * d2;
+
+real c1 ~ normal(v1, 1);
+real c2 ~ normal(v2, 1);
+
+int<2> d3 ~ categorical([c2, 1/2]);
 "
 
 let discrete_tree = "

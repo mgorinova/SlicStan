@@ -340,3 +340,4 @@ copy.gitignore
 *.gv
 
 /packages/*
+/graphs/*

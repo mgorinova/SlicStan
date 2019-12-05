@@ -51,7 +51,7 @@ let elim (d : VarId) (messages : VarId list) (G: Graph, f: FactorId) =
             List.map (fun m -> Ev(m, fid)) messages
 
         new_graph 
-        |> remove (Vid d) 
+        //|> remove (Vid d) 
         |> fun (vs, fs, es) -> vs, fs, List.append new_edges es    
         
     else         
@@ -59,7 +59,7 @@ let elim (d : VarId) (messages : VarId list) (G: Graph, f: FactorId) =
         let new_edges = 
             List.map (fun m -> Ev(m, f)) messages
         new_graph
-          |> remove (Vid d)
+          //|> remove (Vid d)
           |> fun (vs, fs, es) -> vs, fs, List.append new_edges es
 
 
@@ -105,7 +105,7 @@ let gen (d : VarId) (messages : VarId list) (gen_factors : FactorId list) (G: Gr
 let rec simplify_dependent (factors : FactorId list) (G : Graph) : Graph * FactorId = 
     // when doing variable elimination, we can't just merge the 
     // neighbouring factors; need to merge all dependent factors
-    // until we reach another variable that's to be eliminated
+    // until we reach another parameter
     
     let fs = List.filter (fun f -> f <> -1) factors
     if fs = [] then G, -1
@@ -145,6 +145,24 @@ let is_generating_only (G: Graph) (f: FactorId) : bool =
     |> List.forall (fun (T, _) -> snd T = GenQuant)
 
 
+(*let rec isleaf_var (W: Set<VarId>) (G: Graph) (var: VarId) =
+    (get_variable var G 
+    |> is_discrete_parameter W 
+    |> not)
+    &&
+    parents (Vid var) G 
+    |> List.forall (fun n -> match n with Fid f -> isleaf G f) 
+
+and isleaf (G: Graph) (factor: FactorId) =
+    let W = assigns ...
+    (parents (Fid factor) G
+    |> List.forall (fun n -> match n with Vid x -> isleaf_var x))
+    &&
+    (children (Fid factor) G
+    |> List.isEmpty)*)
+    
+
+
 /// Eliminates variable d in graph G.
 /// Returns the updated graph and the factor resulting in the elimination of d.
 let eliminate (G: Graph) (d: VarId)  = 
@@ -156,17 +174,22 @@ let eliminate (G: Graph) (d: VarId)  =
 
     let children_d_gen, children_d = List.partition (is_generating_only G) children_d_all
 
+    let neighbours_d = List.append parents_d children_d
+
+    //let leaves, non_leaves = List.partition (remove (Vid d) G |> isleaf) neighbours_d 
+
+
     //assert(List.allPairs parents_d children_d |> List.exists (fun (p, c) -> depends_on (Fid c) (Fid p) G) |> not)
    
     let G_messagified, messages = 
         List.fold (fun (g, ms) f -> 
                     let g', m' = messagify d_arg g f
-                    g', m'::ms) (G, []) parents_d
+                    g', m'::ms) (G, []) parents_d //leaves
                     
-    let G', _ = merge_many parents_d G_messagified
+    let G', _ = merge_many parents_d G_messagified // leaves G_messagified
     let G'' = 
-        simplify_dependent children_d G'
-        //|> gen d messages children_d_gen
+        simplify_dependent children_d G' // non_leaves G'
+        |> gen d messages children_d_gen
         |> elim d messages
 
     let G_res = G''

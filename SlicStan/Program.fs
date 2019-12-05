@@ -29,8 +29,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_tree
-let name = Util.get_var_name <@Examples.discrete_tree@>
+let example = Examples.discrete_chain
+let name = Util.get_var_name <@Examples.discrete_chain@>
 printfn "Name is %s" name
 set_folder (name)
 
