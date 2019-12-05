@@ -8,8 +8,8 @@ open Parser
 open Lexer 
 
 open Typecheck
-open Enumerate
 open Elaborate
+open Enumerate
 open Shredding
 open Transformation
 
@@ -98,31 +98,24 @@ let main argv =
 
 
     let W, graph = Factorgraph.to_graph (snd typechecked)
-    //printfn "%A" (Factorgraph.pp_graph W graph)
     graphviz graph 0 "init"
-
     let ordering = Factorgraph.find_ordering W graph //|> List.rev
     //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
     printfn "Ordering:\n%A" ordering
 
-    let new_s = MP.eliminate_variables graph ordering
-    //let new_s = Factorgraph.eliminate_variables graph ordering
-    printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" new_s)
-
-    //(*
-    //let enum = enumerate_Prog (snd typechecked)
-    let enum = enumerate_Prog new_s
-    //printfn "\n\nSlicStan interm:\n%s" (SlicStanSyntax.S_pretty "" enum)
+    let elaborated =  elaborate_Prog typechecked
     
+    let gamma, enum = Enumerate.enum elaborated
     
-    let ctx, s =  elaborate_Prog ([], enum)
+    printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" enum)
 
-    let sd, sm, sq = shred_S ctx s 
+    //let gamma, s = elaborated
 
-    let stan = transform ctx (sd, sm, sq)
+    let sd, sm, sq = shred_S gamma enum
+
+    let stan = transform gamma (sd, sm, sq)
     
     printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
-    //*)
 
     0
 

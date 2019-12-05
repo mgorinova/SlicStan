@@ -4,7 +4,7 @@ open SlicStanSyntax
 open Constraints
 open Util
 
-type Dict = Map<Ide,Type> 
+type Gamma = Map<Ide,Type> 
 type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
@@ -69,12 +69,12 @@ let rec assigns (S: S) : Set<Ide> =
 
 
 
-let rec get_lvalue_level (gamma: Dict) lhs =
+let rec get_lvalue_level (gamma: Gamma) lhs =
     match lhs with 
     | I(x) -> gamma.Item x |> snd
     | A(lhs', _) -> get_lvalue_level gamma lhs'
 
-let rec read_at_level (gamma: Dict) (S: S) : Map<Ide, TypeLevel> =
+let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
 
     let rec read_lhs (lhs: LValue) : Set<Ide> =
         match lhs with
@@ -142,7 +142,7 @@ let rec read_at_level (gamma: Dict) (S: S) : Map<Ide, TypeLevel> =
     | Decl (_, s) -> read_at_level gamma s
     | Skip -> Map.empty
 
-let assigned_of_level (gamma: Dict) (s: S) : Map<Ide, TypeLevel> =
+let assigned_of_level (gamma: Gamma) (s: S) : Map<Ide, TypeLevel> =
     let involved_vars = assigns s
 
     involved_vars 
@@ -156,7 +156,7 @@ let map_intersect a b = Map (seq {
         | Some vb -> yield k, (va, vb)
         | None    -> () })
 
-let shreddable (gamma: Dict) (s1: S) (s2: S): Constraint list = 
+let shreddable (gamma: Gamma) (s1: S) (s2: S): Constraint list = 
     
     // check what's in read_at_level and assignedto_of_level for each pair
     // Then this will record the actual type level of each variable (because it could be 
@@ -173,7 +173,7 @@ let shreddable (gamma: Dict) (s1: S) (s2: S): Constraint list =
 
 let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =        
 
-    let rec synth_E (signatures: Signatures) (gamma: Dict) (e: Exp): Type*(Constraint list) =
+    let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(Constraint list) =
         match e with
         | Var(x) -> 
             if gamma.ContainsKey(x) then gamma.Item(x), []
@@ -243,13 +243,13 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
         | Plus(e1, e2) -> synth_E signatures gamma (Prim("+", [e1; e2]))
         | Mul(e1, e2) -> synth_E signatures gamma (Prim("*", [e1; e2]))
 
-    let rec check_E (signatures: Signatures)  (gamma: Dict) (e: Exp) ((tau,ell): Type) : Constraint list =    
+    let rec check_E (signatures: Signatures)  (gamma: Gamma) (e: Exp) ((tau,ell): Type) : Constraint list =    
         let (tau', ell'), c = synth_E signatures gamma e
         assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
         (Leq(ell',ell))::c 
 
 
-    let rec synth_D (signatures: Signatures) (gamma: Dict) (d: Dist): Type*(Constraint list) = 
+    let rec synth_D (signatures: Signatures) (gamma: Gamma) (d: Dist): Type*(Constraint list) = 
         match d with
         | Dist(name, Es) -> 
             let PLs, Cs = List.map (synth_E signatures gamma) Es 
@@ -269,12 +269,12 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
             (tau', Lub Ls), c
 
 
-    let rec check_D (signatures: Signatures) (gamma: Dict) (d: Dist) ((tau,ell): Type) : Constraint list =
+    let rec check_D (signatures: Signatures) (gamma: Gamma) (d: Dist) ((tau,ell): Type) : Constraint list =
         let (tau', ell'), c = synth_D signatures gamma d
         assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
         (Leq(ell',ell))::c
 
-    let rec synth_L (signatures: Signatures) (gamma: Dict) (l: LValue): Type*(Constraint list) =
+    let rec synth_L (signatures: Signatures) (gamma: Gamma) (l: LValue): Type*(Constraint list) =
         match l with
         | I(x) -> 
             if gamma.ContainsKey(x) then gamma.Item(x), []
@@ -293,7 +293,7 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
             (tau, Lub ([ell1; ell2])), (List.append c1 c2)
 
 
-    let rec synth_S (signatures: Signatures) (gamma: Dict) (S: S): TypeLevel*Dict*(Constraint list) = 
+    let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*(Constraint list) = 
         match S with
         | Assign(lhs, e) -> 
             let (tau, ell), c1 = synth_L signatures gamma lhs
@@ -343,7 +343,7 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
             synth_S signatures gamma' s'
 
 
-    and check_S (signatures: Signatures) (gamma: Dict) (s: S) (ell: TypeLevel) : Dict*(Constraint list) = 
+    and check_S (signatures: Signatures) (gamma: Gamma) (s: S) (ell: TypeLevel) : Gamma*(Constraint list) = 
         let ell', gamma', c = synth_S signatures gamma s   
         (join gamma gamma'), (Leq(ell, ell'))::c // assert ( ell <= ell' )
 

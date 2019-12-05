@@ -165,7 +165,7 @@ let name fundef =
 
 type SlicStanProg = FunDef list * S
 
-let empty = Set.empty
+let empty = Map.empty
 
 let rec LValueBaseName (lhs: LValue): Ide =    
     match lhs with

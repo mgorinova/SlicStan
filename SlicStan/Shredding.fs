@@ -11,11 +11,11 @@ let rec skippify S =
     | For(_, _, _, Skip) -> Skip
     | _ -> S
 
-let rec shred_S (gamma: Context) (S: S) : (S * S * S) =
+let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
     match S with 
     | Assign(lhs, e) -> 
         let base_name = LValueBaseName lhs
-        match (Set.contextItemTypeLevel base_name gamma) with
+        match (Map.gammaItemTypeLevel base_name gamma) with
         | Data -> Assign(lhs, e), Skip, Skip
         | Model -> Skip, Assign(lhs, e), Skip 
         | GenQuant -> Skip, Skip, Assign(lhs, e)

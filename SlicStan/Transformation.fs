@@ -91,7 +91,7 @@ let rec has_target S =
     | Skip -> false
 
 
-let transform_gamma (W: Set<Ide>) (gamma : Context) : MiniStanProg =
+let transform_gamma (W: Set<Ide>) (gamma : Gamma) : MiniStanProg =
     let transform_single_decl (arg: Arg) =
         let (tp, tl), x = arg 
         match tl with
@@ -108,7 +108,9 @@ let transform_gamma (W: Set<Ide>) (gamma : Context) : MiniStanProg =
         | GenQuant -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(Declr(tp, x),SNone))
         | _ -> failwith "something has gone very wrong"
 
-    Set.fold (fun current_prog arg -> transform_single_decl arg |> join_stan_p current_prog) emptyStanProg gamma
+    Map.toList gamma
+    |> List.map (fun (x, y) -> (y, x))
+    |> List.fold (fun current_prog arg -> transform_single_decl arg |> join_stan_p current_prog) emptyStanProg 
 
 
 let transform_data (S: S) : MiniStanProg =
@@ -142,7 +144,7 @@ let transform_quant (S: S) : MiniStanProg =
     P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, to_Stan_statements S))
 
 
-let transform (gamma : Context) (Sd : S, Sm : S , Sq : S ) : MiniStanProg = 
+let transform (gamma : Gamma) (Sd : S, Sm : S , Sq : S ) : MiniStanProg = 
 
     let W = assigns Sd 
          |> Set.union (assigns Sd)
