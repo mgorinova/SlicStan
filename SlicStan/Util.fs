@@ -126,11 +126,11 @@ let rec reads (S: S) : Set<Ide> =
     | Decl(_, s) -> reads s
     | Sample(e, d) -> Set.union (read_exp e) (read_dist d) // FIXME: changed this from something that was ignoring e: not sure what that changes?
     | Assign(lhs, e) -> 
-        read_exp e
-        |> fun set -> 
-            if Set.contains (LValueBaseName lhs) set 
-            then Set.union (lhs_to_exp lhs |> read_exp) set 
-            else Set.union (lhs_to_exp lhs |> read_exp) set |> Set.remove (LValueBaseName lhs)
+        Set.union (lhs_to_exp lhs |> read_exp) (read_exp e)
+        //|> fun set -> 
+        //    if Set.contains (LValueBaseName lhs) set 
+        //    then Set.union (lhs_to_exp lhs |> read_exp) set 
+        //    else Set.union (lhs_to_exp lhs |> read_exp) set |> Set.remove (LValueBaseName lhs)
     | If(e, s1, s2) -> Set.union (reads s1) (reads s2) |> Set.union (read_exp e)
     | For(x, l, u, s) -> 
         [ ( match l with N _ -> "" | SizeVar x -> x );

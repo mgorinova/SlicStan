@@ -29,8 +29,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_chain_with_tp
-let name = Util.get_var_name <@Examples.discrete_chain_with_tp@>
+let example = Examples.discrete_statement_reordering
+let name = Util.get_var_name <@Examples.discrete_statement_reordering@>
 printfn "Name is %s" name
 set_folder (name)
 
@@ -52,37 +52,12 @@ let main argv =
 
     printfn "%s\n\n" slic 
     
-
-    (*  On discrete parameters support
-        
-        The keyword `enum` from the Overleaf document, really coinsides with
-        the scope of each discrete parameter (level MODEL variable).
-        This is possibly similar to Pyro's `plate`.
-
-        Our goal is essentially to figure out how to minimise and 
-        decouple scopes as much as possible. 
-
-        Then each discrete variable declaration, together with the statment 
-        in its scope, is transformed to explicit ennumeration and 
-        generation of discrete variables using BP-guided sampling.
-    *)
-
     (*  BOOKMARK: ToDo next
-        * Figure out what to do in the "tree" case: possibly something like
-          instead of parents and children, we look at the side that has been
-          computed vs the side that hasn't. Always only one child/parent is 
-          on the side that hasn't been computed. This + smarter decision re
-          the order of elimination should work, I think!
+        * The example `discrete_statement_reordering` is not resolved in the 
+          most efficient way at the moment. See if there is a straightforward 
+          way to fix it. If not, maybe leave for later: it's still correct. 
         
-        (check) * Figure out the "backward" pass: shouldn't be that hard when a 
-          chain but what do we do when the structure is more complicated?
-        
-        * Generating variables might need fixing to generated transform discrete 
-          vars correctly. 
-        
-        (!!!)* Generating in a tree seems to get messed up and/or I haven't dones
-          the backward pass properly. FIXME!
-        
+        ----------------------------------------------------------------------
         * Think about discrete variable arrays. It will be a shame if we don't 
           implemnt this. Yes, we can unroll the loops for loop bounds known 
           at static time, but really I think we can do better. 
@@ -100,7 +75,7 @@ let main argv =
     let W, graph = Factorgraph.to_graph (snd typechecked)
     graphviz graph 0 "init"
     let ordering = Factorgraph.find_ordering W graph //|> List.rev
-    //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
+    //let ordering = ["d1"; "d2"; "d3"; "d4"; "d5"]
     printfn "Ordering:\n%A" ordering
 
     let elaborated =  elaborate_Prog typechecked
