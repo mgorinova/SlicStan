@@ -46,7 +46,7 @@ type LValue = I of Ide | A of LValue * Exp // x[E]
 type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
 
 type S = Decl of Arg * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
-       | Sample of Exp * Dist // x ~ D // general case should be E ~ D
+       | Sample of LValue * Dist // x ~ D // general case should be E ~ D
        | Assign of LValue * Exp // x = E 
        | If of Exp * S * S // if-else
        | For of Arg * ArrSize * ArrSize * S
@@ -74,7 +74,8 @@ let distributions: (string * (TypePrim list * TypePrim)) list =
      "beta", ([Real; Real], (Real)); 
      "poisson", ([Real], (Int)); 
      "poisson_log", ([Real], (Int)); 
-     "categorical", ([Array(Real, AnySize)], (Int)); ]
+     "categorical", ([Array(Real, AnySize)], (Int)); 
+     "bernoulli", ([Int], (Int)); ]
 
 let rngs: (string * (TypePrim list * TypePrim)) list =
     List.map (fun (name, (args, ret)) -> name + "_rng", (args, ret)) distributions
@@ -275,7 +276,7 @@ let rec S_pretty ident S =
     //else 
     sprintf "%s%s %s %s;\n%s\n%s" ident (TPrim_pretty p) (TLev_pretty l) n (S_pretty (ident) S) ident 
         
-  | Sample(E, D) -> sprintf "%s%s ~ %s;" ident (E_pretty E) (D_pretty D)
+  | Sample(lhs, D) -> sprintf "%s%s ~ %s;" ident (LValue_pretty lhs) (D_pretty D)
   | Assign(lhs,E) -> 
     if LValueBaseName lhs = "target"
     then match E with 

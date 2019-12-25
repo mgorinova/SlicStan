@@ -11,6 +11,18 @@ let rec skippify S =
     | For(_, _, _, Skip) -> Skip
     | _ -> S
 
+let statement_level gamma S =  
+    let one = Util.reads S |> Set.toList                       
+    one |> List.map (fun x -> Map.find x gamma |> snd) |> Lub |> Typecheck.simplify_level
+
+let shred_according_to_statement_level gamma S =
+    let st_level = statement_level gamma S
+    match st_level with
+        | Data -> S, Skip, Skip
+        | Model -> Skip, S, Skip
+        | GenQuant -> Skip, Skip, S
+        | _ -> failwith "unexpected!"
+
 let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
     match S with 
     | Assign(lhs, e) -> 
@@ -21,7 +33,8 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         | GenQuant -> Skip, Skip, Assign(lhs, e)
         | _ -> failwith "something went terribly worng"
 
-    | Sample(e, d) -> Skip, Sample(e, d), Skip
+    | Sample _ -> shred_according_to_statement_level gamma S        
+
     | Decl(arg, s) -> failwith "no local declarations yet"
     | Seq(s1, s2) -> 
         let sd1, sm1, sq1 = shred_S gamma s1
@@ -47,6 +60,10 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip
 
-    | Message _ -> Skip, S, Skip
-    | Elim _ -> Skip, S, Skip
+    | Message (arg, _, _) -> 
+        let gamma' = Map.add (snd arg) (fst arg) gamma
+        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S
+    | Elim (arg, _, _) -> 
+        let gamma' = Map.add (snd arg) (fst arg) gamma
+        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S
     | Generate _ -> Skip, Skip, S

@@ -77,14 +77,14 @@ block_item:
 
 declaration:  
   | DATA tp IDE SEMICOLON block_item_list  { Decl((($2, Data), $3), $5) }
-  | DATA tp IDE SIM dist SEMICOLON block_item_list  { Decl((($2, Data), $3), Seq(Sample(Var($3), $5), $7)) }
+  | DATA tp IDE SIM dist SEMICOLON block_item_list  { Decl((($2, Data), $3), Seq(Sample(I($3), $5), $7)) }
   | tp IDE SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), $4) }
   | tp IDE EQ exp SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), Seq(Assign(I($2), $4), $6)) }
-  | tp IDE SIM dist SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), Seq(Sample(Var($2), $4), $6)) }
+  | tp IDE SIM dist SEMICOLON block_item_list  { Decl((($1, LevelVar (next())), $2), Seq(Sample(I($2), $4), $6)) }
   | statement_single SEMICOLON block_item_list  { Seq($1, $3) }
   | statement_single SEMICOLON { $1 }
   | tp IDE EQ exp SEMICOLON { Decl((($1, LevelVar (next())), $2), Assign(I($2), $4)) }
-  | tp IDE SIM dist SEMICOLON { Decl((($1, LevelVar (next())), $2), Sample(Var($2), $4)) }
+  | tp IDE SIM dist SEMICOLON { Decl((($1, LevelVar (next())), $2), Sample(I($2), $4)) }
   | EOF { Skip }
 
 	
@@ -101,7 +101,7 @@ selection_statement:
 	
 statement_single:
   | lhs EQ exp { Assign($1, $3) }
-  | exp SIM dist { Sample($1, $3) }
+  | lhs SIM dist { Sample($1, $3) }
 	
   
 exp: 

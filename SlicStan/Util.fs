@@ -124,7 +124,7 @@ let read_dist (D: Dist) : Set<Ide> =
 let rec reads (S: S) : Set<Ide> =
     match S with
     | Decl(_, s) -> reads s
-    | Sample(e, d) -> Set.union (read_exp e) (read_dist d) // FIXME: changed this from something that was ignoring e: not sure what that changes?
+    | Sample(lhs, d) -> Set.union (lhs_to_exp lhs |> read_exp) (read_dist d) // FIXME: changed this from something that was ignoring e: not sure what that changes?
     | Assign(lhs, e) -> 
         Set.union (lhs_to_exp lhs |> read_exp) (read_exp e)
         //|> fun set -> 
@@ -142,7 +142,7 @@ let rec reads (S: S) : Set<Ide> =
     | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
     | Skip -> Set.empty
     | Message(arg, name, s) -> Set.remove (snd arg) (reads s)
-    | Elim(arg, message, s) -> Set.remove (snd arg) (reads s)
+    | Elim(arg, message, s) -> Set.remove (snd arg) (reads s) |> Set.add message
     | Generate(arg, message, s) -> reads s
 
 

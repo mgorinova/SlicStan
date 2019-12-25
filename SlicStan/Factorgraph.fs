@@ -76,11 +76,11 @@ let add_factor (S: S) (graph: Graph) =
 
             in_vars, [out_var]
 
-        | Sample(e, d) -> 
+        | Sample(lhs, d) -> 
             match d with 
             | Dist(_, exps) -> 
                 let in_vars = reads (Arr exps) |> Set.ofList |> Set.toList
-                let out_vars = reads e |> Set.ofList |> Set.toList
+                let out_vars = lhs |> lhs_to_exp |> reads |> Set.ofList |> Set.toList
                 in_vars, out_vars
 
         | If _ -> failwith "not yet implemented"

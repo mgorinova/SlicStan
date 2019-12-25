@@ -19,7 +19,7 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
               | VNone
 
 type Statements = Let of LValue * Exp // TODO: add more statements
-                | Sample of Exp * Dist
+                | Sample of LValue * Dist
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
                 | For of Ide * ArrSize * ArrSize * Statements
@@ -81,7 +81,7 @@ let rec Decls_pretty decls =
 let rec Statements_pretty ident decls =
     match decls with 
     | Let (lhs, expr) -> ident +  LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (e, dist) -> "\t" + (E_pretty e) + " ~ " + D_pretty dist + ";\n"
+    | Sample (lhs, dist) -> "\t" + (LValue_pretty lhs) + " ~ " + D_pretty dist + ";\n"
     | SSeq (s1, s2) -> Statements_pretty ident s1 + Statements_pretty ident s2
     | If(e, s1, SNone) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty e) (Statements_pretty ident s1) ident
     | If(e, s1, s2) -> sprintf "%sif(%s){\n%s\n%s}\n%selse{\n%s\n%s}" ident (E_pretty e) (Statements_pretty (ident+"\t") s1) ident ident (Statements_pretty (ident+"\t") s2) ident

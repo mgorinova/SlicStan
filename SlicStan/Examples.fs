@@ -47,6 +47,33 @@ int td2 = d2;
 real c2 ~ normal(td2, 1);
 "
 
+let discrete_hmm = "
+real phi ~ beta(1, 1);
+real theta1 ~ beta(1, 1); 
+
+int<2> z1 ~ bernoulli(theta1);
+real phi1 = phi * z1 + (1 - phi) * (1 - z1);
+data real y1 ~ normal(phi1, 1);
+
+real theta2 = theta1 * z1 + (1 - theta1) * (1 - z1);
+int<2> z2 ~ bernoulli(theta2);
+real phi2 = phi * z2 + (1 - phi) * (1 - z2);
+data real y2 ~ normal(phi2, 1);
+
+real theta3 = theta1 * z2 + (1 - theta1) * (1 - z2);
+int<2> z3 ~ bernoulli(theta3);
+real phi3 = phi * z3 + (1 - phi) * (1 - z3);  
+data real y3 ~ normal(phi3, 1);
+
+real theta4 = theta1 * z3 + (1 - theta1) * (1 - z3);
+int<2> z4 ~ bernoulli(theta4);
+real phi4 = phi * z4 + (1 - phi) * (1 - z4);   
+data real y4 ~ normal(phi4, 1);
+
+real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
+int genz ~ bernoulli(gentheta); "
+
+
 
 let soft_k_means = "
 data int N;  
@@ -179,6 +206,7 @@ int<2> d1 ~ categorical(pi);
 int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);
 int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
 int<2> d4 ~ categorical([pi[1]*d2, pi[2]*d3]);
+data real c ~ normal(d4, 1);
 "
 
 let discrete_many = "

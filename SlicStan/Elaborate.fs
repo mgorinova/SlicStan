@@ -108,7 +108,7 @@ let rec rename_LValue (dict:Dict) (lhs:LValue): LValue =
 let rec rename_S (dict:Dict) (s: S):S =
     match s with
     | Decl(env, s') -> Decl(rename_arg dict env, rename_S dict s')
-    | Sample(e, d) -> Sample(rename_E dict e, rename_D dict d)
+    | Sample(lhs, d) -> Sample(rename_LValue dict lhs, rename_D dict d)
     | Assign(lhs, e) -> Assign(rename_LValue dict lhs, rename_E dict e)
     | If(e, s1, s2) -> If(rename_E dict e, rename_S dict s1, rename_S dict s2)
     // FIXME: array sizes might need to be renamed too 
@@ -332,9 +332,9 @@ and elaborate_S (defs: FunDef list ) (s: S) : Gamma * S =
             g', Seq(s', Assign(lhs, e''))
         else g, Seq(s, Assign(lhs, e'))
         
-    | Sample(e, d) -> 
+    | Sample(lhs, d) -> 
         
-        let ge, se, e' = elaborate_E defs e
+        let ge, se, e' = Map.empty, Skip, lhs // elaborate_E defs (lhs_to_exp e) 
         let gd, sd, d' = elaborate_D defs d 
 
         if Map.intersectEmpty ge gd then 
