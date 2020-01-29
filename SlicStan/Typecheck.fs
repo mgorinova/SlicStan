@@ -9,8 +9,6 @@ type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
 let mutable toplevel = true // FIXME: bad style, refactor code whenever there's time
-// let mutable local_blocks = false
-let mutable read_at_level_set : Map<Ide, TypeLevel> = Map.empty
 let mutable dv : Ide = ""
 
 // allow all buildins to be used everywhere in the program
@@ -114,8 +112,8 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
         |> Map.ofList 
 
     | Sample(lhs, d) -> 
+        
         let involved_vars = read_lhs lhs |> Set.union (read_dist d) |> Set.add (LValueBaseName lhs) |> Set.toList
-
         let l = Lub (List.map (fun v -> Map.find v gamma |> snd) involved_vars)
 
         involved_vars
@@ -154,14 +152,7 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
         read_at_level gamma s'
 
     | Elim((T, d), message, s') -> 
-        let l = Model
-        let involved_vars = reads s' 
-        involved_vars 
-        |> Set.toList
-        |> List.map (fun v -> v, l) 
-        |> List.filter (fun (x, _) -> x <> d) 
-        |> Map.ofList 
-        |> Map.add message Data
+        read_at_level (Map.add d T gamma) s'
 
     | Generate((T, d), _, s') -> 
         let l = GenQuant
@@ -199,7 +190,14 @@ let shreddable (gamma: Gamma) (s1: S) (s2: S): Constraint list =
         |> Map.map (fun x (lr, lw) -> Leq(lr, lw))
         |> Map.toList
         |> List.map (fun (_, v) -> v)
-            
+  
+let localisable (gamma: Gamma) (s : S) : Constraint list =
+    
+    let R = read_at_level gamma s
+    let W = assigned_of_level gamma s
+    
+    map_intersect R W 
+        |> Map.fold (fun state _ (lr, lw) -> List.append [Leq(lr, lw); Leq(lw, lr)] state) []
 
 let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(Constraint list) =
     match e with
@@ -336,10 +334,10 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             
             // 1) Variables become local to the level they belong to. That is,
             //    if x is read at level l, then it must be exactly of level l.
-            let c' = 
-                match Map.tryFind (LValueBaseName lhs) read_at_level_set with
-                | Some l -> [Leq(l, ell); Leq(ell, l)]
-                | None ->  []
+            let c' = []
+                //match Map.tryFind (LValueBaseName lhs) read_at_level_set with
+                //| Some l -> [Leq(l, ell); Leq(ell, l)]
+                //| None ->  []
             
             // 2) If the statement mentions dv at all, then all involved vars 
             //    must be at most of level Model. This makes sure we eliminate 
@@ -391,7 +389,12 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         let ell1, gamma1, c1 = synth_S signatures gamma s1
         let ell2, gamma2, c2 = synth_S signatures gamma s2
         let c = shreddable gamma s1 s2
-        (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c)
+
+        if toplevel || dv = "" then 
+            (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c)
+        else
+            let c_local = localisable gamma S
+            (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c |> List.append c_local)
 
     | If(e, s1, s2) ->
         let (tau, ell), ce = synth_E signatures gamma e
@@ -426,10 +429,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
 
     | Message(var, message, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma
-        let old = read_at_level_set
-        read_at_level_set <- read_at_level gamma' s'
         let ell, g, c = synth_S signatures gamma' s'
-        read_at_level_set <- old
         
         // NB, FIXME: should there be some check that s' is at most level ell' ?
         let ell' = gamma'.Item(message) |> snd
@@ -437,10 +437,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
 
     | Elim(var, message, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma        
-        let old = read_at_level_set
-        read_at_level_set <- read_at_level gamma' s'
         let ell, g, c = synth_S signatures gamma' s'
-        read_at_level_set <- old
         
         let ell' = gamma'.Item(message) |> snd
         Lub[ell; ell'], g, c

@@ -91,7 +91,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     let sd, sm, sq = Shredding.shred_S gamma s 
 
     //printfn "Gamma temp: %A\n\n" gamma_temp
-    printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
+    //printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
    
     let W = assigns sm
 
@@ -106,19 +106,14 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                 ) gamma
        
     
-
-    //printfn "Gamma partial: %A" gamma_partial
-
     Typecheck.toplevel <- false
-    // Typecheck.local_blocks <- true // false
     Typecheck.dv <- ""
-    Typecheck.read_at_level_set <- Typecheck.read_at_level gamma_partial sm
 
     let gamma_temp, sm' = Typecheck.typecheck_elaborated gamma_partial sm
 
     let sm1, sm2, sm22 = Shredding.shred_S gamma_temp sm'
 
-    printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
+    // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
     let neighbours = gamma_partial
                    |> Map.filter (fun x (_, level) -> 
@@ -140,17 +135,14 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                                 
                 ) gamma_partial
 
-    Typecheck.toplevel <- false
-    // Typecheck.local_blocks <- true
-    Typecheck.read_at_level_set <- Typecheck.read_at_level gamma_partial2 (Seq(sm2, sm22))
- 
+    Typecheck.toplevel <- false 
     Typecheck.dv <- d
 
     let gamma_temp2, sm2' = Typecheck.typecheck_elaborated gamma_partial2 (Seq(sm2, sm22))
 
     let sm3, sm4, sm5 = Shredding.shred_S gamma_temp2 sm2' // split1 (dependent_vars) sm
 
-    printfn "\n***THIRD shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm3) (S_pretty "" sm4) (S_pretty "" sm5) 
+    // printfn "\n***THIRD shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm3) (S_pretty "" sm4) (S_pretty "" sm5) 
         
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do
