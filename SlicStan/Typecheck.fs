@@ -9,7 +9,7 @@ type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
 
 let mutable toplevel = true // FIXME: bad style, refactor code whenever there's time
-let mutable local_blocks = false
+// let mutable local_blocks = false
 let mutable read_at_level_set : Map<Ide, TypeLevel> = Map.empty
 let mutable dv : Ide = ""
 
@@ -327,7 +327,8 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         let (tau, ell), c1 = synth_L signatures gamma lhs
         let c2 = check_E signatures gamma e (tau, ell)
 
-        if toplevel || not local_blocks then ell, emptyGamma, (List.append c1 c2)
+        if toplevel // || not local_blocks 
+            then ell, emptyGamma, (List.append c1 c2)
         else
             // This means we are shredding to eliminate the variable dv.
             // In this case, we add two constraints to match the respective
@@ -362,7 +363,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             assert(tau <. tau') 
             ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
         
-        elif local_blocks then // third shredding
+        else //local_blocks then // third shredding
             
             // This means we are shredding to eliminate the variable dv.
             // In this case, we add a constraint to match the respective
@@ -380,11 +381,11 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
                 assert(tau <. tau')             
                 Glb [ell'; ell], emptyGamma, (List.append clhs cd)
 
-        else // second shredding            
+        (*else // second shredding            
             let (tau', ell'), cd = synth_D signatures gamma d 
             assert(tau <. tau') 
             
-            Glb [ell'; ell], emptyGamma, (List.append clhs cd)         
+            Glb [ell'; ell], emptyGamma, (List.append clhs cd)*)
 
     | Seq(s1, s2) -> 
         let ell1, gamma1, c1 = synth_S signatures gamma s1

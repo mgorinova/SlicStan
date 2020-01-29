@@ -9,11 +9,18 @@ let rec skippify S =
     | Seq(Skip, Skip) -> Skip
     | If(_, Skip, Skip) -> Skip
     | For(_, _, _, Skip) -> Skip
+    | Elim(_, _, Skip) -> Skip
+    //| Elim(arg, _, s) -> if Set.contains (snd arg) (Util.reads s) then S else s
     | _ -> S
 
 let statement_level gamma S =  
     let one = Util.reads S |> Set.toList                       
-    one |> List.map (fun x -> Map.find x gamma |> snd) |> Lub |> Typecheck.simplify_level
+    let two = one |> List.map (fun x -> Map.find x gamma |> snd) |> Lub |> Typecheck.simplify_level
+    // FIXME: it's more complicated than this line below... the good news is that this is only an
+    // extra optimisation (is it just that?) so things still work without it. 
+    // Examples that can be made faster with an optimisation of some sort are discrete_reverse_tree or discrete_tree (? one of the two i thin)
+    //if Typecheck.local_blocks && List.contains (Typecheck.dv) one |> not then GenQuant else two
+    two
 
 let shred_according_to_statement_level gamma S =
     let st_level = statement_level gamma S
@@ -62,8 +69,16 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Message (arg, _, _) -> 
         let gamma' = Map.add (snd arg) (fst arg) gamma
-        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S
-    | Elim (arg, _, _) -> 
+        //let sd, sm, sq = shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S 
+        //skippify sd, skippify sm, skippify sq
+        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S 
+
+    | Elim (arg, m, s') -> 
         let gamma' = Map.add (snd arg) (fst arg) gamma
+        let sd, sm, sq = shred_S gamma' s'
+
+        //Elim(arg, m, sd) |> skippify,
+        //Elim(arg, m, sm) |> skippify,
+        //Elim(arg, m, sq) |> skippify
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S
     | Generate _ -> Skip, Skip, S

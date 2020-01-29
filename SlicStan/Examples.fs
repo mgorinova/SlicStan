@@ -28,13 +28,16 @@ real c2 ~ normal(d1, d2);
 
 // d_1 -> d_2 -> c
 let discrete3 = "
-real[3] pi1 = [1/3, 1/3, 1/3];
-int<3> d1 ~ categorical(pi1);
+data real[2] phi;
+data real[2] theta;
 
-real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
-int<3> d2 ~ categorical(pi2);
+int<2> z1 ~ bernoulli(theta[1]);
+int<2> z2 ~ bernoulli(theta[z1]);
+int<2> z3 ~ bernoulli(theta[z2]);
 
-real c ~ normal(d1, d2); 
+data real y1 ~ normal(phi[z1], 1);
+data real y2 ~ normal(phi[z2], 1);
+data real y3 ~ normal(phi[z3], 1);
 "
 
 let discrete4 = "
@@ -45,6 +48,28 @@ real c1 ~ normal(td1, 1);
 int<3> d2 ~ categorical(pi);
 int td2 = d2;
 real c2 ~ normal(td2, 1);
+"
+
+let discrete_paper = "
+real phi0 ~ beta(1, 1);
+real theta0 ~ beta(1, 1); 
+
+int<2> z1 ~ bernoulli(theta0);
+real theta1 = theta0 * z1 + (1 - theta0) * (1 - z1);
+int<2> z2 ~ bernoulli(theta1);
+real theta2 = theta0 * z2 + (1 - theta0) * (1 - z2);
+int<2> z3 ~ bernoulli(theta2);
+
+real phi1 = phi0 * z1 + (1 - phi0) * (1 - z1);
+real phi2 = phi0 * z2 + (1 - phi0) * (1 - z2);
+real phi3 = phi0 * z3 + (1 - phi0) * (1 - z3);
+
+data real y1 ~ normal(phi1, 1);
+data real y2 ~ normal(phi2, 1);
+data real y3 ~ normal(phi3, 1);
+
+real gentheta = theta1 * z3 + (1 - theta1) * (1 - z3);
+int genz ~ bernoulli(gentheta);
 "
 
 let discrete_hmm = "
@@ -73,6 +98,35 @@ data real y4 ~ normal(phi4, 1);
 real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
 int genz ~ bernoulli(gentheta); "
 
+let discrete_hmm_messier = "
+real phi ~ beta(1, 1);
+real theta1 ~ beta(1, 1); 
+
+int<2> z1 ~ bernoulli(theta1);
+
+real theta2 = theta1 * z1 + (1 - theta1) * (1 - z1);
+int<2> z2 ~ bernoulli(theta2);
+
+real theta3 = theta1 * z2 + (1 - theta1) * (1 - z2);
+int<2> z3 ~ bernoulli(theta3);
+
+real theta4 = theta1 * z3 + (1 - theta1) * (1 - z3);
+int<2> z4 ~ bernoulli(theta4);
+
+real phi3 = phi * z3 + (1 - phi) * (1 - z3);
+real phi1 = phi * z1 + (1 - phi) * (1 - z1);
+real phi2 = phi * z2 + (1 - phi) * (1 - z2);
+data real y2 ~ normal(phi2, 1);
+
+real phi4 = phi * z4 + (1 - phi) * (1 - z4);   
+
+real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
+data real y4 ~ normal(phi4, 1);
+int genz ~ bernoulli(gentheta); 
+
+data real y1 ~ normal(phi1, 1);
+data real y3 ~ normal(phi3, 1);
+"
 
 
 let soft_k_means = "
@@ -179,6 +233,8 @@ int<2> d3 ~ categorical([pi[1]*d2, pi[2]]);
 int<2> d4 ~ categorical([pi[1], pi[2]*d1]);
 int<2> d5 ~ categorical([pi[1], pi[2]*d4]);
 
+data real y3 ~ normal(d3, 1);
+data real y5 ~ normal(d5, 1);
 "
 
 let discrete_reverse_tree = "
@@ -187,6 +243,8 @@ int<2> d1 ~ categorical(pi);
 int<2> d2 ~ categorical(pi);
 int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
 d3 ~ categorical([pi[1], pi[2]*d2]);
+
+data real y ~ normal(d3, 1);
 "
 
 let discrete_reverse_bigger_tree = "
@@ -198,6 +256,8 @@ int<2> d2 ~ categorical([pi[1], pi[2]*d1]);
 int<2> d4 ~ categorical([pi[1], pi[2]*d5]);
 
 int<2> d3 ~ categorical([pi[1]*d2, pi[2]*d4]);
+
+data real y ~ normal(d3, 1);
 "
 
 let discrete_dimond = "

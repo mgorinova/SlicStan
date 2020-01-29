@@ -30,8 +30,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_dimond
-let name = Util.get_var_name <@Examples.discrete_dimond@>
+let example = Examples.discrete_paper
+let name = Util.get_var_name <@Examples.discrete_paper@>
 printfn "Name is %s" name
 set_folder (name)
 
@@ -78,7 +78,9 @@ let main argv =
     let W, graph = Factorgraph.to_graph (snd typechecked)
     graphviz graph 0 "init"
     let ordering = Factorgraph.find_ordering W graph // |> List.rev
-    
+    //let ordering = ["z1"; "z2"]
+    //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
+
     printfn "Elimination ordering:\n%A" ordering
 
     let elaborated =  elaborate_Prog typechecked
