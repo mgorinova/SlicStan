@@ -20,6 +20,8 @@ type VarDecls = Declr of TIde * Ide // TODO: add type constrains
 
 type Statements = Let of LValue * Exp // TODO: add more statements
                 | Sample of LValue * Dist
+                | Factor of Exp
+                | PlusEq of LValue * Exp
                 | SSeq of Statements * Statements  
                 | If of Exp * Statements * Statements
                 | For of Ide * ArrSize * ArrSize * Statements
@@ -81,11 +83,13 @@ let rec Decls_pretty decls =
 let rec Statements_pretty ident decls =
     match decls with 
     | Let (lhs, expr) -> ident +  LValue_pretty lhs + " = " + E_pretty expr + ";\n"
-    | Sample (lhs, dist) -> "\t" + (LValue_pretty lhs) + " ~ " + D_pretty dist + ";\n"
+    | Sample (lhs, dist) -> ident + (LValue_pretty lhs) + " ~ " + D_pretty dist + ";\n"
+    | Factor (e) -> ident + "target += " + (E_pretty e) + ";\n"
+    | PlusEq (lhs, e) -> ident + (LValue_pretty lhs) + " += " + (E_pretty e) + ";\n"
     | SSeq (s1, s2) -> Statements_pretty ident s1 + Statements_pretty ident s2
     | If(e, s1, SNone) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty e) (Statements_pretty ident s1) ident
     | If(e, s1, s2) -> sprintf "%sif(%s){\n%s\n%s}\n%selse{\n%s\n%s}" ident (E_pretty e) (Statements_pretty (ident+"\t") s1) ident ident (Statements_pretty (ident+"\t") s2) ident
-    | For(x, l, u, s) -> sprintf "%sfor(%s in %s : %s){\n%s\n%s}" ident (x) (SizeToString l) (SizeToString u) (Statements_pretty (ident+"\t") s) ident
+    | For(x, l, u, s) -> sprintf "%sfor(%s in %s : %s){\n%s\n%s}\n" ident (x) (SizeToString l) (SizeToString u) (Statements_pretty (ident+"\t") s) ident
     | LocalDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (Type_pretty t) x (Statements_pretty ident s)
     | SNone -> ""
 

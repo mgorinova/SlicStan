@@ -54,8 +54,8 @@ let main argv =
     printfn "%s\n\n" slic 
     
     (*  BOOKMARK: ToDo next
-        * Implement translation to Stan.
-        * Clean up code to be a bit more principled. 
+        * Deal with "acc" names 
+        * Make transformed variables truley local to avoid mistakes. 
         * Think of a way to generalise the whole "what sort of shredding are 
           we doing", with a "criteria" or something like that. 
         ----------------------------------------------------------------------

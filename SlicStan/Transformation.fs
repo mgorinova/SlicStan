@@ -3,12 +3,48 @@
 open SlicStanSyntax
 open MiniStanSyntax
 open Elaborate
+open Util
 
 
 
 let assigns = Typecheck.assigns
 
 let emptyStanProg = P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQNone)
+
+
+
+
+let rec rename_Stan_Exp (oldn : Ide) (newn : Ide) (exp: Exp) : Exp = 
+    match exp with
+    | Var x -> if x = oldn then Var newn else Var x
+    | Const _ -> exp
+    | Arr es -> List.map ( rename_Stan_Exp oldn newn ) es |> Arr
+    | ArrElExp (e1, e2) -> ArrElExp (rename_Stan_Exp oldn newn e1, rename_Stan_Exp oldn newn e2)
+    | Plus (e1, e2) -> Plus (rename_Stan_Exp oldn newn e1, rename_Stan_Exp oldn newn e2)
+    | Mul (e1, e2) -> Mul (rename_Stan_Exp oldn newn e1, rename_Stan_Exp oldn newn e2)
+    | Prim(name, es) -> Prim (name, List.map ( rename_Stan_Exp oldn newn ) es)
+
+let rec rename_Stan_LValues (oldn : Ide) (newn : Ide) (lhs: LValue) : LValue = 
+    match lhs with 
+    | I x -> if x = oldn then I newn else I x
+    | A (lhs', e) -> A (rename_Stan_LValues oldn newn lhs', rename_Stan_Exp oldn newn e)
+
+let rename_Stan_Dist (oldn : Ide) (newn : Ide) (dist: Dist) : Dist = 
+    match dist with 
+    | Dist(name, es) -> Dist(name, List.map ( rename_Stan_Exp oldn newn ) es)
+
+let rec rename_Stan_Statements (oldn : Ide) (newn : Ide) (S : Statements) : Statements = 
+    match S with
+    | Let(lhs, e) -> Let(rename_Stan_LValues oldn newn lhs, rename_Stan_Exp oldn newn e)
+    | Sample(lhs, d) -> Sample(rename_Stan_LValues oldn newn lhs, rename_Stan_Dist oldn newn d)
+    | Factor e -> Factor (rename_Stan_Exp oldn newn e)
+    | PlusEq(lhs, e) -> PlusEq(rename_Stan_LValues oldn newn lhs, rename_Stan_Exp oldn newn e)
+    | If(e, s1, s2) -> If(rename_Stan_Exp oldn newn e, rename_Stan_Statements oldn newn s1, rename_Stan_Statements oldn newn s2)
+    | For(x, l, u, s') -> 
+        if x = oldn then For(newn, l, u, rename_Stan_Statements oldn newn s') 
+        else For(x, l, u, rename_Stan_Statements oldn newn s') 
+    | SSeq (s1, s2) -> SSeq(rename_Stan_Statements oldn newn s1, rename_Stan_Statements oldn newn s2)
+    | _ -> S
 
 let join_stan_p (p1: MiniStanProg) (p2 :MiniStanProg) : MiniStanProg =
 
@@ -63,6 +99,32 @@ let join_stan_p (p1: MiniStanProg) (p2 :MiniStanProg) : MiniStanProg =
 
     P (d, td, p, tp, m, gq)
 
+let get_support (t: TypePrim) : ArrSize =
+    match t with
+    | Constrained(Int, K) -> K
+    | _ -> failwith "unexpected"
+
+
+let to_lpdf (dist: Dist) (x : LValue) : Exp = 
+    match dist with
+    | Dist(name, es) -> 
+        if name = "categorical" || name = "bernoulli" 
+        then Prim (name + "_lpmf", (( lhs_to_exp x ) :: es))
+        else Prim (name + "_lpdf", (( lhs_to_exp x ) :: es))
+   
+let to_rng (dist: Dist) : Exp = 
+    match dist with
+    | Dist(name, es) -> Prim (name + "_rng", es)
+
+let rec target_in (acc : LValue) (S : Statements) : Statements = 
+    match S with 
+    | Sample(lhs, dist) -> PlusEq(acc, to_lpdf dist lhs)
+    | Factor(exp) -> PlusEq(acc, exp)
+    | SSeq(s1, s2) -> SSeq(target_in acc s1, target_in acc s2)
+    | If(e, s1, s2) -> If(e, target_in acc s1, target_in acc s2)
+    | For(x, l, u, s) -> For(x, l, u, target_in acc s)
+    | _ -> S
+
 
 let rec to_Stan_statements (S: S) : Statements =
     match S with 
@@ -73,6 +135,37 @@ let rec to_Stan_statements (S: S) : Statements =
     | SlicStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
     | SlicStanSyntax.Skip -> SNone
     | SlicStanSyntax.Decl _ -> failwith "unexpected in translation"
+    | SlicStanSyntax.Message((T, x), message, s) ->
+        let support_arr_size = get_support(fst T)
+        let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
+        let def = Let(I(message), Prim("rep_vector", [Const(0.0); support]))
+        let loop = For(x, N(1), support_arr_size, to_Stan_statements s |> target_in (A(I(message), Var(x))))        
+        SSeq(def, loop)
+    
+    | SlicStanSyntax.Elim((T, x), message, s) -> 
+        // TODO: deal with name of acc properly
+        // TODO: make acc a local variable
+        let support_arr_size = get_support(fst T)
+        let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
+        let def = Let(I "acc", Prim("rep_vector", [Const(0.0); support])) 
+        let inner = to_Stan_statements s |> target_in (A( I "acc", Var x ))
+        let loop = For(x, N(1), support_arr_size, 
+                    SSeq(inner, PlusEq( A( I "acc", Var x ), ArrElExp(Var message, Var x) )) )
+        let sum = Factor( Prim("log_sum_exp", [Var "acc"]) )
+        SSeq ( (SSeq(def, loop)), sum )
+
+    | SlicStanSyntax.Generate((T, x), message, s) ->
+        // TODO: deal with name of acc properly
+        // TODO: make acc a local variable
+        let support_arr_size = get_support(fst T)
+        let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
+        let def = Let(I "acc", Prim("rep_vector", [Const(0.0); support])) 
+        let inner = to_Stan_statements s |> target_in (A( I "acc", Var x ))
+        let loop = For(x, N(1), support_arr_size, 
+                    SSeq(inner, PlusEq( A( I "acc", Var x ), ArrElExp(Var message, Var x) )) )
+                |> rename_Stan_Statements x (x + "_val") 
+        let sample = Let(I x, Prim("categorical_rng", [Var "acc"]) )
+        SSeq ( (SSeq(def, loop)), sample )
 
 
 let is_target lhs =
@@ -135,14 +228,32 @@ let rec transform_model (S: S) : MiniStanProg =
         else P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone) 
     | Decl _ -> failwith "unexpected"
     | Seq(s1, s2) -> 
-        transform_model s1 |> 
-        join_stan_p (transform_model s2)
+        transform_model s2 |> 
+        join_stan_p (transform_model s1)
     | Skip -> emptyStanProg
+    | SlicStanSyntax.Message _ -> 
+        P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone)
 
+    | SlicStanSyntax.Elim((T, x), message, s) -> 
+        let support_arr_size = get_support(fst T)
+        let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
+        let def = Let(I "acc", Prim("rep_vector", [Const(0.0); support])) // FIXME: careful with names here
+        let inner = to_Stan_statements s |> target_in (A( I "acc", Var x ))
+        let loop = For(x, N(1), support_arr_size, 
+                    SSeq(inner, PlusEq( A( I "acc", Var x ), ArrElExp(Var message, Var x) )) )
+        let sum = Factor( Prim("log_sum_exp", [Var "acc"]) )
 
-let transform_quant (S: S) : MiniStanProg =
-    P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, to_Stan_statements S))
+        P(DNone, TDNone, PNone, TPBlock(VNone, SSeq(def, loop)), MBlock(VNone, sum), GQNone)    
 
+let rec transform_quant (S: S) : MiniStanProg =
+    match S with 
+    | SlicStanSyntax.Sample(lhs, d) -> 
+        P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, Let(lhs, to_rng d)))
+    | SlicStanSyntax.Seq(s1, s2) -> 
+        transform_quant s2  |> join_stan_p (transform_quant s1)
+    | _ -> P(DNone, TDNone, PNone, TPNone, MBlock(VNone,SNone), GQBlock(VNone, to_Stan_statements S))
+
+    
 
 let transform (gamma : Gamma) (Sd : S, Sm : S , Sq : S ) : MiniStanProg = 
 

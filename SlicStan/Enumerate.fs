@@ -161,7 +161,6 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     //let gamma'', s'' = Typecheck.typecheck_elaborated gamma' (filter_Skips s')
     
     Typecheck.toplevel <- true
-    //Typecheck.local_blocks <- false
     gamma', (filter_Skips s')
 
 

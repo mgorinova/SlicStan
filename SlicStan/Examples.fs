@@ -68,7 +68,7 @@ data real y1 ~ normal(phi1, 1);
 data real y2 ~ normal(phi2, 1);
 data real y3 ~ normal(phi3, 1);
 
-real gentheta = theta1 * z3 + (1 - theta1) * (1 - z3);
+real gentheta = theta0 * z3 + (1 - theta0) * (1 - z3);
 int genz ~ bernoulli(gentheta);
 "
 

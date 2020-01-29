@@ -220,6 +220,8 @@ let rec E_pretty E =
     if (p = "+" || p = "*" || p = "-" || p = "/" || 
         p = ".*" || p = "./" ||
         p = ">" || p = "<" || p = ">=" || p = "<=") && Es.Length = 2 then sprintf "(%s %s %s)" (E_pretty Es.[0]) p (E_pretty Es.[1])
+    elif p.Contains "_lpdf" || p.Contains "_lpmf" then 
+        sprintf "%s(%s | %s)" p (E_pretty (List.head Es)) (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty (List.tail Es)))
     else sprintf "%s(%s)" p (List.reduce (fun s1 s2 -> s1+","+s2) (List.map E_pretty Es))
   | ECall(x,[]) -> sprintf "%s()" x 
   | ECall(x,Es) -> sprintf "%s(%s)" x (List.reduce (fun s1 s2 -> s1+", "+s2) (List.map E_pretty Es))
