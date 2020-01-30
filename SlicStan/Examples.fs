@@ -261,11 +261,11 @@ data real y ~ normal(d3, 1);
 "
 
 let discrete_dimond = "
-real[3] pi;
+vector[3] pi;
 int<2> d1 ~ categorical(pi); 
-int<2> d2 ~ categorical([pi[1]*d1, pi[2]]);
-int<2> d3 ~ categorical([pi[1]*d1, pi[2]]);
-int<2> d4 ~ categorical([pi[1]*d2, pi[2]*d3]);
+int<2> d2 ~ categorical(to_vector([pi[1]*d1, pi[2]]));
+int<2> d3 ~ categorical(to_vector([pi[1]*d1, pi[2]]));
+int<2> d4 ~ categorical(to_vector([pi[1]*d2, pi[2]*d3]));
 data real c ~ normal(d4, 1);
 "
 

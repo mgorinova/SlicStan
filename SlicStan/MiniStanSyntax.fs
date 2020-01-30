@@ -90,7 +90,7 @@ let rec Statements_pretty ident decls =
     | If(e, s1, SNone) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty e) (Statements_pretty ident s1) ident
     | If(e, s1, s2) -> sprintf "%sif(%s){\n%s\n%s}\n%selse{\n%s\n%s}" ident (E_pretty e) (Statements_pretty (ident+"\t") s1) ident ident (Statements_pretty (ident+"\t") s2) ident
     | For(x, l, u, s) -> sprintf "%sfor(%s in %s : %s){\n%s\n%s}\n" ident (x) (SizeToString l) (SizeToString u) (Statements_pretty (ident+"\t") s) ident
-    | LocalDecl(t, x, s) -> sprintf "%s%s %s;\n%s" ident (Type_pretty t) x (Statements_pretty ident s)
+    | LocalDecl(t, x, s) -> sprintf "%s{ %s %s;\n%s%s}\n" ident (Type_pretty t) x (Statements_pretty (ident+"  ") s) ident
     | SNone -> ""
 
 let Data_pretty d =

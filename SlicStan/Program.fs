@@ -30,8 +30,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_paper
-let name = Util.get_var_name <@Examples.discrete_paper@>
+let example = Examples.discrete_dimond
+let name = Util.get_var_name <@Examples.discrete_dimond@>
 printfn "Name is %s" name
 set_folder (name)
 
@@ -54,7 +54,6 @@ let main argv =
     printfn "%s\n\n" slic 
     
     (*  BOOKMARK: ToDo next
-        * Deal with "acc" names 
         * Make transformed variables truley local to avoid mistakes. 
         * Think of a way to generalise the whole "what sort of shredding are 
           we doing", with a "criteria" or something like that. 

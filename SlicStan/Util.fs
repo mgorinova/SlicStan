@@ -5,6 +5,7 @@ open Microsoft.FSharp.Quotations.Patterns
 
 open SlicStanSyntax
 
+
 let get_var_name (e:Expr) =
   match e with
     | PropertyGet (e, pi, li) -> pi.Name
@@ -120,6 +121,10 @@ let read_dist (D: Dist) : Set<Ide> =
     match D with 
     | Dist(name, list) -> Set.unionMany (List.map read_exp list |> List.toSeq)
 
+let read_size (a : ArrSize) : Ide list = 
+    match a with 
+    | N _ -> []
+    | SizeVar x -> [x]
 
 let rec reads (S: S) : Set<Ide> =
     match S with
