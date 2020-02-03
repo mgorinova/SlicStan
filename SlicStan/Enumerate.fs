@@ -91,7 +91,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     let sd, sm, sq = Shredding.shred_S gamma s 
 
     //printfn "Gamma temp: %A\n\n" gamma_temp
-    //printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
+    // printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
    
     let W = assigns sm
 

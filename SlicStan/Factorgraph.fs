@@ -83,7 +83,18 @@ let add_factor (S: S) (graph: Graph) =
                 let out_vars = lhs |> lhs_to_exp |> reads |> Set.ofList |> Set.toList
                 in_vars, out_vars
 
-        | If _ -> failwith "not yet implemented"
+        | If (e, s1, s2) -> 
+            let in_vars = reads e |> Set.ofList 
+                        |> Set.union (Util.reads s1) 
+                        |> Set.union (Util.reads s2) 
+                        |> Set.toList
+
+            let out_vars = assigns s1 
+                         |> Set.union (assigns s2)
+                         |> Set.toList
+
+            in_vars, out_vars
+
         | For ((T, x), lower, upper, s) -> 
             let in_s, out_s = get_dependencies s
             let in_vars = 

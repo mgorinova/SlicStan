@@ -23,10 +23,15 @@ let emptyGamma = Map.empty
 
 
 let ty x: TypePrim = 
-    if box x :? double then Real
-    elif box x :? int then Int
-    elif box x :? bool then Bool
-    else failwith "unexpected constant"
+    
+    if x = double (int x) then Int
+    elif box x :? double then Real
+    else  failwith "unexpected constant" 
+    
+    // if box x :? double then Real
+    // elif box x :? int then Int
+    // elif box x :? bool then Bool
+    
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -44,6 +49,15 @@ let rec glb (ells: TypeLevel list) =
         else Glb [l; l']
     | [] -> failwith "unexpected"
                     
+
+let rec simplify_type (ell : TypeLevel) : TypeLevel = 
+    match ell with
+    | Data -> Data
+    | Model -> Model
+    | GenQuant -> GenQuant
+    | Lub ells -> lub (List.map simplify_type ells)
+    | Glb ells -> glb (List.map simplify_type ells)
+    | _ -> failwith "can't simplify unknown type"
 
 let vectorize (orig_fun: TypePrim list * TypePrim) (vectorized_args: TypePrim list): TypePrim =
 
@@ -141,10 +155,11 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
         |> map_union_lub s2_map
         
     | For (arg, lower, upper, s) -> 
-        let s_map = read_at_level gamma s
+        let s_map = read_at_level (Map.add (snd arg) (fst arg) gamma) s
+                 |> Map.remove (snd arg)
         // FIXME: need to add constraints for the 
         // loop bounds too.
-        s_map
+        s_map 
 
     | Decl (_, s) -> read_at_level gamma s
     | Skip -> Map.empty
@@ -353,13 +368,15 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         
         if toplevel then
             // Previously, we would force all ~ to be of level model:
-            //      let cd = check_D signatures gamma d (tau, Model)
-            //      Model, emptyGamma, (Leq(ell, Model))::(List.append clhs cd) 
+            let cd = check_D signatures gamma d (tau, Model)
+            Model, emptyGamma, (Leq(ell, Model))::(List.append clhs cd) 
             
+            // FIXME: the below breaks if statements?  
+
             // Now, we allow for some ~ to mean random number generation:
-            let (tau', ell'), cd = synth_D signatures gamma d 
-            assert(tau <. tau') 
-            ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
+            // let (tau', ell'), cd = synth_D signatures gamma d 
+            // assert(tau <. tau') 
+            // ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
         
         else //local_blocks then // third shredding
             
@@ -379,12 +396,6 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
                 assert(tau <. tau')             
                 Glb [ell'; ell], emptyGamma, (List.append clhs cd)
 
-        (*else // second shredding            
-            let (tau', ell'), cd = synth_D signatures gamma d 
-            assert(tau <. tau') 
-            
-            Glb [ell'; ell], emptyGamma, (List.append clhs cd)*)
-
     | Seq(s1, s2) -> 
         let ell1, gamma1, c1 = synth_S signatures gamma s1
         let ell2, gamma2, c2 = synth_S signatures gamma s2
@@ -397,11 +408,10 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c |> List.append c_local)
 
     | If(e, s1, s2) ->
-        let (tau, ell), ce = synth_E signatures gamma e
-        assert (tau = Bool)
-        let (gamma1, cs1), (gamma2, cs2) = check_S signatures gamma s1 ell, check_S signatures gamma s2 ell
-        ell, emptyGamma, (List.append cs1 cs2 |> List.append ce)
-        // FIXME: use correct gammas
+        let (ell1, gamma1, cs1), (ell2, gamma2, cs2) = synth_S signatures gamma s1, synth_S signatures gamma s2
+        let ce = check_E signatures gamma e (Bool, Lub [ell1; ell2])
+        
+        Glb [ell1; ell2], Map.union gamma1 gamma2, (List.append cs1 cs2 |> List.append ce)
 
     | Skip -> GenQuant, emptyGamma, []
 
@@ -422,10 +432,11 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             // declared as data, and are unassigned, will be parameters.
             l', ( Map.add x (p, l) g ), (Leq(Model, l))::c
 
-    | For(env, l, u, s') -> 
+    | For(env, low, up, s') -> 
         let (p, l), x = env
         let gamma' = Map.add x (p, l) gamma
-        synth_S signatures gamma' s'
+        let ell, g, c = synth_S signatures gamma' s'
+        ell, g, c
 
     | Message(var, message, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma

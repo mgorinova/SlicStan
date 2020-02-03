@@ -40,7 +40,9 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         | GenQuant -> Skip, Skip, Assign(lhs, e)
         | _ -> failwith "something went terribly worng"
 
-    | Sample _ -> shred_according_to_statement_level gamma S        
+    | Sample _ -> 
+        if toplevel then Skip, S, Skip
+        else shred_according_to_statement_level gamma S        
 
     | Decl(arg, s) -> failwith "no local declarations yet"
     | Seq(s1, s2) -> 
@@ -53,19 +55,30 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
     | If(e, s1, s2) -> 
         let sd1, sm1, sq1 = shred_S gamma s1
         let sd2, sm2, sq2 = shred_S gamma s2
+        let ell_e = Typecheck.synth_E (Buildins) gamma e
+                   |> fst |> snd
+                   |> Typecheck.simplify_type
 
-        If(e, sd1, sd2) |> skippify,
-        If(e, sm1, sm2) |> skippify,
-        If(e, sq1, sq2) |> skippify
+        match ell_e with 
+        | Data ->
+            If(e, sd1, sd2) |> skippify,
+            If(e, sm1, sm2) |> skippify,
+            If(e, sq1, sq2) |> skippify
+        | Model -> 
+            Skip,
+            If(e, Seq(sd1,sm1), Seq(sd2,sm2)) |> skippify,
+            If(e, sq1, sq2) |> skippify
+        | GenQuant ->
+            Skip, Skip, If(e, s1, s2)
 
     | For(arg, lower, upper, s) -> 
-        let sd, sm, sq = shred_S gamma s
+        let sd, sm, sq = shred_S (Map.add (snd arg) (fst arg) gamma) s
 
         For(arg, lower, upper, sd) |> skippify,
         For(arg, lower, upper, sm) |> skippify,
         For(arg, lower, upper, sq) |> skippify
 
-    | Skip -> Skip, Skip, Skip
+    | Skip -> Skip, Skip, Skip 
 
     | Message (arg, _, _) -> 
         let gamma' = Map.add (snd arg) (fst arg) gamma

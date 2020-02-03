@@ -89,10 +89,10 @@ declaration:
 
 	
 iteration_statement:
-  | FOR LEFT tp IDE IN INT COLON INT RIGHT statement { For(((Int, Model), $4), N($6), N($8), $10) }
-  | FOR LEFT tp IDE IN INT COLON IDE RIGHT statement { For(((Int, Model), $4), N($6), SizeVar($8), $10) }
-  | FOR LEFT tp IDE IN IDE COLON IDE RIGHT statement { For(((Int, Model), $4), SizeVar($6), SizeVar($8), $10) }
-  | FOR LEFT tp IDE IN IDE COLON INT RIGHT statement { For(((Int, Model), $4), SizeVar($6), N($8), $10) }
+  | FOR LEFT IDE IN INT COLON INT RIGHT statement { For(((Int, Data), $3), N($5), N($7), $9) }
+  | FOR LEFT IDE IN INT COLON IDE RIGHT statement { For(((Int, Data), $3), N($5), SizeVar($7), $9) }
+  | FOR LEFT IDE IN IDE COLON IDE RIGHT statement { For(((Int, Data), $3), SizeVar($5), SizeVar($7), $9) }
+  | FOR LEFT IDE IN IDE COLON INT RIGHT statement { For(((Int, Data), $3), SizeVar($5), N($7), $9) }
  
 selection_statement:
   | IF LEFT exp RIGHT statement ELSE statement { If($3, $5, $7) }
@@ -109,7 +109,8 @@ exp:
   | INT  { Const(float $1) }
   | IDE  { Var($1) }
   | ALEFT exps ARIGHT { Arr($2) }
-  | IDE ALEFT exp ARIGHT { ArrElExp(Var $1, $3) }
+  | IDE ALEFT exp ARIGHT { ArrElExp(Var($1), $3) }
+  | exp ALEFT exp ARIGHT { ArrElExp($1, $3) }
   | LEFT exp RIGHT { $2 }
   | exp ELMULT exp { Prim(".*", [$1; $3])  }
   | exp ELDIV exp { Prim("./", [$1; $3])  }
@@ -130,7 +131,7 @@ exps:
 
 lhs:
   | IDE { I($1) }
-  | IDE ALEFT exp ARIGHT { A(I $1, $3) }
+  | lhs ALEFT exp ARIGHT { A($1, $3) }
   
 dist:
   | IDE LEFT exps RIGHT { Dist($1, $3) }

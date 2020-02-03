@@ -137,13 +137,13 @@ let rec reads (S: S) : Set<Ide> =
         //    then Set.union (lhs_to_exp lhs |> read_exp) set 
         //    else Set.union (lhs_to_exp lhs |> read_exp) set |> Set.remove (LValueBaseName lhs)
     | If(e, s1, s2) -> Set.union (reads s1) (reads s2) |> Set.union (read_exp e)
-    | For(x, l, u, s) -> 
+    | For(i, l, u, s) -> 
         [ ( match l with N _ -> "" | SizeVar x -> x );
           ( match u with N _ -> "" | SizeVar x -> x ) ]
         |> List.filter (fun x -> x <> "")
         |> Set.ofList
         |> Set.union (reads s)
-        |> fun set -> if Set.contains (snd x) set then Set.remove (snd x) set else set 
+        |> Set.filter (fun x -> x <> snd i)
     | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
     | Skip -> Set.empty
     | Message(arg, name, s) -> Set.remove (snd arg) (reads s)

@@ -197,7 +197,7 @@ let rec to_Stan_statements (S: S) : Statements =
         let loop = For(x, N(1), support_arr_size, 
                     SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
                 |> rename_Stan_Statements x (x + "_val") 
-        let sample = Let(I x, Prim("categorical_rng", [Var accname]) )
+        let sample = Let(I x, Prim("categorical_logit_rng", [Var accname]) )
         LocalDecl(Vector support_arr_size, accname, SSeq ( (SSeq(def, loop)), sample ))
 
 

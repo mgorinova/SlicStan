@@ -1,5 +1,139 @@
 ﻿module Examples
 
+
+let parsing1 = "
+for (n in 1:N){
+    if(doB[n] > 0){
+        B[n] ~ bernoulli(prob_intervention);
+    }
+}
+"
+
+let causality = "
+
+real pAcausesB ~ beta(1.0,1.0);
+int<2> AcausesB ~ bernoulli(pAcausesB);
+
+data real q;
+
+data int N;
+data int[N] A; 
+data int[N] B;
+data int[N] doB;
+
+data real prob_intervention;
+
+for (n in 1:N){
+    if(doB[n] > 0){
+        B[n] ~ bernoulli(prob_intervention);
+    }
+}
+
+if (AcausesB > 1){
+    for (n in 1:N){
+        A[n] ~ bernoulli(0.5);
+        if (doB[n] < 1){
+            if (A[n] > 0) { B[n] ~ bernoulli(q); }
+            else { B[n] ~ bernoulli(1-q); }            
+        }
+    }
+}
+else {
+    for (n in 1:N){
+        if (doB[n] < 1){ 
+            B[n] ~ bernoulli(0.5); 
+        }        
+        if (B[n] > 0){ A[n] ~ bernoulli(q); }
+        else { A[n] ~ bernoulli(1-q); }
+    }
+}
+"
+
+
+let difficulty_vs_ability = "
+int nQuestions = 100;  
+int nStudents = 40;  
+int nChoices = 4; 
+
+data vector[nQuestions][nStudents] response;
+
+vector[nStudents] ability ~ normal(0, 1);  
+vector[nQuestions] difficulty ~ normal(0, 1);
+vector[nQuestions] discrimination ~ gamma(1, 1);
+
+int[nQuestions] trueAnswer ~ categorical([0.25, 0.25, 0.25, 0.25]);
+
+for (student in 1 : nStudents){
+    for (question in 1 : nQuestions){
+        real advantage = ability[student] - difficulty[question];
+        real advantageNoisy ~ normal(advantage, discrimination[question]);
+        
+        if (advantageNoisy > 0){
+            response[student][question] = trueAnswer[question];
+        }
+        else{
+            response[subject][question] = categorical([0.25, 0.25, 0.25, 0.25]);
+        }
+    }
+}
+"
+
+
+// mean for p  | wet=1  is approximately 0.525
+// p(cloudy    | wet=1) is approximately 0.575; std 0.49
+// p(rain      | wet=1) is approximately 0.770; std 0.42
+// p(sprinkler | wet=1) is approximately 0.675; std 0.47 : maybe I messed that up...
+let sprinkler = "
+real p ~ beta(1, 1);
+
+vector[2] p_rain = to_vector([ 0.2, 0.8 ]);
+vector[2] p_sprinkler = to_vector([ 0.5, 0.1 ]);
+
+vector[2][2] p_wet;
+p_wet[1] = to_vector([ 0.01, 0.9 ]);
+p_wet[2] = to_vector([ 0.9, 0.99 ]);
+
+int<2> cloudy ~ bernoulli(p);
+int<2> sprinkler ~ bernoulli(p_sprinkler[cloudy]);
+int<2> rain ~ bernoulli(p_rain[cloudy]);
+data int wet ~ bernoulli(p_wet[sprinkler][rain]);
+"
+
+let sprinkler_ifs = "
+real p ~ beta(1, 1); 
+
+int<2> cloudy ~ bernoulli(p);
+int<2> sprinkler;
+int<2> rain;
+data int<2> wet;
+
+if(cloudy > 0){
+    sprinkler ~ bernoulli(0.1);
+    rain ~ bernoulli(0.8);
+}
+else{
+    sprinkler ~ bernoulli(0.5);
+    rain ~ bernoulli(0.2);
+}
+
+if(sprinkler > 0){
+    if(rain > 0){
+        wet ~ bernoulli(0.99);
+    }
+    else{
+        wet ~ bernoulli(0.9);
+    }
+}
+else{
+    if(rain > 0){
+        wet ~ bernoulli(0.9);
+    }
+    else{
+        wet ~ bernoulli(0.0);
+    }
+}
+"
+
 // d_1 -> c; d_2 -> c
 let discrete1 = "
 real[3] pi1 = [0.3, 0.3, 0.3];
@@ -69,7 +203,7 @@ data real y2 ~ normal(phi2, 1);
 data real y3 ~ normal(phi3, 1);
 
 real gentheta = theta0 * z3 + (1 - theta0) * (1 - z3);
-int genz ~ bernoulli(gentheta);
+int genz = bernoulli_rng(gentheta);
 "
 
 let discrete_hmm = "

@@ -30,12 +30,12 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_dimond
-let name = Util.get_var_name <@Examples.discrete_dimond@>
+let example = Examples.sprinkler_ifs
+let name = Util.get_var_name <@Examples.sprinkler_ifs@>
 printfn "Name is %s" name
 set_folder (name)
 
-// enumerate only ints of level models that are not TP
+// enumerate only ints of level model that are not TP
 
 [<EntryPoint>]
 let main argv =   
@@ -87,16 +87,14 @@ let main argv =
     let gamma, enum = 
         List.fold (Enumerate.enum) elaborated ordering
     
-    printfn "\n\nSlicStan reduced:\n%A" (SlicStanSyntax.S_pretty "" enum)
+    printfn "\n\nSlicStan reduced:\n\n%A" (SlicStanSyntax.S_pretty "" enum)
     
 
     let sd, sm, sq = shred_S gamma enum
 
     let stan = transform gamma (sd, sm, sq)
     
-    printfn "%s" (MiniStanSyntax.Prog_pretty stan)      
+    printfn "\n\nStan translation:\n\n%s" (MiniStanSyntax.Prog_pretty stan)      
 
     0
-
-
 
