@@ -79,14 +79,15 @@ let rec assigns (S: S) : Set<Ide> =
     match S with
     | Decl((_, x), s) -> Set.remove x (assigns s)
     | Sample(x, _) -> Set.empty
+    | Factor _ -> Set.empty
     | Assign(lhs, _) -> Set.add (LValueBaseName lhs) (Set.empty)
     | If(e, s1, s2) -> Set.union (assigns s1) (assigns s2)
     | For(_, _, _, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | Message(_, message, s') -> Set.add message (assigns s')
-    | Elim(_, _, s') -> assigns s'
-    | Generate(_, _, s') -> assigns s'
+    | Message((t, name), _, s') -> Set.add name (assigns s')
+    | Elim(_, s') -> assigns s'
+    | Generate(_, s') -> assigns s'
 
 
 
@@ -134,6 +135,14 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
         |> List.map (fun v -> v, l) 
         |> Map.ofList 
 
+    | Factor(e) ->
+        let involved_vars = read_exp e |> Set.toList
+        let l = Lub (List.map (fun v -> Map.find v gamma |> snd) involved_vars)
+
+        involved_vars
+        |> List.map (fun v -> v, l) 
+        |> Map.ofList
+
     | Seq (s1, s2) -> read_at_level gamma s1 |> map_union_lub (read_at_level gamma s2)
     | If (e, s1, s2) -> 
 
@@ -163,13 +172,13 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
 
     | Decl (_, s) -> read_at_level gamma s
     | Skip -> Map.empty
-    | Message(_, message, s') -> 
+    | Message(_, args, s') -> 
         read_at_level gamma s'
 
-    | Elim((T, d), message, s') -> 
+    | Elim((T, d), s') -> 
         read_at_level (Map.add d T gamma) s'
 
-    | Generate((T, d), _, s') -> 
+    | Generate((T, d), s') -> 
         let l = GenQuant
         let involved_vars = reads s' 
         involved_vars 
@@ -362,7 +371,11 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
                       else []
                 
             ell, emptyGamma, (List.append c1 c2 |> List.append c' |> List.append c'')   
-               
+    
+    | Factor(e) -> 
+        // FIXME: doublecheck if this is correct
+        Model, gamma, check_E signatures gamma e (Real, Model) 
+
     | Sample(lhs, d) ->       
         let (tau, ell), clhs = synth_L signatures gamma lhs
         
@@ -438,22 +451,21 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         let ell, g, c = synth_S signatures gamma' s'
         ell, g, c
 
-    | Message(var, message, s') -> 
-        let gamma' = Map.add (snd var) (fst var) gamma
+    | Message(var, args, s') -> 
+        let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g ) gamma args
         let ell, g, c = synth_S signatures gamma' s'
         
-        // NB, FIXME: should there be some check that s' is at most level ell' ?
-        let ell' = gamma'.Item(message) |> snd
-        ell', g, c
+        ell, g, c
 
-    | Elim(var, message, s') -> 
+    | Elim(var, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma        
         let ell, g, c = synth_S signatures gamma' s'
         
-        let ell' = gamma'.Item(message) |> snd
-        Lub[ell; ell'], g, c
+        //let ell' = gamma'.Item(message) |> snd
+        //Lub[ell; ell'], g, c
+        ell, g, c
 
-    | Generate(var, _, s') -> 
+    | Generate(var, s') -> 
         let g, c = check_S signatures (Map.map (fun x T -> if x = snd var then fst T, GenQuant else T) gamma) s' GenQuant
         GenQuant, g, c
 

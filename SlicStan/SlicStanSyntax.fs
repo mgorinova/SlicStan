@@ -47,14 +47,15 @@ type Dist = Dist of string * Exp list  // normal(E1, E2); gamma(E1, E2);
 
 type S = Decl of Arg * S //alpha convertible; make it have a single identifier // {(real, MODEL) x; S}
        | Sample of LValue * Dist // x ~ D // general case should be E ~ D
+       | Factor of Exp 
        | Assign of LValue * Exp // x = E 
        | If of Exp * S * S // if-else
        | For of Arg * ArrSize * ArrSize * S
        | Seq of S * S // S1; S2
        | Skip 
-       | Elim of Arg * Ide * S // Elim of message, varaible to be eliminated and a statement
-       | Message of Arg * Ide * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
-       | Generate of Arg * Ide * S // Generate Arg using message list and statement
+       | Elim of Arg * S // Elim of varaible to be eliminated and a statement
+       | Message of Arg * Ide list * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
+       | Generate of Arg * S // Generate Arg using message list and statement
 
 
 type FunDef = Fun of FunIde * Arg list * S * Arg
@@ -286,20 +287,21 @@ let rec S_pretty ident S =
          | Prim("+", [ Var("target"); e2] ) -> sprintf "%starget += %s;" ident (E_pretty e2)
          | _ -> sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) 
     else sprintf "%s%s = %s;" ident (LValue_pretty lhs) (E_pretty E) 
+  | Factor(E) -> sprintf "%sfactor(%s);" ident (E_pretty E)
   | If(E, S1, Skip) -> sprintf "%sif(%s){\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident
   | If(E, S1, S2) -> sprintf "%sif(%s){\n%s\n%s}%selse{\n%s\n%s}" ident (E_pretty E) (S_pretty ("  " + ident) S1) ident ident (S_pretty ("  " + ident) S2) ident
   | For((t, x), lower, upper, S) -> sprintf "%sfor(%s %s in %s:%s){\n%s\n%s}" ident (Type_pretty t) (x) (SizeToString lower) (SizeToString upper) (S_pretty ("  " + ident) S) ident
   | Seq(S1,S2) -> sprintf "%s \n%s" (S_pretty ident S1) (S_pretty ident S2)
   | Skip -> ""
-  | Elim(var, messages, S) ->
+  | Elim(var, S) ->
     let (p, _), n = var
-    sprintf "%selim<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
-  | Message(arg, name, S) ->
-    let (p, _), var = arg
-    sprintf "%s%s = message(%s){\n%s\n%s}" ident name var (S_pretty ("  " + ident) S) ident
-  | Generate(var, messages, S) ->
+    sprintf "%selim(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
+  | Message(arg, vars, S) ->
+    let (p, _), name = arg
+    sprintf "%s%s = message(%A){\n%s\n%s}" ident name vars (S_pretty ("  " + ident) S) ident
+  | Generate(var, S) ->
     let (p, _), n = var
-    sprintf "%sgenerate<%s>(%s %s){\n%s\n%s}" ident (Messages_pretty messages) (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
+    sprintf "%sgenerate(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
     
 
 let rec List_pretty lst =

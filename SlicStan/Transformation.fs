@@ -161,16 +161,18 @@ let rec to_Stan_statements (S: S) : Statements =
     | SlicStanSyntax.For(E, l, u, S') -> For(snd E, l, u, to_Stan_statements S')
     | SlicStanSyntax.Assign(a1, a2) -> Let(a1, a2)
     | SlicStanSyntax.Sample(a1, a2) -> Sample(a1, a2) 
+    | SlicStanSyntax.Factor(e) -> PlusEq(I("target"), e)
     | SlicStanSyntax.Skip -> SNone
     | SlicStanSyntax.Decl _ -> failwith "unexpected in translation"
-    | SlicStanSyntax.Message((T, x), message, s) ->
-        let support_arr_size = get_support(fst T)
+    | SlicStanSyntax.Message((T, x), args, s) ->
+        failwith "Translation of message to Stan not yet implemented"
+        (*let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
         let def = Let(I(message), Prim("rep_vector", [Const(0.0); support]))
         let loop = For(x, N(1), support_arr_size, to_Stan_statements s |> target_in (A(I(message), Var(x))))        
-        SSeq(def, loop)
+        SSeq(def, loop)*)
     
-    | SlicStanSyntax.Elim((T, x), message, s) -> 
+    | SlicStanSyntax.Elim((T, x), s) -> 
         let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
         
@@ -179,13 +181,13 @@ let rec to_Stan_statements (S: S) : Statements =
         let accname = fresh_acc_ide statement
         let def = Let(I accname, Prim("rep_vector", [Const(0.0); support])) 
         let inner = statement |> target_in (A( I accname, Var x ))
-        let loop = For(x, N(1), support_arr_size, 
-                    SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
+        let loop = For(x, N(1), support_arr_size, inner)
+                    //SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
                  |> rename_Stan_Statements x (x + "_val") 
         let sum = Factor( Prim("log_sum_exp", [Var accname]) )
         LocalDecl(Vector support_arr_size, accname, SSeq ( (SSeq(def, loop)), sum ))
 
-    | SlicStanSyntax.Generate((T, x), message, s) ->
+    | SlicStanSyntax.Generate((T, x), s) ->
         let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
         
@@ -194,8 +196,8 @@ let rec to_Stan_statements (S: S) : Statements =
         let accname = fresh_acc_ide statement
         let def = Let(I accname, Prim("rep_vector", [Const(0.0); support])) 
         let inner = statement |> target_in (A( I accname, Var x ))
-        let loop = For(x, N(1), support_arr_size, 
-                    SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
+        let loop = For(x, N(1), support_arr_size, inner)
+                    //SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
                 |> rename_Stan_Statements x (x + "_val") 
         let sample = Let(I x, Prim("categorical_logit_rng", [Var accname]) )
         LocalDecl(Vector support_arr_size, accname, SSeq ( (SSeq(def, loop)), sample ))
@@ -251,6 +253,8 @@ let rec transform_model (S: S) : MiniStanProg =
         else P(DNone, TDNone, PNone, TPBlock(VNone, Let(lhs, e)), MBlock(VNone, SNone), GQNone)
     | SlicStanSyntax.Sample(e, d) -> 
         P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(e, d)), GQNone)  
+    | SlicStanSyntax.Factor(e) ->
+        failwith "Transformation.transform_model: factor not yet implemented"
     | SlicStanSyntax.If(e, s1, s2) -> 
         if has_target s1 || has_target s2 
         then P(DNone, TDNone, PNone, TPNone, MBlock(VNone, to_Stan_statements S), GQNone)  
@@ -267,7 +271,7 @@ let rec transform_model (S: S) : MiniStanProg =
     | SlicStanSyntax.Message _ -> 
         P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone)
 
-    | SlicStanSyntax.Elim((T, x), message, s) -> 
+    | SlicStanSyntax.Elim((T, x), s) -> 
         let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
 
@@ -276,8 +280,8 @@ let rec transform_model (S: S) : MiniStanProg =
         let accname = fresh_acc_ide statement
         let def =  Let(I accname, Prim("rep_vector", [Const(0.0); support]))
         let inner = statement |> target_in (A( I accname, Var x ))
-        let loop = For(x, N(1), support_arr_size, 
-                    SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
+        let loop = For(x, N(1), support_arr_size, inner)
+                    //SSeq(inner, PlusEq( A( I accname, Var x ), ArrElExp(Var message, Var x) )) )
                 |> rename_Stan_Statements x (x + "_val") 
         let sum = Factor( Prim("log_sum_exp", [Var accname]) )
 

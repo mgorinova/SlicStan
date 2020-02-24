@@ -83,6 +83,9 @@ let add_factor (S: S) (graph: Graph) =
                 let out_vars = lhs |> lhs_to_exp |> reads |> Set.ofList |> Set.toList
                 in_vars, out_vars
 
+        | Factor(e) -> 
+            [], read_exp e |> Set.toList
+
         | If (e, s1, s2) -> 
             let in_vars = reads e |> Set.ofList 
                         |> Set.union (Util.reads s1) 
@@ -119,13 +122,13 @@ let add_factor (S: S) (graph: Graph) =
             let out_var = snd name
             [], [out_var]*)
 
-        | Elim(var, message, s) -> 
-            let in_vars = message
-            [in_vars], []
+        | Elim(var, s) -> 
+            //let in_vars = message
+            [], []
 
-        | Generate(var, message, s) -> 
-            let in_vars = message
-            [in_vars], [snd var]
+        | Generate(var, s) -> 
+            //let in_vars = message
+            [], [snd var]
        
     let V, F, E = graph
 

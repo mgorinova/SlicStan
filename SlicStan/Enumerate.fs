@@ -33,9 +33,9 @@ let rec filter_Skips s =
     | Seq(Skip, s') -> filter_Skips s'
     | Seq(s', Skip) -> filter_Skips s'
     | Seq(s1, s2) -> Seq(filter_Skips s1, filter_Skips s2)
-    | Message(arg, name, s') -> Message(arg, name, filter_Skips s') 
-    | Elim(arg, message, s') -> Elim(arg, message, filter_Skips s') 
-    | Generate(arg, message, s') -> Generate(arg, message, filter_Skips s') 
+    | Message(arg, args, s') -> Message(arg, args, filter_Skips s') 
+    | Elim(arg, s') -> Elim(arg, filter_Skips s') 
+    | Generate(arg, s') -> Generate(arg, filter_Skips s') 
     | _ -> s
     
 
@@ -55,7 +55,7 @@ let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
 
         | Seq(s1, s2) -> Set.union (single_pass s1) (single_pass s2)
         | Message(_, _, s') -> single_pass s'
-        | Elim(_, _, s') -> single_pass s'
+        | Elim(_, s') -> single_pass s'
         | If(_, s1, s2) -> Set.union (single_pass s1) (single_pass s2)
         | For(_, _, _, s') ->  single_pass s'
         | _ -> Set.empty
@@ -95,19 +95,35 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
    
     let W = assigns sm
 
+
+    let neighbours = gamma
+                   |> Map.filter (fun x (_, level) -> 
+                        match level with 
+                        | Model -> Set.contains x W |> not && neighbour x d s
+                        | _ -> false)
+                   |> Map.filter (fun x (tau, _) -> 
+                        match tau with 
+                        | Constrained(Int, _) -> true
+                        | _ -> false)
+                   |> Map.toList
+                   |> List.map fst 
+                   //|> Set.ofList
+
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
                     match level with
-                    | Model ->  if tau <. Int && (Set.contains x W |> not) then tau, Model 
+                    | Model ->  if tau <. Int && (Set.contains x W |> not) then //tau, Model 
+                                    if x = d then tau, Model
+                                    elif Set.contains x (Set.ofList neighbours) then tau, Model
+                                    else tau, GenQuant
                                 elif Real <. tau && (Set.contains x W |> not) then tau, Data                                
                                 else tau, LevelVar(SlicStanSyntax.next()) 
                     | _ -> tau, level
                                 
                 ) gamma
-       
     
     Typecheck.toplevel <- false
-    Typecheck.dv <- ""
+    Typecheck.dv <- d
 
     let gamma_temp, sm' = Typecheck.typecheck_elaborated gamma_partial sm
 
@@ -115,50 +131,31 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
-    let neighbours = gamma_partial
-                   |> Map.filter (fun x (_, level) -> 
-                        match level with 
-                        | Model -> Set.contains x W |> not && neighbour x d s
-                        | _ -> false)
-                   |> Map.toList
-                   |> List.map fst 
-                   |> Set.ofList
 
-    let gamma_partial2 = 
-        Map.map (fun x (tau, level) -> 
-                    match level with
-                    | Model ->  if Set.contains x neighbours then tau, Model 
-                                elif x = d then tau, Data
-                                elif Set.contains x W |> not then tau, GenQuant
-                                else tau, LevelVar(SlicStanSyntax.next()) 
-                    | _ -> tau, level
-                                
-                ) gamma_partial
-
-    Typecheck.toplevel <- false 
-    Typecheck.dv <- d
-
-    let gamma_temp2, sm2' = Typecheck.typecheck_elaborated gamma_partial2 (Seq(sm2, sm22))
-
-    let sm3, sm4, sm5 = Shredding.shred_S gamma_temp2 sm2' // split1 (dependent_vars) sm
-
-    // printfn "\n***THIRD shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm3) (S_pretty "" sm4) (S_pretty "" sm5) 
-        
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do
         message_name <- next_message()
     
-    let tau, ell = Map.find d gamma 
-    let arg = (tau, Data), d
-    let message_size = match tau with Constrained (Int, K) -> K | _ -> failwith "Discrete parameters must have specified support"
+    let tau_list = List.map (fun ne -> Map.find ne gamma |> fst) neighbours
+    let tau_sizes = List.map (fun t ->
+                        match t with 
+                        | Constrained (Int, K) -> K 
+                        | _ -> failwith "Discrete parameters must have specified support") tau_list
+
+    let tau = List.fold (fun s t -> Array(s, t)) Int tau_sizes 
+    let arg = (tau, Model), message_name
+
+    let tau_d = Map.find d gamma |> fst, Data
 
     let gamma' = gamma
-                |> Map.add d (tau, GenQuant) 
-                |> Map.add message_name (Vector(message_size), Model)
+                |> Map.add d (Int, GenQuant) 
+                |> Map.add message_name (tau, Model)
 
-    let s' = SlicStanSyntax.SofList [ sd; sm1; Message(arg, message_name, sm3); Elim(arg, message_name, sm4); sm5; Generate(((tau, GenQuant), d), message_name, sm4); sq ]
-    
-    //let gamma'', s'' = Typecheck.typecheck_elaborated gamma' (filter_Skips s')
+    let s_message = Message ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
+    let s_factor = Factor ( Util.indices_list_to_exp (Var(message_name)) (List.map Var neighbours) )
+    let s_gen = Generate ( ((Int, GenQuant), d), sm2)
+
+    let s' = SlicStanSyntax.SofList [ sd; sm1; s_message; s_factor; sm22; s_gen; sq ]
     
     Typecheck.toplevel <- true
     gamma', (filter_Skips s')

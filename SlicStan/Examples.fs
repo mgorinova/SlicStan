@@ -242,10 +242,10 @@ data real y3 ~ normal(phi3, 1);
 real theta4 = theta1 * z3 + (1 - theta1) * (1 - z3);
 int<2> z4 ~ bernoulli(theta4);
 real phi4 = phi * z4 + (1 - phi) * (1 - z4);   
-data real y4 ~ normal(phi4, 1);
+data real y4 ~ normal(phi4, 1); "
 
-real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
-int genz ~ bernoulli(gentheta); "
+//real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
+//int genz ~ bernoulli(gentheta); "
 
 let discrete_hmm_messier = "
 real phi ~ beta(1, 1);

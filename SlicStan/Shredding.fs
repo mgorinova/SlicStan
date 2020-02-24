@@ -9,13 +9,14 @@ let rec skippify S =
     | Seq(Skip, Skip) -> Skip
     | If(_, Skip, Skip) -> Skip
     | For(_, _, _, Skip) -> Skip
-    | Elim(_, _, Skip) -> Skip
+    | Elim(_, Skip) -> Skip
     //| Elim(arg, _, s) -> if Set.contains (snd arg) (Util.reads s) then S else s
     | _ -> S
 
 let statement_level gamma S =  
     let one = Util.reads S |> Set.toList                       
     let two = one |> List.map (fun x -> Map.find x gamma |> snd) |> Lub |> Typecheck.simplify_level
+    // FIXME: doesn't work for elim nested in message
     // FIXME: it's more complicated than this line below... the good news is that this is only an
     // extra optimisation (is it just that?) so things still work without it. 
     // Examples that can be made faster with an optimisation of some sort are discrete_reverse_tree or discrete_tree (? one of the two i thin)
@@ -43,6 +44,10 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
     | Sample _ -> 
         if toplevel then Skip, S, Skip
         else shred_according_to_statement_level gamma S        
+
+    | Factor _ -> 
+        if toplevel then Skip, S, Skip
+        else shred_according_to_statement_level gamma S  
 
     | Decl(arg, s) -> failwith "no local declarations yet"
     | Seq(s1, s2) -> 
@@ -80,13 +85,14 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip 
 
-    | Message (arg, _, _) -> 
-        let gamma' = Map.add (snd arg) (fst arg) gamma
-        //let sd, sm, sq = shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S 
-        //skippify sd, skippify sm, skippify sq
-        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S 
+    | Message (var, args, _) -> 
+        //let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
+        //          |> Map.add (snd var) (fst var) 
+        //shred_according_to_statement_level gamma' S 
+        // FIXME
+        S, Skip, Skip 
 
-    | Elim (arg, m, s') -> 
+    | Elim (arg, s') -> 
         let gamma' = Map.add (snd arg) (Int, Model) gamma
         let sd, sm, sq = shred_S gamma' s'
 
