@@ -174,6 +174,21 @@ data real y2 ~ normal(phi[z2], 1);
 data real y3 ~ normal(phi[z3], 1);
 "
 
+let discrete_hmm_weird = "
+data real[2] phi;
+data real[2] theta;
+
+int<2> z1 ~ bernoulli(theta[1]);
+int<2> z2 ~ bernoulli(theta[z1]*theta[z1]);
+int<2> z3 ~ bernoulli(theta[z2]*theta[z1]);
+int<2> z4 ~ bernoulli(theta[z3]*theta[z1]);
+
+data real y1 ~ normal(phi[z1], 1);
+data real y2 ~ normal(phi[z2], 1);
+data real y3 ~ normal(phi[z3], 1);
+data real y4 ~ normal(phi[z4], 1);
+"
+
 let discrete4 = "
 real[3] pi = [1/3, 1/3, 1/3];
 int<3> d1 ~ categorical(pi);
@@ -262,6 +277,25 @@ data real y1 ~ normal(phi1, 1);
 data real y3 ~ normal(phi3, 1);
 "
 
+let discrete_hmm_2nd_order = "
+real[2] phi;
+real[2] theta;
+
+int<2> z1 ~ bernoulli(theta[1]);
+data real y1 ~ normal(phi[z1], 1);
+
+int<2> z2 ~ bernoulli(theta[z1]);
+data real y2 ~ normal(phi[z2], 1);
+
+int<2> z3 ~ bernoulli(theta[z1 * z2]);
+data real y3 ~ normal(phi[z3], 1);
+
+int<2> z4 ~ bernoulli(theta[z2 * z3]);
+data real y4 ~ normal(phi[z4], 1);
+
+int<2> z5 ~ bernoulli(theta[z3 * z4]);
+data real y5 ~ normal(phi[z5], 1);
+"
 
 let soft_k_means = "
 data int N;  

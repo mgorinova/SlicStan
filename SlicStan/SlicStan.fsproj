@@ -36,8 +36,13 @@
 
 
   <ItemGroup>
-    <PackageReference Include="FsLexYacc" Version="9.0.2" />
-    <PackageReference Include="FsLexYacc.Runtime" Version="9.0.2" />
+    <PackageReference Include="FsLexYacc" Version="10.0.0" />
+    <PackageReference Include="FsLexYacc.Runtime" Version="10.0.0" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.7.0" />
   </ItemGroup>
 
 

@@ -87,11 +87,14 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S 
 
     | Elim (arg, m, s') -> 
-        let gamma' = Map.add (snd arg) (fst arg) gamma
+        let gamma' = Map.add (snd arg) (Int, Model) gamma
         let sd, sm, sq = shred_S gamma' s'
 
         //Elim(arg, m, sd) |> skippify,
         //Elim(arg, m, sm) |> skippify,
         //Elim(arg, m, sq) |> skippify
-        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma') S
+        
+        // TODO: try deriving actual rule based on for loops?
+        
+        shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma) S
     | Generate _ -> Skip, Skip, S
