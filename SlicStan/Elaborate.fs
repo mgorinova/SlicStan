@@ -10,10 +10,12 @@ type Gamma = Map.Gamma // Gamma
 type Ret = ERet of Exp | DRet of Dist | Unit 
 
 [<Extension>]
-type Map<'Key,'Value when 'Key : comparison> with 
+type Map<'Key,'Value when 'Key : comparison> = 
+    [<Extension>]
     static member safeFind k dict =
         if Map.containsKey k dict then (Map.find k dict)
         else k
+    [<Extension>]
     static member values dict =
         let lst = Map.toList dict
         List.map (fun (k,v) -> v) lst      
