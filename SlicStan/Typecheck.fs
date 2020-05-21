@@ -219,6 +219,7 @@ let localisable (gamma: Gamma) (s : S) : Constraint list =
     
     let R = read_at_level gamma s
     let W = assigned_of_level gamma s
+          // |> Map.filter (fun k v -> v = Model)  
     
     map_intersect R W 
         |> Map.fold (fun state _ (lr, lw) -> List.append [Leq(lr, lw); Leq(lw, lr)] state) []
@@ -374,7 +375,21 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
     
     | Factor(e) -> 
         // FIXME: doublecheck if this is correct
-        Model, gamma, check_E signatures gamma e (Real, Model) 
+        
+        if toplevel then 
+            Model, emptyGamma, check_E signatures gamma e (Real, Model) 
+        else 
+
+            let (tp, ell), c = synth_E signatures gamma e 
+            assert (tp <. Real)
+
+            if Set.contains dv (read_exp e) then
+                // cannot be GenQuant             
+                Model, emptyGamma, (Leq(ell, Model))::c // assert (ell <= Model)
+
+            else                 
+                // can be GenQuant                
+                ell, emptyGamma, c
 
     | Sample(lhs, d) ->       
         let (tau, ell), clhs = synth_L signatures gamma lhs
@@ -391,9 +406,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             // assert(tau <. tau') 
             // ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
         
-        else //local_blocks then // third shredding
-            
-            // This means we are shredding to eliminate the variable dv.
+        else// This means we are shredding to eliminate the variable dv.
             // In this case, we add a constraint to match the respective
             // criteria: if dv is mentioned in the satetemnt, then all
             // involved vars are at most Model:
@@ -542,10 +555,17 @@ let rename_elaborated inferred_levels (gamma : Gamma) (s : S) : Gamma * S =
 let typecheck_elaborated gamma s =
 
     let _, c = check_S Buildins gamma s Data  
+    
+    // This bit is only neccessary for the algoritmic typing rules,
+    // in order to make sure that variables that are not explicitly 
+    // declared as data, and are unassigned, will be parameters.
+    let W = assigns s
+    let extra = Map.toList gamma
+              |> List.filter (fun (x, (_, tl)) -> (Set.contains x W |> not ) && (tl = Data |> not))
+              |> List.map (fun (_, (_, tl)) -> Leq(Model, tl))
+              
 
-    // printfn "Constraints: %A" c
-
-    let inferred_levels = Constraints.naive_solver c    
+    let inferred_levels = Constraints.naive_solver (List.append c extra)    
 
     rename_elaborated inferred_levels gamma s 
 

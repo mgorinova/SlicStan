@@ -333,9 +333,20 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
                                     else c
                                  | _ -> c ) res_cs
         res_cs2, all
+    
+    
+    let filter_lub_tautologies (cs : Constraint list) = 
         
+        let is_tautology (c : Constraint) : bool = 
+            match c with 
+            | Leq(x, Lub ls) -> List.contains x ls
+            | _ -> false
+        
+        List.filter (fun c -> is_tautology c |> not) cs
 
-    let quick_cs, quick_vars = resolve_quick filltered
+    let quick_cs', quick_vars = resolve_quick filltered
+
+    let quick_cs = filter_lub_tautologies quick_cs'
 
     let dict_forwards = init_dict_forwards quick_cs
     let dict_backwards = init_dict_backwards quick_cs

@@ -30,8 +30,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.causality
-let name = Util.get_var_name <@Examples.causality@>
+let example = Examples.discrete_paper
+let name = Util.get_var_name <@Examples.discrete_paper@>
 printfn "Name is %s" name
 set_folder (name)
 

@@ -39,18 +39,13 @@ let rec filter_Skips s =
     | _ -> s
     
 
-let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
+(*let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
     let rec single_pass (s : S) : Set<Ide> = 
         match s with 
         | Assign(L, E) -> 
             let dependent = if Set.intersect vars (read_exp E) |> Set.isEmpty
                             then Set.empty
                             else lhs_to_exp L |> read_exp
-            let depends_on = if Set.intersect vars (lhs_to_exp L |> read_exp) |> Set.isEmpty
-                             then Set.empty
-                             else read_exp E 
-
-            //Set.union dependent depends_on
             dependent
 
         | Seq(s1, s2) -> Set.union (single_pass s1) (single_pass s2)
@@ -64,13 +59,33 @@ let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
     let new_result = Set.union vars new_vars
 
     if vars = new_result then vars
-    else all_dependent_transformed_vars s (new_result)
+    else all_dependent_transformed_vars s (new_result)*)
+
+let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
+    match s with 
+    | Assign(L, E) -> 
+        if Set.intersect vars (read_exp E) |> Set.isEmpty
+        then vars
+        else lhs_to_exp L |> read_exp |> Set.union vars
+    | Seq(s1, s2) -> 
+        let dep1 = all_dependent_transformed_vars s1 vars
+        let dep2 = all_dependent_transformed_vars s2 dep1
+        dep2
+    | Message(_, _, s') -> all_dependent_transformed_vars s' vars
+    | Elim(_, s') -> all_dependent_transformed_vars s' vars
+    | If(_, s1, s2) -> 
+        let dep1 = all_dependent_transformed_vars s1 vars
+        let dep2 = all_dependent_transformed_vars s2 vars
+        Set.union dep1 dep2
+    | For(_, _, _, s') ->  all_dependent_transformed_vars s' vars
+    | _ -> vars
 
 let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> = 
     let rec inner S =
         match S with 
         | Seq(s1, s2) -> Set.union (inner s1) (inner s2)
         | Generate _ -> Set.empty
+        | Assign _ -> Set.empty
         | _ -> 
             if Set.intersect (reads S) vars |> Set.isEmpty then Set.empty
             else (reads S)
@@ -88,6 +103,8 @@ let neighbour v1 v2 s =
 
 let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S = 
     
+    printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
+
     let sd, sm, sq = Shredding.shred_S gamma s 
 
     //printfn "Gamma temp: %A\n\n" gamma_temp
@@ -96,7 +113,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     let W = assigns sm
 
 
-    let neighbours = gamma
+    (*let neighbours = gamma
                    |> Map.filter (fun x (_, level) -> 
                         match level with 
                         | Model -> Set.contains x W |> not && neighbour x d s
@@ -107,15 +124,16 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                         | _ -> false)
                    |> Map.toList
                    |> List.map fst 
-                   //|> Set.ofList
+                   //|> Set.ofList*)
 
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
                     match level with
                     | Model ->  if tau <. Int && (Set.contains x W |> not) then //tau, Model 
                                     if x = d then tau, Model
-                                    elif Set.contains x (Set.ofList neighbours) then tau, Model
-                                    else tau, GenQuant
+                                    // elif Set.contains x (Set.ofList neighbours) then tau, Model
+                                    // else tau, GenQuant
+                                    else tau, LevelVar(SlicStanSyntax.next()) 
                                 elif Real <. tau && (Set.contains x W |> not) then tau, Data                                
                                 else tau, LevelVar(SlicStanSyntax.next()) 
                     | _ -> tau, level
@@ -129,13 +147,16 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let sm1, sm2, sm22 = Shredding.shred_S gamma_temp sm'
 
-    // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
-
+    printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do
         message_name <- next_message()
-    
+
+    let neighbours = Map.toList gamma_temp
+                   |> List.filter (fun (x, t) -> is_discrete_parameter W (x, t) && x <> d) 
+                   |> List.map fst
+
     let tau_list = List.map (fun ne -> Map.find ne gamma |> fst) neighbours
     let tau_sizes = List.map (fun t ->
                         match t with 
