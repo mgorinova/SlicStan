@@ -13,7 +13,8 @@ let NotAnySize (n: ArrSize) =
     | N(-1) -> false
     | _ -> true
 
-type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list
+// (Data, Model, Genquant, Lz) is a semilattice: Data < Model < GenQuant; Data < Model < Lz;
+type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list | Lz
 type TypePrim = Bool | Real | Int | Constrained of TypePrim * ArrSize 
               | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit 
 
@@ -125,9 +126,12 @@ let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     | Data, _ -> true
     | Model, Data -> false
     | Model, _ -> true
-    | _, GenQuant -> true 
+    | Lz, GenQuant -> false 
+    | Lz, Lz -> true
+    | GenQuant, Lz -> false
     | GenQuant, Data -> false    
     | GenQuant, Model -> false  
+    | GenQuant, GenQuant -> true    
     | _ -> true
 
 let rec (==) (p1: TypePrim) (p2: TypePrim) : bool =

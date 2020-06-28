@@ -404,7 +404,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             // can be GenQuant
             let (tau', ell'), cd = synth_D signatures gamma d 
             assert(tau <. tau')             
-            Glb [ell'; ell], emptyGamma, (List.append clhs cd)
+            Lub [ell'; ell], emptyGamma, (List.append clhs cd)
 
     | Seq(s1, s2) -> 
         let ell1, gamma1, c1 = synth_S signatures gamma s1
@@ -545,7 +545,8 @@ let typecheck_elaborated gamma s =
             []
         else localisable gamma s
         
-    let c = List.append c_typing c_local
+    //let c = List.append c_typing c_local
+    let c = c_typing
 
     // This bit is only neccessary for the algoritmic typing rules,
     // in order to make sure that variables that are not explicitly 
@@ -555,7 +556,11 @@ let typecheck_elaborated gamma s =
               |> List.filter (fun (x, (_, tl)) -> (Set.contains x W |> not ) && (tl = Data |> not))
               |> List.map (fun (_, (_, tl)) -> Leq(Model, tl), "extra")
               
-    let inferred_levels = Constraints.naive_solver (List.append c extra)    
+    let inferred_levels = 
+        if toplevel then
+            Constraints.naive_solver (List.append c extra)    
+        else 
+            Constraints.semilattice_solver (List.append c extra)    
 
     rename_elaborated inferred_levels gamma s 
 

@@ -132,7 +132,8 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
                     match level with
-                    | Model ->  if tau <. Int && (Set.contains x W |> not) then 
+                    | Model ->  if x = d then tau, Lz
+                                elif tau <. Int && (Set.contains x W |> not) then 
                                     tau, LevelVar(SlicStanSyntax.next()) 
                                 elif Real <. tau && (Set.contains x W |> not) then tau, Data                                
                                 else tau, LevelVar(SlicStanSyntax.next()) 
