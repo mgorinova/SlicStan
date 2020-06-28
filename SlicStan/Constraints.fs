@@ -7,7 +7,8 @@
 
 open SlicStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel // | Or of Constraint * Constraint
+type Constraint = Leq of TypeLevel * TypeLevel
+type ConstraintInfo = Constraint * string 
 
 exception CouldNotResolveTypesError 
 
@@ -43,12 +44,12 @@ let rec recursive_lub_filter ls =
     else recursive_lub_filter ls'
 
 
-let expand_and_filter (cs: Constraint list): Constraint list =
+let expand_and_filter (cs: ConstraintInfo list): ConstraintInfo list =
 
-    let check_not_tautology_nf (c: Constraint): bool =
+    let check_not_tautology_nf (c: Constraint, i: string): bool =
         match c with
         | Leq(l1, l2) -> 
-            if (not (l1 <= l2)) then failwith "type level constraints cannot be satisfied"
+            if (not (l1 <= l2)) then failwith (sprintf "type level constraints cannot be satisfied:\n    %s" i)
             else match l1, l2 with
                  | LevelVar(x), LevelVar(y) -> not (x = y)             
                  | LevelVar(_), l -> not (l = GenQuant)
@@ -105,12 +106,16 @@ let expand_and_filter (cs: Constraint list): Constraint list =
 
     // printf "Constrint list: %A" cs
 
-    let x = List.fold (fun s c -> List.append s (expand_constraint c)) [] cs
+    let x : ConstraintInfo list = 
+        List.fold (fun s (c, i) -> 
+            let expanded = (expand_constraint c)
+            List.append s (List.zip expanded (List.replicate (List.length expanded ) i) )) [] cs
+
     let y = x |> List.filter check_not_tautology_nf
     y |> Set.ofList |> Set.toList
 
 
-let rename_constraints cs (d : Map<Ide, TypeLevel>) =
+let rename_constraints (cs : Constraint list) (d : Map<Ide, TypeLevel>) =
         let rec inner ell = 
             match ell with 
             | LevelVar(x) -> if Map.containsKey x d then d.Item(x) else ell
@@ -118,14 +123,35 @@ let rename_constraints cs (d : Map<Ide, TypeLevel>) =
             | Glb ls -> Glb (List.map inner ls)
             | _ -> ell
 
-        List.map (fun c -> match c with Leq(l, l') -> Leq(inner l, inner l')) cs
+        List.map (fun (c) -> match c with Leq(l, l') -> Leq(inner l, inner l'), "") cs // TODO : keep the constraint info here
         |> expand_and_filter
 
 
-let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
-    
-    let filltered = expand_and_filter cs
+let mentions v (c: Constraint): bool = 
+    let rec has (l: TypeLevel) : bool =
+        match l with 
+        | LevelVar x -> x = v
+        | Lub ls -> 
+            List.exists has ls 
+        | _ -> false
+             
+    match c with Leq(l1, l2) -> (has l1) || (has l2)
 
+
+let all_mentions (cs: Constraint list): Ide list = 
+    let rec has (l: TypeLevel) : Ide list =
+        match l with 
+        | LevelVar x -> [x]
+        | Lub ls -> 
+            List.map has ls |> List.concat 
+        | _ -> []
+             
+    cs |> List.map (fun css -> match css with Leq(l1, l2) -> List.concat [(has l1); (has l2)])
+       |> List.concat
+            
+
+let naive_solver (cs: ConstraintInfo list): Map<Ide, TypeLevel> =
+    
     let init_dict_forwards filltered =
         let folder (s: (Ide*TypeLevel) list) (c:Constraint) =
             match c with
@@ -296,7 +322,8 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
             else 
                 let cs', vars' = 
                     new_cs 
-                    |> expand_and_filter
+                    |> expand_and_filter 
+                    |> List.unzip |> fst
                     |> model_equality_filter
 
                 cs', List.append vars' model_vars 
@@ -306,11 +333,15 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
         let data_eq_vars = List.map (fun c -> match c with Leq(LevelVar x, Data) -> x) cs'
         let data_eq_vars_map = Map.ofList (List.map (fun v -> v, Data) data_eq_vars)
         let data_cs = rename_constraints rest' data_eq_vars_map
+                    |> List.unzip 
+                    |> fst
     
         let cs'', rest'' = List.partition (fun c -> match c with Leq(GenQuant, LevelVar _) -> true | _ -> false) data_cs
         let gq_eq_vars = List.map (fun c -> match c with Leq(GenQuant, LevelVar x) -> x) cs''
         let gq_eq_vars_map = Map.ofList (List.map (fun v -> v, GenQuant) gq_eq_vars)
         let gq_cs = rename_constraints rest'' gq_eq_vars_map
+                  |> List.unzip 
+                  |> fst
 
         let model_eq_cs, model_eq_vars = model_equality_filter gq_cs
         let model_eq_vars_map = Map.ofList (List.map (fun v -> v, Model) model_eq_vars)
@@ -321,6 +352,9 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
                                    (Map.toSeq data_eq_vars_map) ])
 
         let res_cs = rename_constraints model_eq_cs all
+                    |> List.unzip 
+                    |> fst
+
         let res_cs2 =  List.map (
                         fun c -> match c with
                                  | Leq( LevelVar x, Lub [LevelVar y; Model] ) ->
@@ -343,6 +377,11 @@ let naive_solver (cs: Constraint list): Map<Ide, TypeLevel> =
             | _ -> false
         
         List.filter (fun c -> is_tautology c |> not) cs
+
+
+    let interesting = List.filter (fun (c, i) -> mentions "l23" c) cs
+
+    let filltered, _ = expand_and_filter cs |> List.unzip
 
     let quick_cs', quick_vars = resolve_quick filltered
 

@@ -14,6 +14,9 @@ let next_message () =
 let is_discrete_parameter W = 
     fun (x, (tp, tl)) -> tl = Model && tp <. Int && (Set.contains x W |> not)
 
+let is_discrete_parameter_alt W = 
+    fun (x, (tp, tl)) -> tp <. Int && (tl = Model || tl = Data) && (Set.contains x W |> not)
+
 let discrete_vars W gamma = 
     Map.toList gamma 
     |> List.filter (is_discrete_parameter W) 
@@ -129,11 +132,8 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
                     match level with
-                    | Model ->  if tau <. Int && (Set.contains x W |> not) then //tau, Model 
-                                    if x = d then tau, Model
-                                    // elif Set.contains x (Set.ofList neighbours) then tau, Model
-                                    // else tau, GenQuant
-                                    else tau, LevelVar(SlicStanSyntax.next()) 
+                    | Model ->  if tau <. Int && (Set.contains x W |> not) then 
+                                    tau, LevelVar(SlicStanSyntax.next()) 
                                 elif Real <. tau && (Set.contains x W |> not) then tau, Data                                
                                 else tau, LevelVar(SlicStanSyntax.next()) 
                     | _ -> tau, level
