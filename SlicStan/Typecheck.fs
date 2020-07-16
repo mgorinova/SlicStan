@@ -35,7 +35,8 @@ let ty x: TypePrim =
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
-    List.fold (fun s ell -> if s <= ell then ell else s) Data ells
+    let ret = List.fold (fun s ell -> if s <= ell then ell else s) Data ells
+    ret
 
 let rec glb (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -55,6 +56,7 @@ let rec simplify_type (ell : TypeLevel) : TypeLevel =
     | Data -> Data
     | Model -> Model
     | GenQuant -> GenQuant
+    | Lz -> Lz
     | Lub ells -> lub (List.map simplify_type ells)
     | Glb ells -> glb (List.map simplify_type ells)
     | _ -> failwith "can't simplify unknown type"
@@ -507,15 +509,28 @@ let rename_SlicStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
         
     List.map rename_def defs, rename_S s
 
+
+let get_level_vars (gamma: Gamma) = 
+    Map.toList gamma
+    |> List.map snd // get list of types
+    |> List.map snd // get list of level types
+    |> List.map (fun ell -> match ell with LevelVar x -> x | _ -> "")
+    |> List.filter (fun x -> x = "" |> not)
+    |> Set.ofList
+    |> Set.toList
+
 let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =     
 
     let signatures, cdefs = List.fold (fun (signatures, cs) def -> 
                                             let s', c' = typecheck_Def signatures def
                                             s', List.append cs c') (Buildins, []) defs
     
-    let _, c = check_S signatures (Map.empty) s Data  
+    let gamma, c = check_S signatures (Map.empty) s Data  
 
-    let inferred_levels = Constraints.naive_solver (List.append cdefs c)
+    let vars = get_level_vars gamma
+    let constr = List.append cdefs c |> List.map fst // FIXME: we probably want to retain the constraint information
+    
+    let inferred_levels = ConstraintSolver.resolve(constr, vars) // Constraints.naive_solver (List.append cdefs c)
 
     //printfn "Inferred type levels:  %A\n" (inferred_levels)
 
@@ -529,7 +544,9 @@ let rename_elaborated inferred_levels (gamma : Gamma) (s : S) : Gamma * S =
                     match ell with
                     | LevelVar(name) -> 
                         let ell = Map.tryFind name inferred_levels
-                        tau, match ell with Some(l) -> l | None -> Data
+                        tau, match ell with 
+                             | Some(l) -> l 
+                             | None -> if toplevel then Data else GenQuant
                     | _ -> tau, ell
                 ) gamma
     
@@ -560,7 +577,7 @@ let typecheck_elaborated gamma s =
         if toplevel then
             Constraints.naive_solver (List.append c extra)    
         else 
-            Constraints.semilattice_solver (List.append c extra)    
+            Constraints.semilattice_solver c   
 
     rename_elaborated inferred_levels gamma s 
 

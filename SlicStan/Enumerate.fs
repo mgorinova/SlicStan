@@ -175,7 +175,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let s_message = Message ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
     let s_factor = Factor ( Util.indices_list_to_exp (Var(message_name)) (List.map Var neighbours) )
-    let s_gen = Generate ( ((Int, GenQuant), d), sm2)
+    let s_gen = Generate ( ((tau_d |> fst, GenQuant), d), sm2)
 
     let s' = SlicStanSyntax.SofList [ sd; sm1; s_message; s_factor; sm22; s_gen; sq ]
     

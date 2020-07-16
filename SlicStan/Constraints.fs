@@ -7,7 +7,7 @@
 
 open SlicStanSyntax
 
-type Constraint = Leq of TypeLevel * TypeLevel
+type Constraint = Leq of TypeLevel * TypeLevel | Exists of TypeLevel * TypeLevel 
 type ConstraintInfo = Constraint * string 
 
 exception CouldNotResolveTypesError 
@@ -39,6 +39,14 @@ let make_ground_glb (ls : TypeLevel list): TypeLevel =
             else Model
         List.fold (fun s l -> if s <= l then s else l) start ls
 
+
+let rec distinct_pairs l =
+    match l with
+    | [] | [_] -> []
+    | h :: t -> 
+        [for x in t do
+            yield h,x
+         yield! distinct_pairs t]
 
 let rec constraints_pretty (cs : Constraint list) =
     
@@ -144,6 +152,7 @@ let expand_and_filter_semilattice (cs: ConstraintInfo list): ConstraintInfo list
                  | LevelVar(x), LevelVar(y) -> x = y             
                  | l, LevelVar(_) -> l = Data
                  | _ -> false
+        | _ -> false
 
     let rec recursive_lub_var_filtering ls = 
         match ls with
@@ -253,19 +262,50 @@ let expand_and_filter_semilattice (cs: ConstraintInfo list): ConstraintInfo list
         | Leq (Glb ls, l) -> 
             if List.exists (fun li -> match li with Data -> true | _ -> false) ls
             then expand_constraint (Leq(Data, l))
-            else failwith "don't know how to deal with this case!"
+            else [c] //failwith "don't know how to deal with this case!"
 
         | _ -> [c]
 
 
     // printf "Constrint list: %A" cs
 
+    let lub_to_constraints (ls: TypeLevel list) : Constraint list =
+
+        if List.contains GenQuant ls then
+            if List.contains Lz ls then failwith "Could not resove constraints"
+            else 
+                List.filter (fun l -> l = GenQuant |> not) ls
+                |> List.map (fun l -> Leq(l, GenQuant)) 
+        elif List.contains Lz ls then
+            List.filter (fun l -> l = Lz |> not) ls
+            |> List.map (fun l -> Leq(l, Lz)) 
+        else        
+            let x = List.filter (fun l -> (l = Data |> not) && (l = Model |> not)) ls
+            List.map (fun pair -> Exists pair) (distinct_pairs x)
+
+
+    let simplify_exists (c : Constraint) : Constraint list = 
+        match c with 
+        | Leq (Data, Glb ls) -> 
+            List.filter (fun l -> match l with Lub _ -> true | _ -> false) ls
+                |> List.map (fun l -> match l with Lub lss -> lss)                   
+                |> List.map lub_to_constraints 
+                |> List.fold (fun s l -> List.append l s) []
+            
+        // TODO: needs expansion of cases
+        | _ -> [c]   
+        
     let x : ConstraintInfo list = 
         List.fold (fun s (c, i) -> 
             let expanded = (expand_constraint c)
             List.append s (List.zip expanded (List.replicate (List.length expanded ) i) )) [] cs
 
-    let y = x |> List.filter (fun i -> tautology i |> not)
+    let xp = 
+        List.fold (fun s (c, i) -> 
+            List.append s (List.map (fun cp -> cp, i) (simplify_exists c))
+            ) [] x
+
+    let y = xp |> List.filter (fun i -> tautology i |> not)
     y |> Set.ofList |> Set.toList
 
 
@@ -306,13 +346,32 @@ let all_mentions (cs: Constraint list): Ide list =
 
 let semilattice_solver (cs: ConstraintInfo list): Map<Ide, TypeLevel> = 
 
-    List.map (fun f -> printf "%A\n\n" (fst f)) cs 
+    //List.map (fun f -> printf "%A\n\n" (fst f)) cs 
 
     let filltered = expand_and_filter_semilattice cs // |> List.unzip
 
-    printf "%A" filltered
+    // maybe we can use z3 to resolve the constraints?
 
-    failwith "not implemented"
+    //let ret : Map<Ide, TypeLevel> = Map.empty
+    
+    let ret = List.map (fun (c, i) ->
+                match c with 
+                | Leq(LevelVar x, Lz) -> 
+                    x, Data                    
+                | Leq(Lz, LevelVar x) -> 
+                    x, Lz            
+                | Leq(LevelVar x, GenQuant) -> 
+                    x, GenQuant
+                | Leq(GenQuant, LevelVar x) -> 
+                    x, GenQuant
+                | _ -> "", Data
+                ) filltered
+            |> List.filter (fun (name, ell) -> name = "" |> not)
+            |> Map.ofList
+
+    ret
+    
+    //failwith "not implemented"
 
 let naive_solver (cs: ConstraintInfo list): Map<Ide, TypeLevel> =
     

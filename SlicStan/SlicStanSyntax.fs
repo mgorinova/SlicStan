@@ -127,6 +127,7 @@ let (<=) (l1:TypeLevel) (l2:TypeLevel) =
     | Model, Data -> false
     | Model, _ -> true
     | Lz, GenQuant -> false 
+    | Lz, Data -> false
     | Lz, Lz -> true
     | GenQuant, Lz -> false
     | GenQuant, Data -> false    

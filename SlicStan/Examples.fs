@@ -96,7 +96,7 @@ p_wet[2] = to_vector([ 0.9, 0.99 ]);
 int<2> cloudy ~ bernoulli(p);
 int<2> sprinkler ~ bernoulli(p_sprinkler[cloudy]);
 int<2> rain ~ bernoulli(p_rain[cloudy]);
-data int wet ~ bernoulli(p_wet[sprinkler][rain]);
+int<2> wet ~ bernoulli(p_wet[sprinkler][rain]);
 "
 
 let sprinkler_ifs = "
@@ -197,6 +197,15 @@ real c1 ~ normal(td1, 1);
 int<3> d2 ~ categorical(pi);
 int td2 = d2;
 real c2 ~ normal(td2, 1);
+"
+
+let discrete_madeup = "
+data real pi;
+int<2> z ~ bernoulli(0.5);
+int<2> z1 ~ bernoulli(pi * z);
+real x = 2 * z1;
+int<2> z2 ~ bernoulli(pi * z * x);
+int<2> z3 ~ bernoulli(pi * x);
 "
 
 let discrete_paper = "
@@ -301,48 +310,76 @@ let soft_k_means = "
 data int N;  
 data int D;  
 data int K;  
-data real pi;
+data real[K] pi;
 data real[D][N] y;  
 
 real[D][K] mu; 
-for(int d in 1 : D) {
-    mu[d] ~ normal(0, 1);
+for(d in 1 : D) {
+    for(k in 1 : K) {
+        mu[d][k] ~ normal(0, 1);
+    }
 }
 
 int<K>[N] z;  
 
-for(int n in 1 : N) {
+for(n in 1 : N) {
     z[n] ~ categorical(pi);
-    y[n] ~ normal(mu[z[n]], 1);
+    for(d in 1 : D) {
+        y[d][n] ~ normal(mu[d][z[n]], 1);
+    }
 }
 "
+
+
+let click_graph = """
+data int clicks1;
+data int clicks2;
+
+real beta12 ~ beta(1, 1);
+real beta1 ~ beta(1, 1);
+real beta2 ~ beta(1, 1);
+
+real similarity_all ~ beta(1, 1);
+int<2> sim ~ bernoulli(similarity_all);
+
+
+if(sim > 0){
+    clicks1 ~ bernoulli(beta12);
+    clicks2 ~ bernoulli(beta12);
+}
+else{
+    clicks1 ~ bernoulli(beta1);
+    clicks2 ~ bernoulli(beta2);
+}
+"""
+
 
 let soft_k_means_no_array = " 
 data int D;  
 data int K; 
-data real N;
-data real pi;
+data real[K] pi;
 
+data real N;
 N = 3;
+
 data real[D][N] y;  
 
 real[D][K] mu; 
-for(int d in 1 : D) {
-    mu[d] ~ normal(0, 1);
+for(d in 1 : D) {
+    for(k in 1 : K){
+        mu[d][k] ~ normal(0, 1);
+    }
 }
 
-int<K> z1;
-int<K> z2;
-int<K> z3;
+int<K> z1 ~ categorical(pi);
+int<K> z2 ~ categorical(pi);
+int<K> z3 ~ categorical(pi);
 
-z1 ~ categorical(pi);
-y[1] ~ normal(mu[z1], 1);
-
-z2 ~ categorical(pi);
-y[2] ~ normal(mu[z2], 1);
-
-z3 ~ categorical(pi);
-y[3] ~ normal(mu[z3], 1);
+for(d in 1 : D) {
+    y[d][1] ~ normal(mu[d][z1], 1);    
+    y[d][2] ~ normal(mu[d][z2], 1);    
+    y[d][3] ~ normal(mu[d][z3], 1);
+}
 "
 
 let discrete_chain = "

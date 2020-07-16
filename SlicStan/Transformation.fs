@@ -165,7 +165,25 @@ let rec to_Stan_statements (S: S) : Statements =
     | SlicStanSyntax.Skip -> SNone
     | SlicStanSyntax.Decl _ -> failwith "unexpected in translation"
     | SlicStanSyntax.Message((T, x), args, s) ->
-        failwith "Translation of message to Stan not yet implemented"
+        
+        if List.length args > 1 then      
+            failwith "Translation of message to Stan not yet implemented"
+
+        elif List.length args = 1 then 
+            let a = List.head args            
+            //let support_arr_size = get_support(fst T) 
+            //let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
+            let support_arr_size = N(2)
+            let support = Const(2.0) // FIXME: not the right size
+            let def = Let(I(x), Prim("rep_vector", [Const(0.0); support]))
+            let loop = For(a, N(1), support_arr_size, to_Stan_statements s |> target_in (A(I(x), Var(a))))        
+            SSeq(def, loop)
+
+        else 
+            let def = Let(I(x), Const(0.0))
+            let loop = to_Stan_statements s |> target_in (I(x))  
+            SSeq(def, loop)
+
         (*let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
         let def = Let(I(message), Prim("rep_vector", [Const(0.0); support]))
@@ -254,7 +272,7 @@ let rec transform_model (S: S) : MiniStanProg =
     | SlicStanSyntax.Sample(e, d) -> 
         P(DNone, TDNone, PNone, TPNone, MBlock(VNone, Sample(e, d)), GQNone)  
     | SlicStanSyntax.Factor(e) ->
-        failwith "Transformation.transform_model: factor not yet implemented"
+        P(DNone, TDNone, PNone, TPNone, MBlock(VNone, PlusEq(I("target"), e)), GQNone) 
     | SlicStanSyntax.If(e, s1, s2) -> 
         if has_target s1 || has_target s2 
         then P(DNone, TDNone, PNone, TPNone, MBlock(VNone, to_Stan_statements S), GQNone)  
