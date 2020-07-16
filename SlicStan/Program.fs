@@ -13,8 +13,6 @@ open Enumerate
 open Shredding
 open Transformation
 
-open Constraints
-
 open System.Diagnostics;
 
 open System.IO
@@ -32,8 +30,8 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.simple
-let name = Util.get_var_name <@Examples.simple@>
+let example = Examples.discrete_paper
+let name = Util.get_var_name <@Examples.discrete_paper@>
 printfn "Name is %s" name
 set_folder (name)
 
@@ -43,6 +41,8 @@ set_folder (name)
 let main argv =   
 
     printfn "%A" (resolve([Leq(Data, LevelVar "l1"); Leq(Model, Lub([LevelVar "l2"; Data]))], ["l1"; "l2"]))
+
+    printfn "%A" (resolve_semilattice([Leq(Data, LevelVar "l1"); Leq(Model, Lub([LevelVar "l2"; Lz]))], ["l1"; "l2"]))
 
     let option = try argv.[0] with _ -> "--no-input"
     
@@ -78,12 +78,12 @@ let main argv =
 
     // Tests.test_neighbour()
 
-    //let W, graph = Factorgraph.to_graph (snd typechecked)
+    let W, graph = Factorgraph.to_graph (snd typechecked)
     //graphviz graph 0 "init"
-    //let ordering = Factorgraph.find_ordering W graph // |> List.rev
+    let ordering = Factorgraph.find_ordering W graph // |> List.rev
     //let ordering = ["z2"; "z3"; "z4"; "z1"]
     //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
-    let ordering = ["sim"]
+    //let ordering = ["sim"]
 
     printfn "Elimination ordering:\n%A" ordering
 

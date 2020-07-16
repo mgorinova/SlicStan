@@ -21,7 +21,6 @@
 		<Compile Include="Lexer.fs" />
 		<Compile Include="Map.fs" />
     <Compile Include="Util.fs" />
-    <Compile Include="Constraints.fs" />
     <Compile Include="ConstraintSolver.fs" />
     <Compile Include="Typecheck.fs" />
     <Compile Include="Factorgraph.fs" />

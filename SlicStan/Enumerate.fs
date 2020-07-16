@@ -93,15 +93,6 @@ let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
             if Set.intersect (reads S) vars |> Set.isEmpty then Set.empty
             else (reads S)
     inner s 
-
-let neighbour v1 v2 s = 
-    let x1 = all_dependent_transformed_vars s (Set.add v2 (Set.empty))
-    let x1' = all_dependent_transformed_vars s (Set.add v1 (Set.empty))
-    let x2 = x1 |> all_dependent_vars s 
-    let x2' = x1' |> all_dependent_vars s 
-    let x3 = x2 |> Set.contains v1 && v1 <> v2
-    let x3' = x2' |> Set.contains v2 && v1 <> v2
-    x3 || x3'
     
 
 let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S = 
@@ -109,25 +100,10 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
 
     let sd, sm, sq = Shredding.shred_S gamma s 
-
-    //printfn "Gamma temp: %A\n\n" gamma_temp
+    
     // printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
    
     let W = assigns sm
-
-
-    (*let neighbours = gamma
-                   |> Map.filter (fun x (_, level) -> 
-                        match level with 
-                        | Model -> Set.contains x W |> not && neighbour x d s
-                        | _ -> false)
-                   |> Map.filter (fun x (tau, _) -> 
-                        match tau with 
-                        | Constrained(Int, _) -> true
-                        | _ -> false)
-                   |> Map.toList
-                   |> List.map fst 
-                   //|> Set.ofList*)
 
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
@@ -148,7 +124,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let sm1, sm2, sm22 = Shredding.shred_S gamma_temp sm'
 
-    printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
+    // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do

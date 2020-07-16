@@ -1,12 +1,14 @@
 ﻿module Typecheck
 
 open SlicStanSyntax
-open Constraints
+open ConstraintSolver
 open Util
+
 
 type Gamma = Map<Ide,Type> 
 type FunSignature = (TypePrim list) * (TypeLevel list) * Type
 type Signatures = Map<string, FunSignature>
+
 
 let mutable toplevel = true // FIXME: bad style, refactor code whenever there's time
 let mutable dv : Ide = ""
@@ -572,12 +574,18 @@ let typecheck_elaborated gamma s =
     let extra = Map.toList gamma
               |> List.filter (fun (x, (_, tl)) -> (Set.contains x W |> not ) && (tl = Data |> not))
               |> List.map (fun (_, (_, tl)) -> Leq(Model, tl), "extra")
-              
+     
+    let vars = get_level_vars gamma
+
     let inferred_levels = 
         if toplevel then
-            Constraints.naive_solver (List.append c extra)    
-        else 
-            Constraints.semilattice_solver c   
+            let constr = List.append c extra |> List.map fst // FIXME: we probably want to retain the constraint information 
+            ConstraintSolver.resolve(constr, vars)
+            //Constraints.naive_solver (List.append c extra)    
+        else
+            let constr = c |> List.map fst // FIXME: we probably want to retain the constraint information 
+            ConstraintSolver.resolve_semilattice(constr, vars)
+            //Constraints.semilattice_solver c   
 
     rename_elaborated inferred_levels gamma s 
 
