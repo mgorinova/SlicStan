@@ -97,13 +97,13 @@ let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
 
 let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S = 
     
-    printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
+    // printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
 
     let sd, sm, sq = Shredding.shred_S gamma s 
     
     // printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
    
-    let W = assigns sm
+    let W = assigns s
 
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 

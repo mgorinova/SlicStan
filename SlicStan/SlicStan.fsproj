@@ -22,6 +22,7 @@
 		<Compile Include="Map.fs" />
     <Compile Include="Util.fs" />
     <Compile Include="ConstraintSolver.fs" />
+    <Compile Include="ConstraintSimplification.fs" />
     <Compile Include="Typecheck.fs" />
     <Compile Include="Factorgraph.fs" />
     <Compile Include="Elaborate.fs" />

@@ -88,7 +88,7 @@ let rec assigns (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | Message(arg, args, s) -> Set.remove (snd arg) (assigns s)
+    | Message(arg, args, s) ->  Set.difference ( Set.add (snd arg) (assigns s) ) (Set.ofList args)
     | Elim(arg, s) -> Set.remove (snd arg) (assigns s)
     | Generate(arg, s) -> assigns s
 

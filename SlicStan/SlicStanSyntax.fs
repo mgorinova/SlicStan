@@ -34,7 +34,6 @@ type Exp = Var of Ide
          | ECall of FunIde * Exp list     
           
 
-
 // M' = matrix transpose
 // inverse(M) = inverse
 // M1 * M2 = matrix multiplication
@@ -147,9 +146,12 @@ let rec (==) (p1: TypePrim) (p2: TypePrim) : bool =
     | Matrix(m1, n1), Matrix(m2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (m1 = AnySize || m2 = AnySize || m1 = m2)
     | Array(tp1, n1), Array(tp2, n2) -> (n1 = AnySize || n2 = AnySize || n1 = n2) && (tp1 == tp2)
     | Array(tp, _), p -> p = tp // vectorisation
+    | p, Array(tp, _) -> p = tp // vectorisation
     | Vector _, p -> p = Real   // vectorisation
+    | p, Vector _ -> p = Real   // vectorisation
     | _ -> false
 
+/// A lightweight subtyping relation for SlicStan types
 let rec (<.) (p1: TypePrim) (p2: TypePrim) : bool =
     p2 == p1 || (
     match p1, p2 with

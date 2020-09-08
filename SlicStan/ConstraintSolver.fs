@@ -1,16 +1,17 @@
 ﻿module ConstraintSolver
 
-open System
 open Microsoft.Z3
 open SlicStanSyntax
 
 type Constraint = Leq of TypeLevel * TypeLevel
 type ConstraintInfo = Constraint * string 
 
-let resolve (constraints : Constraint list, level_vars_names : string list) = 
+let resolve (constraints_info : ConstraintInfo list, level_vars_names : string list) = 
+
+    let constraints = List.map fst constraints_info
 
     use context = new Context()
-    let solver = context.MkOptimize()
+    let solver = context.MkOptimize() //.MkSolver() //
 
     let data_constr = context.MkConstructor("data", "is_data")
     let model_constr = context.MkConstructor("model", "is_model")
@@ -64,6 +65,8 @@ let resolve (constraints : Constraint list, level_vars_names : string list) =
     let leq_definition = [ data <=. data; data <=. model; data <=. genquant;
                            nott (model <=. data); model <=. model; model <=. genquant;
                            nott (genquant <=. data); nott (genquant <=. model); genquant <=. genquant;]
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
 
     let nil = context.MkConst(levlist.NilDecl)
     let single_data = data &&. nil
@@ -89,6 +92,8 @@ let resolve (constraints : Constraint list, level_vars_names : string list) =
                            lubOf (genquant &&. single_genquant) =. genquant; lubOf (genquant &&. single_model) =. genquant;
                            lubOf (genquant &&. single_data) =. genquant;
                            q_lub ]
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
 
     //////////////////////////////
 
@@ -106,14 +111,18 @@ let resolve (constraints : Constraint list, level_vars_names : string list) =
                            glbOf (genquant &&. single_genquant) =. genquant; glbOf (genquant &&. single_model) =. model;
                            glbOf (genquant &&. single_data) =. data;
                            q_glb ]
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
 
     let translated = List.map translate constraints
 
     solver.Assert(leq_definition)
     solver.Assert(lub_definition)
     solver.Assert(glb_definition)
-    solver.Assert(translated)
     
+    for i in 0 .. List.length translated - 1 do 
+        let label = context.MkBoolConst(sprintf "C%A" i)
+        solver.Assert(List.item i translated) //, label) // AssertAndTrack
 
     for k, l in Map.toList level_vars do
         let _ = solver.AssertSoft(l =. data, uint32 100, ":weight")
@@ -134,7 +143,14 @@ let resolve (constraints : Constraint list, level_vars_names : string list) =
                     | _ -> failwith "unexpected" 
             ) level_vars 
 
-        | _ -> failwith "Could not resolve constraints!"
+        | _ -> 
+            let unsat = solver.UnsatCore
+            let index = sprintf "%A" unsat.[0]
+                     |> fun x -> System.Int32.TryParse (x.[1..1]) |> snd
+            
+            let problematic_constraint = List.item index constraints_info
+
+            failwith (sprintf "Could not resolve constraints! %A" (snd problematic_constraint))
 
     context.Dispose()
 
@@ -142,10 +158,12 @@ let resolve (constraints : Constraint list, level_vars_names : string list) =
 
 
 
-let resolve_semilattice (constraints : Constraint list, level_vars_names : string list) = 
+let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_names : string list) = 
+
+    let constraints = List.map fst constraints_info
 
     use context = new Context()
-    let solver = context.MkOptimize()
+    let solver = context.MkOptimize() //MkSolver() //.
 
     let l1_constr = context.MkConstructor("l1", "is_l1")
     let l2_constr = context.MkConstructor("l2", "is_l2")
@@ -199,11 +217,15 @@ let resolve_semilattice (constraints : Constraint list, level_vars_names : strin
             let new1 = translate_level lev1
             let new2 = translate_level lev2
             context.MkAnd( new1 <=. new2,  context.MkAnd(new1 =. err |> nott, new2 =. err |> nott))
-
+            //(new1 <=. new2).Simplify() :?> BoolExpr
 
     let leq_definition = [ l1 <=. l1; l1 <=. l2; l1 <=. l3;
                            nott (l2 <=. l1); l2 <=. l2; nott(l2 <=. l3);
                            nott (l3 <=. l1); nott (l3 <=. l2); l3 <=. l3;]
+                        
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
+
 
     let nil = context.MkConst(levlist.NilDecl)
     let single_l1 = l1 &&. nil
@@ -216,11 +238,12 @@ let resolve_semilattice (constraints : Constraint list, level_vars_names : strin
     let ells_symbol = context.MkSymbol("ells") :> Symbol
     let ells = context.MkConst(ell_symbol, levlist)
 
+    let body_base = lubOf (ell &&. nil) =. ell
     let body = lubOf (ell &&. ells) =. lubOf (ell &&. (lubOf ells &&. nil))
 
     let q_lub = context.MkForall([| Level :> Sort; levlist :> Sort |], 
-                             [| ell_symbol ; ells_symbol |], 
-                             body) :> BoolExpr
+                                 [| ell_symbol ; ells_symbol |], 
+                                 context.MkAnd(body_base, body)) :> BoolExpr
 
     let lub_definition = [ lubOf nil =. l1; lubOf single_l1 =. l1; lubOf single_l2 =. l2; 
                            lubOf single_l3 =. l3; lubOf single_err =. err;
@@ -235,13 +258,17 @@ let resolve_semilattice (constraints : Constraint list, level_vars_names : strin
                            lubOf (l3 &&. single_err) =. err; 
                            q_lub ]
 
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
+
     //////////////////////////////
 
+    let body_base = glbOf (ell &&. nil) =. ell
     let body = glbOf (ell &&. ells) =. glbOf (ell &&. (glbOf ells &&. nil))
 
     let q_glb = context.MkForall([| Level :> Sort; levlist :> Sort |], 
                                  [| ell_symbol ; ells_symbol |], 
-                                 body) :> BoolExpr
+                                 context.MkAnd(body_base, body)) :> BoolExpr
 
     let glb_definition = [ glbOf single_l1 =. l1; glbOf single_l2 =. l2; glbOf single_l3 =. l3; 
                            glbOf (l1 &&. single_l1) =. l1; glbOf (l1 &&. single_l2) =. l1; 
@@ -254,15 +281,22 @@ let resolve_semilattice (constraints : Constraint list, level_vars_names : strin
                            glbOf (l1 &&. single_err) =. err; glbOf (l2 &&. single_err) =. err;
                            glbOf (l3 &&. single_err) =. err; glbOf single_err =. err;
                            q_glb ]
+                        |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                        |> fun e -> e.Simplify() :?> BoolExpr
 
     let translated = List.map translate constraints
+                   //|> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
+                   //|> fun e -> e.Simplify() :?> BoolExpr
 
+  
     solver.Assert(leq_definition)
     solver.Assert(lub_definition)
     solver.Assert(glb_definition)
-    solver.Assert(translated)
     
-
+    for i in 0 .. List.length translated - 1 do 
+        let label = context.MkBoolConst(sprintf "C%A" i)
+        solver.Assert(List.item i translated) //, label) //.AssertAndTrack
+        
     for k, l in Map.toList level_vars do
         let _ = solver.AssertSoft(l =. l1, uint32 10, ":weight")
         let _ = solver.AssertSoft(l =. l2, uint32 0, ":weight")
@@ -273,16 +307,24 @@ let resolve_semilattice (constraints : Constraint list, level_vars_names : strin
         match solver.Check() with
         | Status.SATISFIABLE ->
             let m = solver.Model
-            Map.map (
-                fun k l ->  
-                    match m.Evaluate(l).ToString() with 
-                    | "l1" -> Model 
-                    | "l2" -> Lz 
-                    | "l3" -> GenQuant
-                    | _ -> failwith "unexpected" 
-            ) level_vars 
+            let ret = Map.map (
+                        fun k l ->  
+                            match m.Evaluate(l).ToString() with 
+                            | "l1" -> Model 
+                            | "l2" -> Lz 
+                            | "l3" -> GenQuant
+                            | _ -> failwith "unexpected" 
+                        ) level_vars
+            ret
 
-        | x -> failwith (sprintf "Could not resolve constraints! %A" x)
+        | x -> 
+            let unsat = solver.UnsatCore
+            let index = sprintf "%A" unsat.[0]
+                     |> fun x -> System.Int32.TryParse (x.[1..1]) |> snd
+            
+            let problematic_constraint = List.item index constraints_info
+
+            failwith (sprintf "Could not resolve constraints! %A" (snd problematic_constraint))
 
     context.Dispose()
 
