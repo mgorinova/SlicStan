@@ -30,7 +30,7 @@ let parse slicstan =
 
 // d1 -> d2 -> d3 <- d4 <- d5
 
-let example = Examples.discrete_paper
+let example = Examples.discrete_ifs_sep
 let name = Util.get_var_name <@Examples.discrete_paper@>
 printfn "Name is %s" name
 set_folder (name)

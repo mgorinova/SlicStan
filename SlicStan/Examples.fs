@@ -174,6 +174,27 @@ data real y2 ~ normal(phi[z2], 1);
 data real y3 ~ normal(phi[z3], 1);
 "
 
+let discrete_ifs_sep = "
+    
+int<2> z1 ~ bernoulli(0.5);
+int<2> z2;
+int<2> z3;
+data real[2] phi;
+
+if (z1 > 0) {
+    z2 ~ bernoulli(phi[z1]);
+    z3 ~ bernoulli(phi[z2]);
+}
+else {
+    z2 ~ bernoulli(phi[z1]);
+    z3 ~ bernoulli(phi[z1]);    
+}
+    
+data real y1 ~ normal(phi[z1], 1);
+data real y2 ~ normal(phi[z2], 1);
+data real y3 ~ normal(phi[z3], 1);    
+"
+
 let discrete_hmm_weird = "
 data real[2] phi;
 data real[2] theta;
