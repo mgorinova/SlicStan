@@ -94,9 +94,9 @@ let rec assigns (S: S) : Set<Ide> =
     | For(_, _, _, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | Message((t, name), _, s') -> Set.add name (assigns s')
+    | Phi((t, name), _, s') -> Set.add name (assigns s')
     | Elim(_, s') -> assigns s'
-    | Generate(_, s') -> assigns s'
+    | Gen(_, s') -> assigns s'
 
 
 let rec get_lvalue_level (gamma: Gamma) lhs =
@@ -135,8 +135,7 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
         |> List.map (fun v -> v, l) 
         |> Map.ofList 
 
-    | Sample(lhs, d) -> 
-        
+    | Sample(lhs, d) ->         
         let involved_vars = read_lhs lhs |> Set.union (read_dist d) |> Set.add (LValueBaseName lhs) |> Set.toList
         let l = Lub (List.map (fun v -> Map.find v gamma |> snd) involved_vars)
 
@@ -181,13 +180,13 @@ let rec read_at_level (gamma: Gamma) (S: S) : Map<Ide, TypeLevel> =
 
     | Decl (_, s) -> read_at_level gamma s
     | Skip -> Map.empty
-    | Message(_, args, s') -> 
+    | Phi(_, args, s') -> 
         read_at_level gamma s'
 
     | Elim((T, d), s') -> 
         read_at_level (Map.add d T gamma) s'
 
-    | Generate((T, d), s') -> 
+    | Gen((T, d), s') -> 
         let l = GenQuant
         let involved_vars = reads s' 
         involved_vars 
@@ -234,7 +233,7 @@ let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(Constrai
         if gamma.ContainsKey(x) then gamma.Item(x), []
         else failwith (sprintf "%s not found in type environment" x)
 
-    | Const(n) -> (ty(n), Data), []
+    | Const(n) -> (ty(n), Data), [] // corresponds to (ty(n), L1)
 
     | Arr(Es) -> 
         let PLs, Cs = List.map (synth_E signatures gamma) Es 
@@ -243,7 +242,7 @@ let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(Constrai
         let c = List.fold (List.append) [] Cs
 
         // FIXME: What do we do with an empty array?
-        assert ( List.length Ps > 0 && List.forall (fun p -> p = List.head Ps) Ps )
+        assert ( List.length Ps > 0 && List.forall (fun p -> p = List.head Ps) Ps ) // assert all primitive types are the same
         
         (Array(List.head Ps, N (List.length Ps)), Lub(Ls)), c
 
@@ -445,7 +444,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         let ell, g, c = synth_S signatures gamma' s'
         ell, g, c
 
-    | Message(var, args, s') -> 
+    | Phi(var, args, s') -> 
         let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g ) gamma args
         let ell, g, c = synth_S signatures gamma' s'
         
@@ -459,7 +458,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         //Lub[ell; ell'], g, c
         ell, g, c
 
-    | Generate(var, s') -> 
+    | Gen(var, s') -> 
         let g, c = check_S signatures (Map.map (fun x T -> if x = snd var then fst T, GenQuant else T) gamma) s' GenQuant
         GenQuant, g, c
 

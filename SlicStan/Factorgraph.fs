@@ -126,7 +126,7 @@ let add_factor (S: S) (graph: Graph) =
             //let in_vars = message
             [], []
 
-        | Generate(var, s) -> 
+        | Gen(var, s) -> 
             //let in_vars = message
             [], [snd var]
        

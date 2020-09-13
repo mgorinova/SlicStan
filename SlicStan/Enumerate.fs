@@ -36,9 +36,9 @@ let rec filter_Skips s =
     | Seq(Skip, s') -> filter_Skips s'
     | Seq(s', Skip) -> filter_Skips s'
     | Seq(s1, s2) -> Seq(filter_Skips s1, filter_Skips s2)
-    | Message(arg, args, s') -> Message(arg, args, filter_Skips s') 
+    | Phi(arg, args, s') -> Phi(arg, args, filter_Skips s') 
     | Elim(arg, s') -> Elim(arg, filter_Skips s') 
-    | Generate(arg, s') -> Generate(arg, filter_Skips s') 
+    | Gen(arg, s') -> Gen(arg, filter_Skips s') 
     | _ -> s
     
 
@@ -74,7 +74,7 @@ let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
         let dep1 = all_dependent_transformed_vars s1 vars
         let dep2 = all_dependent_transformed_vars s2 dep1
         dep2
-    | Message(_, _, s') -> all_dependent_transformed_vars s' vars
+    | Phi(_, _, s') -> all_dependent_transformed_vars s' vars
     | Elim(_, s') -> all_dependent_transformed_vars s' vars
     | If(_, s1, s2) -> 
         let dep1 = all_dependent_transformed_vars s1 vars
@@ -87,7 +87,7 @@ let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
     let rec inner S =
         match S with 
         | Seq(s1, s2) -> Set.union (inner s1) (inner s2)
-        | Generate _ -> Set.empty
+        | Gen _ -> Set.empty
         | Assign _ -> Set.empty
         | _ -> 
             if Set.intersect (reads S) vars |> Set.isEmpty then Set.empty
@@ -149,9 +149,9 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                 |> Map.add d (Int, GenQuant) 
                 |> Map.add message_name (tau, Model)
 
-    let s_message = Message ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
+    let s_message = Phi ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
     let s_factor = Factor ( Util.indices_list_to_exp (Var(message_name)) (List.map Var neighbours) )
-    let s_gen = Generate ( ((tau_d |> fst, GenQuant), d), sm2)
+    let s_gen = Gen ( ((tau_d |> fst, GenQuant), d), sm2)
 
     let s' = SlicStanSyntax.SofList [ sd; sm1; s_message; s_factor; sm22; s_gen; sq ]
     

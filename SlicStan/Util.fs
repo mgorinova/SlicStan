@@ -88,9 +88,9 @@ let rec assigns (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | Message(arg, args, s) ->  Set.difference ( Set.add (snd arg) (assigns s) ) (Set.ofList args)
+    | Phi(arg, args, s) ->  Set.difference ( Set.add (snd arg) (assigns s) ) (Set.ofList args)
     | Elim(arg, s) -> Set.remove (snd arg) (assigns s)
-    | Generate(arg, s) -> assigns s
+    | Gen(arg, s) -> assigns s
 
 
 let rec assigns_global (S: S) : Set<Ide> = 
@@ -106,9 +106,9 @@ let rec assigns_global (S: S) : Set<Ide> =
     | For(x, l, u, s) -> assigns_global s
     | Seq(s1, s2) -> Set.union (assigns_global s1) (assigns_global s2)
     | Skip -> Set.empty
-    | Message(arg, _, s) -> Set.add (snd arg) (assigns_global s)
+    | Phi(arg, _, s) -> Set.add (snd arg) (assigns_global s)
     | Elim(_, s) -> assigns_global s
-    | Generate(v, s) -> Set.add (snd v) (assigns_global s)
+    | Gen(v, s) -> Set.add (snd v) (assigns_global s)
 
 
 let rec read_exp (E: Exp) : Set<Ide> =
@@ -153,9 +153,9 @@ let rec reads (S: S) : Set<Ide> =
         |> Set.filter (fun x -> x <> snd i)
     | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
     | Skip -> Set.empty
-    | Message(arg, args, s) -> Set.difference (reads s) (Set.ofList args) 
+    | Phi(arg, args, s) -> Set.difference (reads s) (Set.ofList args) 
     | Elim(arg, s) -> Set.remove (snd arg) (reads s) 
-    | Generate(arg, s) -> reads s
+    | Gen(arg, s) -> reads s
 
 
 

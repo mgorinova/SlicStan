@@ -164,7 +164,7 @@ let rec to_Stan_statements (S: S) : Statements =
     | SlicStanSyntax.Factor(e) -> PlusEq(I("target"), e)
     | SlicStanSyntax.Skip -> SNone
     | SlicStanSyntax.Decl _ -> failwith "unexpected in translation"
-    | SlicStanSyntax.Message((T, x), args, s) ->
+    | SlicStanSyntax.Phi((T, x), args, s) ->
         
         if List.length args > 1 then      
             failwith "Translation of message to Stan not yet implemented"
@@ -205,7 +205,7 @@ let rec to_Stan_statements (S: S) : Statements =
         let sum = Factor( Prim("log_sum_exp", [Var accname]) )
         LocalDecl(Vector support_arr_size, accname, SSeq ( (SSeq(def, loop)), sum ))
 
-    | SlicStanSyntax.Generate((T, x), s) ->
+    | SlicStanSyntax.Gen((T, x), s) ->
         let support_arr_size = get_support(fst T)
         let support = match support_arr_size with N(n) -> Const(float n) | SizeVar(str) -> Var(str)
         
@@ -286,7 +286,7 @@ let rec transform_model (S: S) : MiniStanProg =
         transform_model s2 |> 
         join_stan_p (transform_model s1)
     | Skip -> emptyStanProg
-    | SlicStanSyntax.Message _ -> 
+    | SlicStanSyntax.Phi _ -> 
         P(DNone, TDNone, PNone, TPBlock(VNone, to_Stan_statements S), MBlock(VNone, SNone), GQNone)
 
     | SlicStanSyntax.Elim((T, x), s) -> 

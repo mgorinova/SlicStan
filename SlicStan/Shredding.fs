@@ -91,7 +91,7 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip 
 
-    | Message (var, args, _) -> 
+    | Phi (var, args, _) -> 
         //let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
         //          |> Map.add (snd var) (fst var) 
         //shred_according_to_statement_level gamma' S 
@@ -109,4 +109,4 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         // TODO: try deriving actual rule based on for loops?
         
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma) S
-    | Generate _ -> Skip, Skip, S
+    | Gen _ -> Skip, Skip, S

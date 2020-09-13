@@ -13,7 +13,9 @@ let NotAnySize (n: ArrSize) =
     | N(-1) -> false
     | _ -> true
 
-// (Data, Model, Genquant, Lz) is a semilattice: Data < Model < GenQuant; Data < Model < Lz;
+
+// When working with the conditional independence typing levels, we use Data for L1, Lz for L2 and GenQuant for L3.
+// L1, L2 and L3 form a semilattice, where L1 < L2 and L1 < L3.
 type TypeLevel = LevelVar of string | Data | Model | GenQuant | Lub of TypeLevel list | Glb of TypeLevel list | Lz
 type TypePrim = Bool | Real | Int | Constrained of TypePrim * ArrSize 
               | Array of TypePrim * ArrSize | Vector of ArrSize | Matrix of ArrSize * ArrSize | Unit 
@@ -31,15 +33,8 @@ type Exp = Var of Ide
          | Plus of Exp * Exp // E1 + E2
          | Mul of Exp * Exp // E1 * E2
          | Prim of string * Exp list // sqrt(E1, E2)
-         | ECall of FunIde * Exp list     
+         | ECall of FunIde * Exp list
           
-
-// M' = matrix transpose
-// inverse(M) = inverse
-// M1 * M2 = matrix multiplication
-// M1 / M2 = matrix division is provided, which is much more arithmetically stable than inversion
-// M1 .* M2 = elementwise multiplication
-// M1 ./ M2 = elementwise devision
 
 type LValue = I of Ide | A of LValue * Exp // x[E]
 
@@ -54,8 +49,8 @@ type S = Decl of Arg * S //alpha convertible; make it have a single identifier /
        | Seq of S * S // S1; S2
        | Skip 
        | Elim of Arg * S // Elim of varaible to be eliminated and a statement
-       | Message of Arg * Ide list * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
-       | Generate of Arg * S // Generate Arg using message list and statement
+       | Phi of Arg * Ide list * S // match Arg with int<K> z: for (z in 1:K) S [target -> LValue[z]];
+       | Gen of Arg * S // Generate Arg using message list and statement
 
 
 type FunDef = Fun of FunIde * Arg list * S * Arg
@@ -303,10 +298,10 @@ let rec S_pretty ident S =
   | Elim(var, S) ->
     let (p, _), n = var
     sprintf "%selim(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
-  | Message(arg, vars, S) ->
+  | Phi(arg, vars, S) ->
     let (p, _), name = arg
     sprintf "%s%s = message(%A){\n%s\n%s}" ident name vars (S_pretty ("  " + ident) S) ident
-  | Generate(var, S) ->
+  | Gen(var, S) ->
     let (p, _), n = var
     sprintf "%sgenerate(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
     
