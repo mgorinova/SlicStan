@@ -29,6 +29,7 @@ let shred_according_to_statement_level gamma S =
         | Data -> S, Skip, Skip
         | Model -> Skip, S, Skip
         | GenQuant -> Skip, Skip, S
+        | Lz -> Skip, S, Skip
         | _ -> failwith "unexpected!"
 
 let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
@@ -38,6 +39,7 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         match (Map.gammaItemTypeLevel base_name gamma) with
         | Data -> Assign(lhs, e), Skip, Skip
         | Model -> Skip, Assign(lhs, e), Skip 
+        | Lz -> Skip, Assign(lhs, e), Skip 
         | GenQuant -> Skip, Skip, Assign(lhs, e)
         | _ -> failwith "something went terribly worng"
 
@@ -72,7 +74,11 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         | Model -> 
             Skip,
             If(e, Seq(sd1,sm1), Seq(sd2,sm2)) |> skippify,
-            If(e, sq1, sq2) |> skippify
+            If(e, sq1, sq2) |> skippify        
+        | Lz -> 
+            Skip,
+            If(e, s1, s2) |> skippify,
+            Skip
         | GenQuant ->
             Skip, Skip, If(e, s1, s2)
 
@@ -85,7 +91,7 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip 
 
-    | Message (var, args, _) -> 
+    | Phi (var, args, _) -> 
         //let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
         //          |> Map.add (snd var) (fst var) 
         //shred_according_to_statement_level gamma' S 
@@ -103,4 +109,4 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         // TODO: try deriving actual rule based on for loops?
         
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma) S
-    | Generate _ -> Skip, Skip, S
+    | Gen _ -> Skip, Skip, S

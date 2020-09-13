@@ -12,13 +12,13 @@ type LValue = SlicStanSyntax.LValue
 
 type TIde = TypePrim
 
-type Funcs = string // TODO: define funcs
+type Funcs = string 
 
-type VarDecls = Declr of TIde * Ide // TODO: add type constrains
+type VarDecls = Declr of TIde * Ide 
               | VSeq of VarDecls * VarDecls  
               | VNone
 
-type Statements = Let of LValue * Exp // TODO: add more statements
+type Statements = Let of LValue * Exp 
                 | Sample of LValue * Dist
                 | Factor of Exp
                 | PlusEq of LValue * Exp

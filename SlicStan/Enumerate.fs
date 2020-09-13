@@ -36,9 +36,9 @@ let rec filter_Skips s =
     | Seq(Skip, s') -> filter_Skips s'
     | Seq(s', Skip) -> filter_Skips s'
     | Seq(s1, s2) -> Seq(filter_Skips s1, filter_Skips s2)
-    | Message(arg, args, s') -> Message(arg, args, filter_Skips s') 
+    | Phi(arg, args, s') -> Phi(arg, args, filter_Skips s') 
     | Elim(arg, s') -> Elim(arg, filter_Skips s') 
-    | Generate(arg, s') -> Generate(arg, filter_Skips s') 
+    | Gen(arg, s') -> Gen(arg, filter_Skips s') 
     | _ -> s
     
 
@@ -74,7 +74,7 @@ let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
         let dep1 = all_dependent_transformed_vars s1 vars
         let dep2 = all_dependent_transformed_vars s2 dep1
         dep2
-    | Message(_, _, s') -> all_dependent_transformed_vars s' vars
+    | Phi(_, _, s') -> all_dependent_transformed_vars s' vars
     | Elim(_, s') -> all_dependent_transformed_vars s' vars
     | If(_, s1, s2) -> 
         let dep1 = all_dependent_transformed_vars s1 vars
@@ -87,52 +87,29 @@ let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
     let rec inner S =
         match S with 
         | Seq(s1, s2) -> Set.union (inner s1) (inner s2)
-        | Generate _ -> Set.empty
+        | Gen _ -> Set.empty
         | Assign _ -> Set.empty
         | _ -> 
             if Set.intersect (reads S) vars |> Set.isEmpty then Set.empty
             else (reads S)
     inner s 
-
-let neighbour v1 v2 s = 
-    let x1 = all_dependent_transformed_vars s (Set.add v2 (Set.empty))
-    let x1' = all_dependent_transformed_vars s (Set.add v1 (Set.empty))
-    let x2 = x1 |> all_dependent_vars s 
-    let x2' = x1' |> all_dependent_vars s 
-    let x3 = x2 |> Set.contains v1 && v1 <> v2
-    let x3' = x2' |> Set.contains v2 && v1 <> v2
-    x3 || x3'
     
 
 let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S = 
     
-    printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
+    // printfn "\n***ELIMINATING %s in: \n%A\n\n" d (S_pretty "" (s |> filter_Skips)) 
 
     let sd, sm, sq = Shredding.shred_S gamma s 
-
-    //printfn "Gamma temp: %A\n\n" gamma_temp
+    
     // printfn "\n***FIRST shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sd) (S_pretty "" sm) (S_pretty "" sq) 
    
-    let W = assigns sm
-
-
-    (*let neighbours = gamma
-                   |> Map.filter (fun x (_, level) -> 
-                        match level with 
-                        | Model -> Set.contains x W |> not && neighbour x d s
-                        | _ -> false)
-                   |> Map.filter (fun x (tau, _) -> 
-                        match tau with 
-                        | Constrained(Int, _) -> true
-                        | _ -> false)
-                   |> Map.toList
-                   |> List.map fst 
-                   //|> Set.ofList*)
+    let W = assigns s
 
     let gamma_partial = 
         Map.map (fun x (tau, level) -> 
                     match level with
-                    | Model ->  if tau <. Int && (Set.contains x W |> not) then 
+                    | Model ->  if x = d then tau, Lz
+                                elif tau <. Int && (Set.contains x W |> not) then 
                                     tau, LevelVar(SlicStanSyntax.next()) 
                                 elif Real <. tau && (Set.contains x W |> not) then tau, Data                                
                                 else tau, LevelVar(SlicStanSyntax.next()) 
@@ -147,7 +124,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let sm1, sm2, sm22 = Shredding.shred_S gamma_temp sm'
 
-    printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
+    // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do
@@ -172,9 +149,9 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                 |> Map.add d (Int, GenQuant) 
                 |> Map.add message_name (tau, Model)
 
-    let s_message = Message ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
+    let s_message = Phi ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
     let s_factor = Factor ( Util.indices_list_to_exp (Var(message_name)) (List.map Var neighbours) )
-    let s_gen = Generate ( ((Int, GenQuant), d), sm2)
+    let s_gen = Gen ( ((tau_d |> fst, GenQuant), d), sm2)
 
     let s' = SlicStanSyntax.SofList [ sd; sm1; s_message; s_factor; sm22; s_gen; sq ]
     

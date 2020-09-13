@@ -142,6 +142,8 @@ tp:
   | tp ALEFT IDE ARIGHT {Array($1, SizeVar($3)) }
   | tp ALEFT INT ARIGHT { Array($1, N($3)) }
   | tp ALEFT ARIGHT { Array($1, N(-1)) }
+  | tp LE IDE GE ALEFT IDE ARIGHT { Array(Constrained($1, SizeVar($3)), SizeVar($6)) }
+  | tp ALEFT IDE ARIGHT ALEFT IDE ARIGHT {Array(Array($1, SizeVar($3)), SizeVar($6)) }
   | VECTOR ALEFT IDE ARIGHT {Vector(SizeVar($3)) }
   | VECTOR ALEFT INT ARIGHT {Vector(N($3))}
   | MATRIX ALEFT IDE COMMA IDE ARIGHT {Matrix(SizeVar($3), SizeVar($5))}

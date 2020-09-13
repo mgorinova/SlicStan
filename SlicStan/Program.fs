@@ -13,8 +13,6 @@ open Enumerate
 open Shredding
 open Transformation
 
-open Constraints
-
 open System.Diagnostics;
 
 open System.IO
@@ -22,23 +20,85 @@ open Factorgraph
 
 open Tests
 
+open ConstraintSolver
+
+
+exception TranslationException of string
 
 let parse slicstan = 
     let lexbuf = LexBuffer<char>.FromString slicstan
     let res = Parser.start Lexer.read lexbuf
     res    
+    
 
-// d1 -> d2 -> d3 <- d4 <- d5
+let examples = typeof<Examples.ExamplesModule.ExamplesType>.DeclaringType.GetMethods()
+            
+let enum_with_exception s d = 
+    //try
+    Enumerate.enum s d
+    //with _ -> 
+    //    raise (TranslationException (sprintf "Could not eliminate discrete variable %s" d))
 
-let example = Examples.discrete_ifs_sep
-let name = Util.get_var_name <@Examples.discrete_paper@>
-printfn "Name is %s" name
-set_folder (name)
+let run_single (slic : string) = 
 
-// enumerate only ints of level model that are not TP
+    let parsed = parse slic // try parse slic with _ -> raise (TranslationException "Could not parse")
+    toplevel <- true
+    let typechecked = //typecheck_Prog parsed
+        typecheck_Prog parsed
+        //try typecheck_Prog parsed with _ -> raise (TranslationException "Could not typecheck")
+    
+    let W, graph = Factorgraph.to_graph (snd typechecked)
+    let ordering = Factorgraph.find_ordering W graph
+    //let ordering = ["z2"; "z3"; "z4"; "z1"]
+    //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
+    //let ordering = ["sim"]
+ 
+    let elaborated = try elaborate_Prog typechecked with _ -> raise (TranslationException "Could not elaborate")
+    
+    let gamma, enum = //List.fold (Enumerate.enum) elaborated ordering
+        List.fold (enum_with_exception) elaborated ordering
+
+    // printfn "\n\nSlicStan reduced:\n\n%A" (SlicStanSyntax.S_pretty "" enum)
+    
+    let sd, sm, sq = try shred_S gamma enum with _ -> raise (TranslationException "Could not shred final program")
+
+    let stan = try transform gamma (sd, sm, sq) with _ ->  raise (TranslationException "Failed final translation to Stan")    
+    stan
+
+
+
+let run_many (xs : System.Reflection.MethodInfo []) =
+    for x in xs do
+        try
+            let slic = (x.Invoke(None, [||])).ToString()
+            
+            try 
+                let _ = run_single slic
+                printfn "OK"
+            with 
+                TranslationException message ->  
+                    let name = ((x.Name).[4..(x.Name |> String.length)-1])
+                    printfn "%s failed: %s" name message
+
+        with _ -> ()
+
+
+
+let example = Examples.ExamplesModule.discrete_ifs_sep
 
 [<EntryPoint>]
 let main argv =   
+
+    //run_single (Examples.ExamplesModule.difficulty_vs_ability)
+
+    run_many examples
+
+    //printfn "%A" (resolve([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Data])), ""], ["l1"; "l2"]))
+    //printfn "%A" (resolve_semilattice([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Lz])), ""], ["l1"; "l2"]))
+
+    //printfn "%A" (resolve_semilattice([
+    //                Leq(Lub([Lub([Data; Lz])]), LevelVar "l1"), ""; 
+    //                ], ["l1"]))
 
     let option = try argv.[0] with _ -> "--no-input"
     
@@ -51,50 +111,10 @@ let main argv =
 
                | _ -> option
 
-    printfn "%s\n\n" slic 
+    //printfn "%s\n\n" slic 
+
+    //printfn "%A" (run_single slic |> MiniStanSyntax.Prog_pretty)
+
     
-    (*  BOOKMARK: ToDo next
-        * Make transformed variables truley local to avoid mistakes. 
-        * Think of a way to generalise the whole "what sort of shredding are 
-          we doing", with a "criteria" or something like that. 
-        ----------------------------------------------------------------------
-        * Think about discrete variable arrays. It will be a shame if we don't 
-          implemnt this. Yes, we can unroll the loops for loop bounds known 
-          at static time, but really I think we can do better. 
-
-        * A natural step is to implemented the junction tree algorithm, so 
-          that loops between discrete variables can also be implemented. But
-          is more of an extra; shouldn't be needed for a paper?    
-    *)
-
-    let typechecked = slic
-                    |> parse
-                    |> typecheck_Prog 
-
-
-    // Tests.test_neighbour()
-
-    let W, graph = Factorgraph.to_graph (snd typechecked)
-    graphviz graph 0 "init"
-    let ordering = Factorgraph.find_ordering W graph // |> List.rev
-    //let ordering = ["z2"; "z3"; "z4"; "z1"]
-    //let ordering = ["d3"; "d2"; "d1"; "d4"; "d5"]
-
-    printfn "Elimination ordering:\n%A" ordering
-
-    let elaborated =  elaborate_Prog typechecked
-    
-    let gamma, enum = 
-        List.fold (Enumerate.enum) elaborated ordering
-    
-    printfn "\n\nSlicStan reduced:\n\n%A" (SlicStanSyntax.S_pretty "" enum)
-    
-
-    let sd, sm, sq = shred_S gamma enum
-
-    let stan = transform gamma (sd, sm, sq)
-    
-    printfn "\n\nStan translation:\n\n%s" (MiniStanSyntax.Prog_pretty stan)      
-
     0
 
