@@ -198,7 +198,7 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
     let rec translate_level (ell : TypeLevel) : Expr =
         match ell with 
         | Data -> l1
-        | Model -> l1
+        | Model -> failwith "unexpected! no model level for CI analysis" //l1
         | Lz -> l2
         | GenQuant -> l3
         | LevelVar x -> level_vars.Item(x)
@@ -295,7 +295,7 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
     
     for i in 0 .. List.length translated - 1 do 
         let label = context.MkBoolConst(sprintf "C%A" i)
-        solver.Assert(List.item i translated) //, label) //.AssertAndTrack
+        solver.Assert(List.item i translated)// , label) //.AssertAndTrack
         
     for k, l in Map.toList level_vars do
         let _ = solver.AssertSoft(l =. l1, uint32 10, ":weight")
@@ -309,11 +309,12 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
             let m = solver.Model
             let ret = Map.map (
                         fun k l ->  
-                            match m.Evaluate(l).ToString() with 
+                            let mstr = m.Evaluate(l).ToString()
+                            match mstr with 
                             | "l1" -> Model 
                             | "l2" -> Lz 
                             | "l3" -> GenQuant
-                            | _ -> failwith "unexpected" 
+                            | _ -> failwith "unexpected! can't resolve level type to err" 
                         ) level_vars
             ret
 

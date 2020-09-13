@@ -41,10 +41,11 @@ let enum_with_exception s d =
 
 let run_single (slic : string) = 
 
-    let parsed = try parse slic with _ -> raise (TranslationException "Could not parse")
+    let parsed = parse slic // try parse slic with _ -> raise (TranslationException "Could not parse")
     toplevel <- true
     let typechecked = //typecheck_Prog parsed
-        try typecheck_Prog parsed with _ -> raise (TranslationException "Could not typecheck")
+        typecheck_Prog parsed
+        //try typecheck_Prog parsed with _ -> raise (TranslationException "Could not typecheck")
     
     let W, graph = Factorgraph.to_graph (snd typechecked)
     let ordering = Factorgraph.find_ordering W graph
@@ -57,7 +58,7 @@ let run_single (slic : string) =
     let gamma, enum = //List.fold (Enumerate.enum) elaborated ordering
         List.fold (enum_with_exception) elaborated ordering
 
-    //printfn "\n\nSlicStan reduced:\n\n%A" (SlicStanSyntax.S_pretty "" enum)
+    // printfn "\n\nSlicStan reduced:\n\n%A" (SlicStanSyntax.S_pretty "" enum)
     
     let sd, sm, sq = try shred_S gamma enum with _ -> raise (TranslationException "Could not shred final program")
 
@@ -83,21 +84,21 @@ let run_many (xs : System.Reflection.MethodInfo []) =
 
 
 
-let example = Examples.ExamplesModule.discrete_madeup
+let example = Examples.ExamplesModule.discrete_ifs_sep
 
 [<EntryPoint>]
 let main argv =   
 
-    run_single (Examples.ExamplesModule.discrete_ifs_sep)
+    //run_single (Examples.ExamplesModule.difficulty_vs_ability)
 
-    //run_many examples
+    run_many examples
 
-    printfn "%A" (resolve([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Data])), ""], ["l1"; "l2"]))
-    printfn "%A" (resolve_semilattice([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Lz])), ""], ["l1"; "l2"]))
+    //printfn "%A" (resolve([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Data])), ""], ["l1"; "l2"]))
+    //printfn "%A" (resolve_semilattice([Leq(Data, LevelVar "l1"), ""; Leq(Model, Lub([LevelVar "l2"; Lz])), ""], ["l1"; "l2"]))
 
-    printfn "%A" (resolve_semilattice([
-                    Leq(Lub([Lub([Data; Lz])]), LevelVar "l1"), ""; 
-                    ], ["l1"]))
+    //printfn "%A" (resolve_semilattice([
+    //                Leq(Lub([Lub([Data; Lz])]), LevelVar "l1"), ""; 
+    //                ], ["l1"]))
 
     let option = try argv.[0] with _ -> "--no-input"
     
@@ -110,9 +111,9 @@ let main argv =
 
                | _ -> option
 
-    printfn "%s\n\n" slic 
+    //printfn "%s\n\n" slic 
 
-    printfn "%A" (run_single slic |> MiniStanSyntax.Prog_pretty)
+    //printfn "%A" (run_single slic |> MiniStanSyntax.Prog_pretty)
 
     
     0

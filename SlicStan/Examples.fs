@@ -45,34 +45,38 @@ module ExamplesModule =
     }
     "
 
+(*
     let difficulty_vs_ability = "
     int nQuestions = 100;  
     int nStudents = 40;  
     int nChoices = 4; 
 
     data vector[nQuestions][nStudents] response;
+    data vector[nChoices][nChoices] probs;
+    vector[nQuestions][nStudents] advantage;
+    vector[nQuestions][nStudents] advantageNoisy;
 
     vector[nStudents] ability ~ normal(0, 1);  
     vector[nQuestions] difficulty ~ normal(0, 1);
     vector[nQuestions] discrimination ~ gamma(1, 1);
 
-    int[nQuestions] trueAnswer ~ categorical([0.25, 0.25, 0.25, 0.25]);
+    int<4>[nQuestions] trueAnswer ~ categorical([0.25, 0.25, 0.25, 0.25]);
 
     for (student in 1 : nStudents){
         for (question in 1 : nQuestions){
-            real advantage = ability[student] - difficulty[question];
-            real advantageNoisy ~ normal(advantage, discrimination[question]);
+            advantage[question][student] = ability[student] - difficulty[question];
+            advantageNoisy[question][student] ~ normal(advantage[question][student], discrimination[question]);
         
-            if (advantageNoisy > 0){
-                response[student][question] = trueAnswer[question];
+            if (advantageNoisy[question][student] > 0){
+                response[student][question] ~ categorical(probs[trueAnswer[question]]);
             }
             else{
-                response[subject][question] = categorical([0.25, 0.25, 0.25, 0.25]);
+                response[student][question] ~ categorical([0.25, 0.25, 0.25, 0.25]);
             }
         }
     }
     "
-
+*)
 
     // mean for p  | wet=1  is approximately 0.525
     // p(cloudy    | wet=1) is approximately 0.575; std 0.49
@@ -188,6 +192,21 @@ module ExamplesModule =
     data real y2 ~ normal(phi[z2], 1);
     data real y3 ~ normal(phi[z3], 1);    
     "
+
+    let discrete_ifs_sep_buildup = "
+    
+    int<2> z1 ~ bernoulli(0.5);
+    data real y1;
+
+    if (z1 > 0) {
+        y1 ~ normal(0.3, 1);
+    }
+    else {
+        y1 ~ normal(0.7, 1);
+    }
+    
+    "
+    
 
     let discrete_hmm_weird = "
     data real[2] phi;

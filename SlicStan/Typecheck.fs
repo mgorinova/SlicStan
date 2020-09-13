@@ -227,6 +227,12 @@ let shreddable (gamma: Gamma) (s1: S) (s2: S): ConstraintInfo list =
         |> List.map (fun (_, v) -> v, sprintf "Shreddable(%A, %A)" (S_pretty "" s1) (S_pretty "" s2))
 
 
+let include_target_exp_constraint (gamma: Gamma) (s: S) : TypeLevel = 
+    let ells = read_at_level gamma s |> Map.toList |> List.map snd
+    let ell = Lub ells
+    ell
+
+
 let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(ConstraintInfo list) =
     match e with
     | Var(x) -> 
@@ -325,7 +331,7 @@ let rec synth_D (signatures: Signatures) (gamma: Gamma) (d: Dist): Type*(Constra
 
 let rec check_D (signatures: Signatures) (gamma: Gamma) (d: Dist) ((tau,ell): Type) : ConstraintInfo list =
     let (tau', ell'), c = synth_D signatures gamma d
-    assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
+    //assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
     (Leq(ell',ell), sprintf "(DSub): %A" (D_pretty d))::c
 
 let rec synth_L (signatures: Signatures) (gamma: Gamma) (l: LValue): Type*(ConstraintInfo list) =
@@ -366,6 +372,7 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             ell, emptyGamma, c*)
             
             let ell = LevelVar(next())
+            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
             let c = check_E signatures gamma e (Real, ell) 
             ell, emptyGamma, c
 
@@ -384,24 +391,9 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
             // assert(tau <. tau') 
             // ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
         
-        else// This means we are shredding to eliminate the variable dv.
-            // In this case, we add a constraint to match the respective
-            // criteria: if dv is mentioned in the satetemnt, then all
-            // involved vars are at most Model:
-
-            (*if Set.contains dv (read_dist d)  || Set.contains dv (lhs_to_exp lhs |> read_exp) then
-                // cannot be GenQuant                
-                let cd = check_D signatures gamma d (tau, Model)
-                Model, emptyGamma, (Leq(ell, Model), sprintf "(Sample): %A" (S_pretty "" S))::(List.append clhs cd) // assert (ell <= Model)
-
-            else  *)               
-            // can be GenQuant
-
-            (*let (tau', ell'), cd = synth_D signatures gamma d 
-            assert(tau <. tau')             
-            Lub [ell'; ell], emptyGamma, (List.append clhs cd)*)
-
+        else
             let ell = LevelVar(next())
+            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
             let ce = check_E signatures gamma (lhs_to_exp lhs) (Real, ell) 
             let cd = check_D signatures gamma d (Real, ell) 
             ell, emptyGamma, List.append ce cd
@@ -419,7 +411,13 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         let ce = check_E signatures gamma e (Bool, Lub [ell1; ell2])        
         Glb [ell1; ell2], Map.union gamma1 gamma2, (List.append cs1 cs2 |> List.append ce)
 
-    | Skip -> GenQuant, emptyGamma, []
+    | Skip -> 
+        if toplevel 
+        then GenQuant, emptyGamma, []
+        else
+            let ell = LevelVar(next())
+            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
+            ell, emptyGamma, []
 
     | Decl(env, s') -> 
         let (p, l), x = env
@@ -446,16 +444,16 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
 
     | Phi(var, args, s') -> 
         let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g ) gamma args
-        let ell, g, c = synth_S signatures gamma' s'
-        
+        let _, g, c = synth_S signatures gamma' s'
+        let ell = include_target_exp_constraint gamma' s'   
+
         ell, g, c
 
     | Elim(var, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma        
-        let ell, g, c = synth_S signatures gamma' s'
+        let _, g, c = synth_S signatures gamma' s'    
+        let ell = include_target_exp_constraint gamma' s'      
         
-        //let ell' = gamma'.Item(message) |> snd
-        //Lub[ell; ell'], g, c
         ell, g, c
 
     | Gen(var, s') -> 
