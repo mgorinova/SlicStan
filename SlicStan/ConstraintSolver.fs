@@ -298,9 +298,9 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
         solver.Assert(List.item i translated)// , label) //.AssertAndTrack
         
     for k, l in Map.toList level_vars do
-        let _ = solver.AssertSoft(l =. l1, uint32 10, ":weight")
-        let _ = solver.AssertSoft(l =. l2, uint32 0, ":weight")
-        let _ = solver.AssertSoft(l =. l3, uint32 100, ":weight")
+        let _ = solver.AssertSoft(l =. l1, uint32 90,   ":weight")
+        let _ = solver.AssertSoft(l =. l2, uint32 0,   ":weight")
+        let _ = solver.AssertSoft(l =. l3, uint32 100,  ":weight")
         ()
 
     let mapping =

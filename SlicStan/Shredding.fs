@@ -10,7 +10,6 @@ let rec skippify S =
     | If(_, Skip, Skip) -> Skip
     | For(_, _, _, Skip) -> Skip
     | Elim(_, Skip) -> Skip
-    //| Elim(arg, _, s) -> if Set.contains (snd arg) (Util.reads s) then S else s
     | _ -> S
 
 let statement_level gamma S =  
@@ -19,7 +18,7 @@ let statement_level gamma S =
     // FIXME: doesn't work for elim nested in message
     // FIXME: it's more complicated than this line below... the good news is that this is only an
     // extra optimisation (is it just that?) so things still work without it. 
-    // Examples that can be made faster with an optimisation of some sort are discrete_reverse_tree or discrete_tree (? one of the two i thin)
+    // Examples that can be made faster with an optimisation of some sort are discrete_reverse_tree or discrete_tree (? one of the two I think)
     //if Typecheck.local_blocks && List.contains (Typecheck.dv) one |> not then GenQuant else two
     two
 
@@ -43,8 +42,12 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
         | GenQuant -> Skip, Skip, Assign(lhs, e)
         | _ -> failwith "something went terribly worng"
 
-    | Sample _ -> 
-        if toplevel then Skip, S, Skip
+    | Sample(lhs, d) -> 
+        if toplevel then 
+            if gamma.[Util.LValueBaseName lhs] |> snd = GenQuant
+            then Skip, Skip, S
+            else Skip, S, Skip
+            
         else shred_according_to_statement_level gamma S        
 
     | Factor _ -> 
@@ -91,22 +94,13 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip 
 
-    | Phi (var, args, _) -> 
+    | Phi (var, args, s) -> 
         //let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
         //          |> Map.add (snd var) (fst var) 
         //shred_according_to_statement_level gamma' S 
         // FIXME
-        S, Skip, Skip 
+        shred_according_to_statement_level gamma S 
 
     | Elim (arg, s') -> 
-        let gamma' = Map.add (snd arg) (Int, Model) gamma
-        let sd, sm, sq = shred_S gamma' s'
-
-        //Elim(arg, m, sd) |> skippify,
-        //Elim(arg, m, sm) |> skippify,
-        //Elim(arg, m, sq) |> skippify
-        
-        // TODO: try deriving actual rule based on for loops?
-        
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma) S
     | Gen _ -> Skip, Skip, S

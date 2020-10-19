@@ -45,38 +45,6 @@ module ExamplesModule =
     }
     "
 
-(*
-    let difficulty_vs_ability = "
-    int nQuestions = 100;  
-    int nStudents = 40;  
-    int nChoices = 4; 
-
-    data vector[nQuestions][nStudents] response;
-    data vector[nChoices][nChoices] probs;
-    vector[nQuestions][nStudents] advantage;
-    vector[nQuestions][nStudents] advantageNoisy;
-
-    vector[nStudents] ability ~ normal(0, 1);  
-    vector[nQuestions] difficulty ~ normal(0, 1);
-    vector[nQuestions] discrimination ~ gamma(1, 1);
-
-    int<4>[nQuestions] trueAnswer ~ categorical([0.25, 0.25, 0.25, 0.25]);
-
-    for (student in 1 : nStudents){
-        for (question in 1 : nQuestions){
-            advantage[question][student] = ability[student] - difficulty[question];
-            advantageNoisy[question][student] ~ normal(advantage[question][student], discrimination[question]);
-        
-            if (advantageNoisy[question][student] > 0){
-                response[student][question] ~ categorical(probs[trueAnswer[question]]);
-            }
-            else{
-                response[student][question] ~ categorical([0.25, 0.25, 0.25, 0.25]);
-            }
-        }
-    }
-    "
-*)
 
     // mean for p  | wet=1  is approximately 0.525
     // p(cloudy    | wet=1) is approximately 0.575; std 0.49
@@ -95,8 +63,9 @@ module ExamplesModule =
     int<2> cloudy ~ bernoulli(p);
     int<2> sprinkler ~ bernoulli(p_sprinkler[cloudy]);
     int<2> rain ~ bernoulli(p_rain[cloudy]);
-    int<2> wet ~ bernoulli(p_wet[sprinkler][rain]);
+    data int<2> wet ~ bernoulli(p_wet[sprinkler][rain]);
     "
+
 
     let sprinkler_ifs  = "
     real p ~ beta(1, 1); 
@@ -133,6 +102,7 @@ module ExamplesModule =
     }
     "
 
+
     // d_1 -> c; d_2 -> c
     let discrete1 = "
     real[3] pi1 = [0.3, 0.3, 0.3];
@@ -141,6 +111,7 @@ module ExamplesModule =
     real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
     int<3> d2 ~ categorical(pi2);
     "
+
 
     // # c1 -> d1 -> c2; c1 -> d2 -> c2; 
     let discrete2 = " 
@@ -172,6 +143,7 @@ module ExamplesModule =
     data real y3 ~ normal(phi[z3], 1);
     "
 
+
     let discrete_ifs_sep = "
     
     int<2> z1 ~ bernoulli(0.5);
@@ -193,6 +165,7 @@ module ExamplesModule =
     data real y3 ~ normal(phi[z3], 1);    
     "
 
+
     let discrete_hmm_weird = "
     data real[2] phi;
     data real[2] theta;
@@ -208,6 +181,7 @@ module ExamplesModule =
     data real y4 ~ normal(phi[z4], 1);
     "
 
+
     let discrete4 = "
     real[3] pi = [1/3, 1/3, 1/3];
     int<3> d1 ~ categorical(pi);
@@ -218,6 +192,7 @@ module ExamplesModule =
     real c2 ~ normal(td2, 1);
     "
 
+
     let discrete_madeup = "
     data real pi;
     int<2> z ~ bernoulli(0.5);
@@ -226,6 +201,7 @@ module ExamplesModule =
     int<2> z2 ~ bernoulli(pi * z * x);
     int<2> z3 ~ bernoulli(pi * x);
     "
+
 
     let discrete_paper = "
     real phi0 ~ beta(1, 1);
@@ -248,6 +224,7 @@ module ExamplesModule =
     real gentheta = theta0 * z3 + (1 - theta0) * (1 - z3);
     int genz = bernoulli_rng(gentheta);
     "
+
 
     let discrete_hmm = "
     real phi ~ beta(1, 1);
@@ -272,8 +249,6 @@ module ExamplesModule =
     real phi4 = phi * z4 + (1 - phi) * (1 - z4);   
     data real y4 ~ normal(phi4, 1); "
 
-    //real gentheta = theta1 * z4 + (1 - theta1) * (1 - z4);
-    //int genz ~ bernoulli(gentheta); "
 
     let discrete_hmm_messier = "
     real phi ~ beta(1, 1);
@@ -305,6 +280,7 @@ module ExamplesModule =
     data real y3 ~ normal(phi3, 1);
     "
 
+
     let discrete_hmm_2nd_order = "
     real[2] phi;
     real[2] theta;
@@ -325,29 +301,8 @@ module ExamplesModule =
     data real y5 ~ normal(phi[z5], 1);
     "
 
-    let soft_k_means = "
-    data int N;  
-    data int D;  
-    data int K;  
-    data real[K] pi;
-    data real[D][N] y;  
 
-    real[D][K] mu; 
-    for(d in 1 : D) {
-        for(k in 1 : K) {
-            mu[d][k] ~ normal(0, 1);
-        }
-    }
 
-    int<K>[N] z;  
-
-    for(n in 1 : N) {
-        z[n] ~ categorical(pi);
-        for(d in 1 : D) {
-            y[d][n] ~ normal(mu[d][z[n]], 1);
-        }
-    }
-    "
 
 
     let click_graph = """
@@ -401,6 +356,7 @@ module ExamplesModule =
     }
     "
 
+
     let discrete_chain = "
     vector[2] pi;
     int<2> d1 ~ categorical(pi); 
@@ -409,7 +365,7 @@ module ExamplesModule =
     int<2> d4 ~ categorical(to_vector([pi[1]*d3, pi[2]]) / sum([pi[1]*d3, pi[2]]));
     data real y ~ normal(d4, 1);
     "
-    //real gen_d2 = 2 * d2;
+
 
     let discrete_chain_with_tp = "
     vector[2] pi;
@@ -424,6 +380,7 @@ module ExamplesModule =
     data real y ~ normal(td4, 1);
     "
 
+
     let discrete_two_with_tp = "
     vector[2] pi;
     int<2> d1 ~ categorical(pi); 
@@ -434,6 +391,7 @@ module ExamplesModule =
     int<2> d2 ~ categorical(to_vector([pi[1]*tv4, pi[2]]) / sum([pi[1]*tv4, pi[2]]));
     data real y ~ normal(d2, 1);
     "
+
 
     let discrete_statement_reordering = "
     int<2> d1 ~ categorical([1/2, 1/2]);
@@ -448,6 +406,7 @@ module ExamplesModule =
     int<2> d3 ~ categorical([c2, 1/2]);
     "
 
+
     let discrete_tree = "
     real[2] pi;
     int<2> d1 ~ categorical(pi); 
@@ -461,6 +420,7 @@ module ExamplesModule =
     data real y5 ~ normal(d5, 1);
     "
 
+
     let discrete_reverse_tree = "
     real[3] pi;
     int<2> d1 ~ categorical(pi);
@@ -470,6 +430,7 @@ module ExamplesModule =
 
     data real y ~ normal(d3, 1);
     "
+
 
     let discrete_reverse_bigger_tree = "
     real[3] pi;
@@ -484,6 +445,7 @@ module ExamplesModule =
     data real y ~ normal(d3, 1);
     "
 
+
     let discrete_dimond = "
     vector[3] pi;
     int<2> d1 ~ categorical(pi); 
@@ -492,6 +454,7 @@ module ExamplesModule =
     int<2> d4 ~ categorical(to_vector([pi[1]*d2, pi[2]*d3]));
     data real c ~ normal(d4, 1);
     "
+
 
     let discrete_many = "
     real[2] pi = [1/2, 1/2];
@@ -507,6 +470,7 @@ module ExamplesModule =
     int<2> d9 ~ categorical(pi);
     int<2> d10 ~ categorical([pi[1], pi[2]*d9]);
     "
+
 
     let discrete_many_lost_ordering = "
     real[2] pi = [1/2, 1/2];
@@ -533,18 +497,21 @@ module ExamplesModule =
     d10 ~ categorical([pi[1], pi[2]*d9]);
     "
 
+
     // Simple for
     let simple_for = "
     real c ~ normal(0, 1);
     real acc = 0;
     for(i in 1 : 5) acc = acc + i;
     "
+    
 
     // Simple discrete  
     let discrete = "
     data int N;
     data real[N] pi;
     int<N> d ~ categorical(pi);"
+
 
     let shredding = "
     real d = 1;
@@ -553,12 +520,14 @@ module ExamplesModule =
     d = 2;
     "
 
+
     // All Data
     let alldata = "
     data real x;
     real a = 2*x;
     data real y ~ normal(a, 1);
     "
+
 
     // Simple
     let simple = "
@@ -582,13 +551,136 @@ module ExamplesModule =
         c = beta;
     }; 
     "
-        
+
 
     //Simple Normal
     let simple_normal = "
     real y ~ normal(0, 2); 
     real x = y;"
+    
+ 
+    // Arrays Simple
+    let arrays = "
+    data int N;
+    data real[N] x;
+    real y; 
+    y = x[2];"//
 
+
+    let manyblocks = "
+    data int N;
+    data real[N] y;
+    data real mu_mu;
+    data real sigma_mu;
+
+    real alpha = 0.1;
+    real beta = 0.1;
+    real tau_y ~ gamma(alpha, beta);
+
+    real mu_y ~ normal(0, 1);
+
+    real sigma_y = pow(tau_y, 0.5);
+    y ~ normal(mu_y, sigma_y);
+
+    real variance_y = pow(sigma_y, 2);"
+    
+
+    let refactor_pre = "
+    data int N;
+    data vector[N] x; 
+    data vector[N] y; 
+
+    real alpha ~ normal(0, 10);
+    real beta ~ normal(0, 10);
+    real sigma ~ cauchy(0, 5);
+
+    y ~ normal(alpha + beta * x, sigma);"
+
+
+    let refactor_post = "
+    data int N;
+    vector[N] x; 
+    data vector[N] y; 
+
+    real alpha ~ normal(0, 10);
+    real beta ~ normal(0, 10);
+    real sigma ~ cauchy(0, 5);
+
+    y ~ normal(alpha + beta * x, sigma);
+
+    real mu_x;
+    real sigma_x;
+    x ~ normal(mu_x, sigma_x);
+
+    data real tau;
+    data vector[N] x_meas ~ normal(x, tau);"
+    
+
+    let roaches = "
+    data int N; 
+    data vector[N] exposure2; 
+    data vector[N] roach1; 
+    data vector[N] senior; 
+    data vector[N] treatment; 
+
+    vector[N] log_expo = log(exposure2);
+
+    vector[4] beta;
+
+    data int[N] y ~ poisson_log(log_expo + beta[1] + beta[2] * roach1 + beta[3] * treatment + beta[4] * senior);"
+
+
+    let roaches_overdisp = "
+    data int N; 
+    data vector[N] exposure2;
+    data vector[N] roach1;
+    data vector[N] senior;
+    data vector[N] treatment;
+
+    vector[N] log_expo = log(exposure2);
+
+    vector[4] beta;
+
+    real tau ~ gamma(0.001, 0.001);
+    real sigma = 1.0 / sqrt(tau);
+    vector[N] lambda ~ normal(0, sigma);
+
+    data int[N] y ~ poisson_log(lambda + log_expo + beta[1] + beta[2]*roach1 + beta[3]*senior + beta[4]*treatment);"
+
+
+    let seeds = "
+    data int I;
+    data int[I] n;
+    data int[I] N;
+    data vector[I] x1; 
+    data vector[I] x2; 
+
+    vector[I] x1x2;
+    x1x2 = x1 .* x2;
+
+    real alpha0;
+    real alpha1;
+    real alpha12;
+    real alpha2;
+    real tau;
+    vector[I] b;
+
+    real sigma;
+    sigma  = 1.0 / sqrt(tau);
+
+    alpha0 ~ normal(0.0,1000);
+    alpha1 ~ normal(0.0,1000);
+    alpha2 ~ normal(0.0,1000);
+    alpha12 ~ normal(0.0,1000);
+    tau ~ gamma(0.001,0.001);
+
+    b ~ normal(0.0, sigma);
+    n ~ binomial_logit(N, alpha0 + alpha1 * x1 + alpha2 * x2 + alpha12 * x1x2 + b);"
+
+
+
+    // Examples that involve user-defined functions, that are currently not supported:
+    (*
 
     // My Normal
     let mynormal = "
@@ -693,16 +785,7 @@ module ExamplesModule =
     mu ~ normal(0, 1); 
     x = MyNormal(mu + 5, 2); 
     y ~ normal(MyNormal(x, 2), 1);"
-
- 
-    // Arrays Simple
-    let arrays = "
-    data int N;
-    data real[N] x;
-    real y; 
-    y = x[2];"//
-
-
+    
     // My Multinormal
     let mymultinormal = "
     def MyMultiNormal(vector mu, matrix Sigma){
@@ -736,38 +819,6 @@ module ExamplesModule =
     x = MyMultiNormal([ 2, 3.4 ], [ [ 0.3, 0.1 ], [ 0.1, 2 ] ]);"
 
 
-    // Vectors and Matrices
-    let vectors = "
-    vector[3] x;
-    matrix a;"
-
-    let derivatives = "
-    def MyNormal(real m, real v){
-      real xr;
-      xr ~ normal(0, 1); 
-      return v * xr + m;
-    }
-
-    real x = MyNormal(sqrt(x - x), 1);"
-
-    let manyblocks = "
-    data int N;
-    data real[N] y;
-    data real mu_mu;
-    data real sigma_mu;
-
-    real alpha = 0.1;
-    real beta = 0.1;
-    real tau_y ~ gamma(alpha, beta);
-
-    real mu_y ~ normal(0, 1);
-
-    real sigma_y = pow(tau_y, 0.5);
-    y ~ normal(mu_y, sigma_y);
-
-    real variance_y = pow(sigma_y, 2);"
-
-
     let onewaynormal = "
     def MyNormal(real m, real v){
       real xr;
@@ -785,36 +836,7 @@ module ExamplesModule =
     y ~ normal(theta, sigma);"
 
 
-    let refactor_pre = "
-    data int N;
-    data vector[N] x; 
-    data vector[N] y; 
-
-    real alpha ~ normal(0, 10);
-    real beta ~ normal(0, 10);
-    real sigma ~ cauchy(0, 5);
-
-    y ~ normal(alpha + beta * x, sigma);"
-
-    let refactor_post = "
-    data int N;
-    vector[N] x; 
-    data vector[N] y; 
-
-    real alpha ~ normal(0, 10);
-    real beta ~ normal(0, 10);
-    real sigma ~ cauchy(0, 5);
-
-    y ~ normal(alpha + beta * x, sigma);
-
-    real mu_x;
-    real sigma_x;
-    x ~ normal(mu_x, sigma_x);
-
-    data real tau;
-    data vector[N] x_meas ~ normal(x, tau);"
-
-
+    
     let beta_count = "
     def beta_mean_count(real mean_param, real total_count){
         real alpha = total_count * mean_param;
@@ -867,73 +889,63 @@ module ExamplesModule =
     x[8] = MyNormal(0, exp(y * 0.5));
     x[9] = MyNormal(0, exp(y * 0.5));"
 
-    let roaches = "
-    data int N; 
-    data vector[N] exposure2; 
-    data vector[N] roach1; 
-    data vector[N] senior; 
-    data vector[N] treatment; 
+    *)
 
-    vector[N] log_expo = log(exposure2);
+    // Arrays of discrete variables not yet supported"
+    (*
 
-    vector[4] beta;
+    let soft_k_means = "
+    data int N;  
+    data int D;  
+    data int K;  
+    data real[K] pi;
+    data real[D][N] y;  
 
-    data int[N] y ~ poisson_log(log_expo + beta[1] + beta[2] * roach1 + beta[3] * treatment + beta[4] * senior);"
-
-
-    let roaches_overdisp = "
-    data int N; 
-    data vector[N] exposure2;
-    data vector[N] roach1;
-    data vector[N] senior;
-    data vector[N] treatment;
-
-    vector[N] log_expo = log(exposure2);
-
-    vector[4] beta;
-
-    real tau ~ gamma(0.001, 0.001);
-    real sigma = 1.0 / sqrt(tau);
-    vector[N] lambda ~ normal(0, sigma);
-
-    data int[N] y ~ poisson_log(lambda + log_expo + beta[1] + beta[2]*roach1 + beta[3]*senior + beta[4]*treatment);"
-
-
-    let seeds = "
-    data int I;
-    data int[I] n;
-    data int[I] N;
-    data vector[I] x1; 
-    data vector[I] x2; 
-
-    vector[I] x1x2;
-    x1x2 = x1 .* x2;
-
-    real alpha0;
-    real alpha1;
-    real alpha12;
-    real alpha2;
-    real tau;
-    vector[I] b;
-
-    real sigma;
-    sigma  = 1.0 / sqrt(tau);
-
-    alpha0 ~ normal(0.0,1000);
-    alpha1 ~ normal(0.0,1000);
-    alpha2 ~ normal(0.0,1000);
-    alpha12 ~ normal(0.0,1000);
-    tau ~ gamma(0.001,0.001);
-
-    b ~ normal(0.0, sigma);
-    n ~ binomial_logit(N, alpha0 + alpha1 * x1 + alpha2 * x2 + alpha12 * x1x2 + b);"
-
-    let derivatives_two = "
-    def MyNormal(real m, real v){
-      real xr ~ normal(0, 1); 
-      return v * xr + m;
+    real[D][K] mu; 
+    for(d in 1 : D) {
+        for(k in 1 : K) {
+            mu[d][k] ~ normal(0, 1);
+        }
     }
 
-    real y ~ normal(0, 1);
-    real x = MyNormal(sqrt(y - y), 1);
+    int<K>[N] z;  
+
+    for(n in 1 : N) {
+        z[n] ~ categorical(pi);
+        for(d in 1 : D) {
+            y[d][n] ~ normal(mu[d][z[n]], 1);
+        }
+    }
     "
+
+    let difficulty_vs_ability = "
+    int nQuestions = 100;  
+    int nStudents = 40;  
+    int nChoices = 4; 
+
+    data vector[nQuestions][nStudents] response;
+    data vector[nChoices][nChoices] probs;
+    vector[nQuestions][nStudents] advantage;
+    vector[nQuestions][nStudents] advantageNoisy;
+
+    vector[nStudents] ability ~ normal(0, 1);  
+    vector[nQuestions] difficulty ~ normal(0, 1);
+    vector[nQuestions] discrimination ~ gamma(1, 1);
+
+    int<4>[nQuestions] trueAnswer ~ categorical([0.25, 0.25, 0.25, 0.25]);
+
+    for (student in 1 : nStudents){
+        for (question in 1 : nQuestions){
+            advantage[question][student] = ability[student] - difficulty[question];
+            advantageNoisy[question][student] ~ normal(advantage[question][student], discrimination[question]);
+        
+            if (advantageNoisy[question][student] > 0){
+                response[student][question] ~ categorical(probs[trueAnswer[question]]);
+            }
+            else{
+                response[student][question] ~ categorical([0.25, 0.25, 0.25, 0.25]);
+            }
+        }
+    }
+    "
+    *)

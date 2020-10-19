@@ -16,9 +16,8 @@ let mutable toplevel = true // FIXME: bad style, refactor code whenever there's 
 let mutable dv : Ide = ""
 
 // allow all buildins to be used everywhere in the program
-// FIXME: not sure that's the right way to do it
-let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) SlicStanSyntax.Primitives
-
+//let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> Model) ts, (r, Model)) SlicStanSyntax.Primitives
+let Buildins : Signatures = Map.map (fun k (ts, r) -> ts, List.map (fun t -> GenQuant) ts, (r, Data)) SlicStanSyntax.Primitives
 
 let join (p:Map<'a,'b>) (q:Map<'a,'b>) = 
     Map(Seq.concat [ (Map.toSeq p) ; (Map.toSeq q) ])
@@ -26,21 +25,17 @@ let join (p:Map<'a,'b>) (q:Map<'a,'b>) =
 let emptyGamma = Map.empty
 
 
-let ty x: TypePrim = 
-    
+let ty x: TypePrim =     
     if x = double (int x) then Int
     elif box x :? double then Real
     else  failwith "unexpected constant" 
-    
-    // if box x :? double then Real
-    // elif box x :? int then Int
-    // elif box x :? bool then Bool
-    
+
 
 let lub (ells: TypeLevel list) =
     assert (List.length ells > 0)
     let ret = List.fold (fun s ell -> if s <= ell then ell else s) Data ells
     ret
+
 
 let rec glb (ells: TypeLevel list) =
     assert (List.length ells > 0)
@@ -212,8 +207,7 @@ let map_intersect a b = Map (seq {
         | None    -> () })
 
 
-let shreddable (gamma: Gamma) (s1: S) (s2: S): ConstraintInfo list = 
-    
+let shreddable (gamma: Gamma) (s1: S) (s2: S): ConstraintInfo list =     
     // check what's in read_at_level and assignedto_of_level for each pair
     // Then this will record the actual type level of each variable (because it could be 
     // a variable type level)
@@ -303,6 +297,7 @@ let rec synth_E (signatures: Signatures) (gamma: Gamma) (e: Exp): Type*(Constrai
     | Plus(e1, e2) -> synth_E signatures gamma (Prim("+", [e1; e2]))
     | Mul(e1, e2) -> synth_E signatures gamma (Prim("*", [e1; e2]))
 
+
 let rec check_E (signatures: Signatures)  (gamma: Gamma) (e: Exp) ((tau,ell): Type) : ConstraintInfo list =    
     let (tau', ell'), c = synth_E signatures gamma e
     assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
@@ -334,6 +329,7 @@ let rec check_D (signatures: Signatures) (gamma: Gamma) (d: Dist) ((tau,ell): Ty
     //assert (tau' <. tau) // FIXME: does the subtyping go in that direction?
     (Leq(ell',ell), sprintf "(DSub): %A" (D_pretty d))::c
 
+
 let rec synth_L (signatures: Signatures) (gamma: Gamma) (l: LValue): Type*(ConstraintInfo list) =
     match l with
     | I(x) -> 
@@ -358,42 +354,31 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
     | Assign(lhs, e) -> 
         let (tau, ell), c1 = synth_L signatures gamma lhs
         let c2 = check_E signatures gamma e (tau, ell)
-
         ell, emptyGamma, (List.append c1 c2)   
     
     | Factor(e) -> 
-        // FIXME: doublecheck if this is correct
-        
         if toplevel then 
             Model, emptyGamma, check_E signatures gamma e (Real, Model) 
-        else
-            (*let (tp, ell), c = synth_E signatures gamma e 
-            assert (tp <. Real)
-            ell, emptyGamma, c*)
-            
+        else            
             let ell = LevelVar(next())
-            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
             let c = check_E signatures gamma e (Real, ell) 
             ell, emptyGamma, c
 
     | Sample(lhs, d) ->       
-        let (tau, ell), clhs = synth_L signatures gamma lhs
-        
+        let (tau, ell'), clhs = synth_L signatures gamma lhs
+
         if toplevel then
             // Previously, we would force all ~ to be of level model:
-            let cd = check_D signatures gamma d (tau, Model)
-            Model, emptyGamma, (Leq(ell, Model), sprintf "(Sample): %A" (S_pretty "" S))::(List.append clhs cd) 
+            // let cd = check_D signatures gamma d (tau, Model)
+            // Model, emptyGamma, (Leq(ell, Model), sprintf "(Sample): %A" (S_pretty "" S))::(List.append clhs cd) 
             
-            // FIXME: the below breaks if statements?  
-
             // Now, we allow for some ~ to mean random number generation:
-            // let (tau', ell'), cd = synth_D signatures gamma d 
-            // assert(tau <. tau') 
-            // ell', emptyGamma, (( Leq(ell', Lub [ell; Model]) ) :: List.append clhs cd)
-        
+            let ell = Lub [ell'; Model]
+            let cd = check_D signatures gamma d (tau, ell)
+            ell, emptyGamma, (List.append clhs cd)
+
         else
             let ell = LevelVar(next())
-            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
             let ce = check_E signatures gamma (lhs_to_exp lhs) (Real, ell) 
             let cd = check_D signatures gamma d (Real, ell) 
             ell, emptyGamma, List.append ce cd
@@ -406,7 +391,6 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         (glb [ell1; ell2]), (join gamma1 gamma2), (List.append c1 c2 |> List.append c)
 
     | If(e, s1, s2) ->
-        // FIXME: something is dodgy in this rule
         let (ell1, gamma1, cs1), (ell2, gamma2, cs2) = synth_S signatures gamma s1, synth_S signatures gamma s2
         let ce = check_E signatures gamma e (Bool, Lub [ell1; ell2])        
         Glb [ell1; ell2], Map.union gamma1 gamma2, (List.append cs1 cs2 |> List.append ce)
@@ -416,7 +400,6 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         then GenQuant, emptyGamma, []
         else
             let ell = LevelVar(next())
-            // printfn "Level variable %A corresponds to %s" ell (S_pretty "" S)
             ell, emptyGamma, []
 
     | Decl(env, s') -> 
@@ -457,8 +440,9 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         ell, g, c
 
     | Gen(var, s') -> 
-        let g, c = check_S signatures (Map.map (fun x T -> if x = snd var then fst T, GenQuant else T) gamma) s' GenQuant
-        GenQuant, g, c
+        //let g, c = check_S signatures (Map.map (fun x T -> if x = snd var then fst T, GenQuant else T) gamma) s' GenQuant
+        // FIXME
+        GenQuant, gamma, []
 
 
 and check_S (signatures: Signatures) (gamma: Gamma) (s: S) (ell: TypeLevel) : Gamma*(ConstraintInfo list) = 
@@ -478,6 +462,7 @@ let typecheck_Def (signatures: Signatures) (def: FunDef) : Signatures*(Constrain
          
         Map.add name (Ps, Ls, T) signatures, cs   
 
+
 let rename_SlicStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
         
     let rename_arg (((t,l), x):Arg) =
@@ -496,8 +481,7 @@ let rename_SlicStanProg (dict : Map<Ide, TypeLevel>) (defs, s) =
     let rename_def def = 
         match def with
         // FIXME: renaming probably not really done properly here ?
-        | Fun (name, args, s, ret_arg) -> Fun(name, (List.map rename_arg args), (rename_S s), rename_arg ret_arg)
-             
+        | Fun (name, args, s, ret_arg) -> Fun(name, (List.map rename_arg args), (rename_S s), rename_arg ret_arg)         
         
     List.map rename_def defs, rename_S s
 
@@ -511,6 +495,7 @@ let get_level_vars (gamma: Gamma) =
     |> Set.ofList
     |> Set.toList
 
+
 let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =     
 
     let signatures, cdefs = List.fold (fun (signatures, cs) def -> 
@@ -523,8 +508,6 @@ let typecheck_Prog ((defs, s): SlicStanProg): SlicStanProg =
     let constr = List.append cdefs c |> simplify_constraints
     
     let inferred_levels = ConstraintSolver.resolve(constr, vars) 
-
-    //printfn "Inferred type levels:  %A\n" (inferred_levels)
 
     rename_SlicStanProg inferred_levels (defs, s)
 
@@ -578,12 +561,11 @@ let typecheck_elaborated gamma s =
 
     let inferred_levels = 
         if toplevel then
-            let constr = List.append c extra |> simplify_constraints
-            
+            let constr = List.append c extra // |> simplify_constraints
             ConstraintSolver.resolve(constr, vars)
             
         else
-            let constr = simplify_constraints c
+            let constr = c // |> simplify_constraints
             
             let all_vars = extract_vars_from_constraints (List.map fst constr)
                         |> List.append vars
@@ -610,6 +592,7 @@ let rec recursive_lub_filter ls =
                |> Set.ofList |> Set.toList 
 
         if ls' = ls then ls else recursive_lub_filter ls' *)
+
 
 let rec simplify_level (level : TypeLevel) : TypeLevel =
     match level with 

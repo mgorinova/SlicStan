@@ -116,19 +116,6 @@ let add_factor (S: S) (graph: Graph) =
         | Decl _ -> failwith "unexpected"
         | Seq _ -> failwith "unexpected"
         | Skip -> failwith "unexpected"
-        
-        (*| Message(name, var, s) -> 
-            // FIXME: is this enough?
-            let out_var = snd name
-            [], [out_var]*)
-
-        | Elim(var, s) -> 
-            //let in_vars = message
-            [], []
-
-        | Gen(var, s) -> 
-            //let in_vars = message
-            [], [snd var]
        
     let V, F, E = graph
 

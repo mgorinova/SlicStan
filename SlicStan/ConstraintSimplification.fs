@@ -11,6 +11,7 @@ let ground (l:TypeLevel): bool =
     | Lz -> true
     | _ -> false
 
+
 let make_ground_lub (ls : TypeLevel list): TypeLevel =
     if List.length ls = 1 then List.head ls
     elif (List.contains Lz ls) && (List.contains GenQuant ls) then
@@ -29,6 +30,7 @@ let make_ground_glb (ls : TypeLevel list): TypeLevel =
             elif (List.contains GenQuant ls) then GenQuant
             else Model
         List.fold (fun s l -> if s <= l then s else l) start ls
+
 
 let simplify_constraints (cs: ConstraintInfo list): ConstraintInfo list =
 
@@ -55,7 +57,6 @@ let simplify_constraints (cs: ConstraintInfo list): ConstraintInfo list =
         | Leq(ell1, ell2) -> Leq(filter_data ell1, filter_data ell2)
 
  
-
     let tautology (c: Constraint, i: string): bool =
         match c with
         | Leq(l1, l2) -> 
@@ -66,6 +67,7 @@ let simplify_constraints (cs: ConstraintInfo list): ConstraintInfo list =
                  | l, LevelVar(_) -> l = Data
                  | _ -> false
         | _ -> false
+
 
     let rec recursive_lub_var_filtering ls = 
         match ls with

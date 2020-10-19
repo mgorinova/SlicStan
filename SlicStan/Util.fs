@@ -153,7 +153,7 @@ let rec reads (S: S) : Set<Ide> =
         |> Set.filter (fun x -> x <> snd i)
     | Seq(s1, s2) -> Set.union (reads s1) (reads s2)
     | Skip -> Set.empty
-    | Phi(arg, args, s) -> Set.difference (reads s) (Set.ofList args) 
+    | Phi(arg, args, s) -> Set.difference (reads s) (Set.ofList args) // |> Set.add (snd arg)
     | Elim(arg, s) -> Set.remove (snd arg) (reads s) 
     | Gen(arg, s) -> reads s
 

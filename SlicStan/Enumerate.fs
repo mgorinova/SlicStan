@@ -11,11 +11,14 @@ let next_message () =
     message_number <- message_number + 1
     sprintf "m%A" message_number
 
+
 let is_discrete_parameter W = 
     fun (x, (tp, tl)) -> tl = Model && tp <. Int && (Set.contains x W |> not)
 
+
 let is_discrete_parameter_alt W = 
     fun (x, (tp, tl)) -> tp <. Int && (tl = Model || tl = Data) && (Set.contains x W |> not)
+
 
 let discrete_vars W gamma = 
     Map.toList gamma 
@@ -23,14 +26,17 @@ let discrete_vars W gamma =
     |> List.map fst 
     |> Set.ofList
 
+
 let discrete_vars_S dvs s =
     Set.intersect (reads s ) dvs
+
 
 let can_reorder s1 s2 = 
     (Set.intersect (assigns s1) (assigns s2) |> Set.isEmpty) &&
     (Set.intersect (reads s1) (assigns s2) |> Set.isEmpty) &&
     (Set.intersect (assigns s1) (reads s2) |> Set.isEmpty)
     
+
 let rec filter_Skips s =
     match s with
     | Seq(Skip, s') -> filter_Skips s'
@@ -64,6 +70,7 @@ let rec filter_Skips s =
     if vars = new_result then vars
     else all_dependent_transformed_vars s (new_result)*)
 
+
 let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
     match s with 
     | Assign(L, E) -> 
@@ -82,6 +89,7 @@ let rec all_dependent_transformed_vars (s : S) (vars : Set<Ide>) : Set<Ide> =
         Set.union dep1 dep2
     | For(_, _, _, s') ->  all_dependent_transformed_vars s' vars
     | _ -> vars
+
 
 let rec all_dependent_vars (s : S) (vars : Set<Ide>) : Set<Ide> = 
     let rec inner S =
@@ -140,14 +148,19 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
                         | Constrained (Int, K) -> K 
                         | _ -> failwith "Discrete parameters must have specified support") tau_list
 
-    let tau = List.fold (fun s t -> Array(s, t)) Int tau_sizes 
-    let arg = (tau, Model), message_name
-
+    let tau = List.fold (fun s t -> Array(s, t)) Real tau_sizes 
+    
+    
     let tau_d = Map.find d gamma |> fst, Data
+    
+    //let s_tmp_message = Phi ( ((tau, Data), message_name), neighbours, Elim( (tau_d, d), sm2 ) )
+    //let message_lev = Shredding.statement_level gamma s_tmp_message
+    let message_lev = Data
+    let arg = (tau, message_lev), message_name
 
     let gamma' = gamma
                 |> Map.add d (Int, GenQuant) 
-                |> Map.add message_name (tau, Model)
+                |> Map.add message_name (tau, message_lev)
 
     let s_message = Phi ( arg, neighbours, Elim( (tau_d, d), sm2 ) )
     let s_factor = Factor ( Util.indices_list_to_exp (Var(message_name)) (List.map Var neighbours) )
@@ -155,7 +168,9 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let s' = SlicStanSyntax.SofList [ sd; sm1; s_message; s_factor; sm22; s_gen; sq ]
     
+    // printfn "%s" (SlicStanSyntax.S_pretty "" s')
+
     Typecheck.toplevel <- true
-    gamma', (filter_Skips s')
+    gamma', s'
 
 

@@ -300,11 +300,11 @@ let rec S_pretty ident S =
     sprintf "%selim(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
   | Phi(arg, vars, S) ->
     let (p, _), name = arg
-    sprintf "%s%s = message(%A){\n%s\n%s}" ident name vars (S_pretty ("  " + ident) S) ident
+    sprintf "%s%s = phi(%A){\n%s\n%s}" ident name vars (S_pretty ("  " + ident) S) ident
   | Gen(var, S) ->
     let (p, _), n = var
     sprintf "%sgenerate(%s %s){\n%s\n%s}" ident (TPrim_pretty p) n (S_pretty ("  " + ident) S) ident
-    
+  
 
 let rec List_pretty lst =
     match lst with
