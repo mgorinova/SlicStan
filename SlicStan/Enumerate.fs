@@ -132,7 +132,7 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
 
     let sm1, sm2, sm22 = Shredding.shred_S gamma_temp sm'
 
-    // printfn "\n***SECOND shredding: SD: %A\n\nSM: %A\n\nSQ: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
+    // printfn "\n***SECOND shredding: SM1: %A\n\nSM2: %A\n\nSM3: %A" (S_pretty "" sm1) (S_pretty "" sm2) (S_pretty "" sm22) 
 
     let mutable message_name = next_message() 
     while Map.containsKey message_name gamma do
@@ -155,10 +155,12 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     
     //let s_tmp_message = Phi ( ((tau, Data), message_name), neighbours, Elim( (tau_d, d), sm2 ) )
     //let message_lev = Shredding.statement_level gamma s_tmp_message
-    let message_lev = Data
+    let message_lev = LevelVar(next()) 
     let arg = (tau, message_lev), message_name
 
+    let W' = assigns sm
     let gamma' = gamma
+                |> Map.map (fun name (tp, tl) -> if Set.contains name W' |> not then (tp, tl) else (tp, LevelVar(next())) )
                 |> Map.add d (Int, GenQuant) 
                 |> Map.add message_name (tau, message_lev)
 
@@ -171,6 +173,8 @@ let enum (gamma : Gamma, s : S) (d: Ide) : Gamma * S =
     // printfn "%s" (SlicStanSyntax.S_pretty "" s')
 
     Typecheck.toplevel <- true
-    gamma', s'
+    let gamma_ret, s_ret = Typecheck.typecheck_elaborated gamma' s'
+    //gamma', s'
 
+    gamma_ret, s_ret
 

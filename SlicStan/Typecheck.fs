@@ -89,10 +89,17 @@ let rec assigns (S: S) : Set<Ide> =
     | For(_, _, _, s) -> assigns s
     | Seq(s1, s2) -> Set.union (assigns s1) (assigns s2)
     | Skip -> Set.empty
-    | Phi((t, name), _, s') -> Set.add name (assigns s')
-    | Elim(_, s') -> assigns s'
-    | Gen(_, s') -> assigns s'
-
+    | Phi((t, name), _, s') -> 
+        Set.add name (assigns s')
+        // Set.add name (Set.empty)
+    | Elim(_, s') -> 
+        // We assume any variables assinged inside Elim are local    
+        // assigns s'
+        Set.empty
+    | Gen(_, s') -> 
+        // We assume any variables assinged inside Gen are local    
+        // assigns s'
+        Set.empty
 
 let rec get_lvalue_level (gamma: Gamma) lhs =
     match lhs with 
@@ -426,11 +433,24 @@ let rec synth_S (signatures: Signatures) (gamma: Gamma) (S: S): TypeLevel*Gamma*
         ell, g, c
 
     | Phi(var, args, s') -> 
+
+        // let (tau, ell), c1 = synth_L signatures gamma lhs
+        // let c2 = check_E signatures gamma e (tau, ell)
+        // ell, emptyGamma, (List.append c1 c2) 
+
         let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g ) gamma args
         let _, g, c = synth_S signatures gamma' s'
-        let ell = include_target_exp_constraint gamma' s'   
 
-        ell, g, c
+        let R = read_at_level gamma' s'
+
+        let lm = gamma.[snd var] |> snd
+
+        let cr = 
+            Map.map (fun k lr -> Leq(lr, lm)) R
+            |> Map.toList    
+            |> List.map (fun (k, v) -> v, sprintf "Phi(%A) reads %A" (snd var) k )
+
+        lm, g, List.append c cr
 
     | Elim(var, s') -> 
         let gamma' = Map.add (snd var) (fst var) gamma        
@@ -552,17 +572,21 @@ let typecheck_elaborated gamma s =
     // This bit is only neccessary for the algoritmic typing rules,
     // in order to make sure that variables that are not explicitly 
     // declared as data, and are unassigned, will be parameters.
-    let W = assigns s
-    let extra = Map.toList gamma
-              |> List.filter (fun (x, (_, tl)) -> (Set.contains x W |> not ) && (tl = Data |> not))
-              |> List.map (fun (_, (_, tl)) -> Leq(Model, tl), "extra")
+    //let W = assigns s
+    //let extra = Map.toList gamma
+    //          |> List.filter (fun (x, (_, tl)) -> (Set.contains x W |> not ) && (tl = Data |> not))
+    //          |> List.map (fun (_, (_, tl)) -> Leq(Model, tl), "extra")
      
     let vars = get_level_vars gamma
 
     let inferred_levels = 
         if toplevel then
-            let constr = List.append c extra // |> simplify_constraints
-            ConstraintSolver.resolve(constr, vars)
+            let constr = c // |> simplify_constraints
+            let all_vars = extract_vars_from_constraints (List.map fst constr)
+                        |> List.append vars
+                        |> Set.ofList |> Set.toList
+                
+            ConstraintSolver.resolve(constr, all_vars)
             
         else
             let constr = c // |> simplify_constraints

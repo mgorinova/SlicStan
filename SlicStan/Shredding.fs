@@ -94,12 +94,19 @@ let rec shred_S (gamma: Gamma) (S: S) : (S * S * S) =
 
     | Skip -> Skip, Skip, Skip 
 
-    | Phi (var, args, s) -> 
-        //let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
-        //          |> Map.add (snd var) (fst var) 
-        //shred_according_to_statement_level gamma' S 
-        // FIXME
-        shred_according_to_statement_level gamma S 
+    | Phi (var, args, s) ->
+
+        if toplevel then 
+            let gamma' = List.fold (fun g x -> Map.add x (Int, Data) g) gamma args 
+            let l = gamma'.[snd var] |> snd // statement_level gamma' s
+
+            match l with
+            | Data -> Phi(var, args, s), Skip, Skip
+            | Model -> Skip, Phi(var, args, s), Skip
+            | Lz -> Skip, Phi(var, args, s), Skip
+            | GenQuant -> failwith "error: a phi statement cannot be at genquant level"
+        
+        else S, Skip, Skip
 
     | Elim (arg, s') -> 
         shred_according_to_statement_level (Map.add (snd arg) (fst arg) gamma) S

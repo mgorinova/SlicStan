@@ -107,9 +107,11 @@ module ExamplesModule =
     let discrete1 = "
     real[3] pi1 = [0.3, 0.3, 0.3];
     int<3> d1 ~ categorical(pi1);
+    data real y1 ~ normal(d1, 1);
 
     real[3] pi2 = [pi1[1] * d1, pi1[2], pi1[3]];
     int<3> d2 ~ categorical(pi2);
+    data real y2 ~ normal(d2, 1); 
     "
 
 
@@ -126,7 +128,7 @@ module ExamplesModule =
     real[3] pi2 = [0.3 * d_tp1, 0.3 * c1, 0.3 * tp2];
     int<3> d2 ~ categorical(pi2);
 
-    real c2 ~ normal(d1, d2);
+    data real c2 ~ normal(d1, d2);
     "
 
     // d_1 -> d_2 -> c
@@ -189,7 +191,7 @@ module ExamplesModule =
     real c1 ~ normal(td1, 1);
     int<3> d2 ~ categorical(pi);
     int td2 = d2;
-    real c2 ~ normal(td2, 1);
+    data real c2 ~ normal(td2, 1);
     "
 
 
@@ -200,6 +202,9 @@ module ExamplesModule =
     real x = 2 * z1;
     int<2> z2 ~ bernoulli(pi * z * x);
     int<2> z3 ~ bernoulli(pi * x);
+    data real y1 ~ normal(z1, 1);
+    data real y2 ~ normal(z2, 1);
+    data real y3 ~ normal(z3, 1);
     "
 
 

@@ -91,6 +91,21 @@ let resolve (constraints_info : ConstraintInfo list, level_vars_names : string l
                            lubOf (model &&. single_genquant) =. genquant; lubOf (model &&. single_data) =. model;
                            lubOf (genquant &&. single_genquant) =. genquant; lubOf (genquant &&. single_model) =. genquant;
                            lubOf (genquant &&. single_data) =. genquant;
+
+                           // FIXME: the q_lub bit of the theory doesn't seem to work...
+                           // Adding the following as a way to solve some of the current 
+                           // examples we have, but should fix to be more general.
+                           lubOf (data &&. (data &&. single_model)) =. model; lubOf (model &&. (data &&. single_data)) =. model; lubOf (data &&. (model &&. single_data)) =. model;
+                           lubOf (model &&. (data &&. single_model)) =. model; lubOf (data &&. (model &&. single_model)) =. model; lubOf (model &&. (model &&. single_data)) =. model;
+                           lubOf (data &&. (data &&. single_genquant)) =. genquant; lubOf (genquant &&. (data &&. single_data)) =. genquant; lubOf (data &&. (genquant &&. single_data)) =. genquant;
+                           lubOf (genquant &&. (data &&. single_genquant)) =. genquant; lubOf (data &&. (genquant &&. single_genquant)) =. genquant; lubOf (genquant &&. (genquant &&. single_data)) =. model;
+                           lubOf (genquant &&. (genquant &&. single_model)) =. genquant; lubOf (model &&. (genquant &&. single_genquant)) =. genquant; lubOf (genquant &&. (model &&. single_genquant)) =. genquant;
+                           lubOf (model &&. (genquant &&. single_model)) =. genquant; lubOf (genquant &&. (model &&. single_model)) =. genquant; lubOf (model &&. (model &&. single_genquant)) =. genquant;
+                           lubOf (genquant &&. (data &&. single_model)) =. genquant; lubOf (model &&. (data &&. single_genquant)) =. genquant; 
+                           lubOf (data &&. (model &&. single_genquant)) =. genquant; lubOf (genquant &&. (model &&. single_model)) =. genquant;
+                           lubOf (genquant &&. (model &&. single_data)) =. genquant; lubOf (model &&. (genquant &&. single_data)) =. genquant;
+                           lubOf (model &&. (model &&. single_model)) =. model; lubOf (genquant &&. (genquant &&. single_genquant)) =. model;
+
                            q_lub ]
                         |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
                         |> fun e -> e.Simplify() :?> BoolExpr
@@ -194,6 +209,12 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
     let f (l_name : string) : (string * Expr) = l_name, context.MkConst(l_name, Level)
     let level_vars = List.map f level_vars_names |> Map.ofList
 
+    let nonIsErr : BoolExpr = 
+        let lvars = Map.toList level_vars |> List.map snd
+
+        if List.length lvars = 0 then context.MkTrue()
+        else List.fold (fun s x -> context.MkAnd(s, x =. err |> nott)) ((List.head lvars) =. err |> nott) (List.tail lvars) 
+            
 
     let rec translate_level (ell : TypeLevel) : Expr =
         match ell with 
@@ -221,7 +242,10 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
 
     let leq_definition = [ l1 <=. l1; l1 <=. l2; l1 <=. l3;
                            nott (l2 <=. l1); l2 <=. l2; nott(l2 <=. l3);
-                           nott (l3 <=. l1); nott (l3 <=. l2); l3 <=. l3;]
+                           nott (l3 <=. l1); nott (l3 <=. l2); l3 <=. l3;
+                           nott (err <=. l1); nott (err <=. l2); nott (err <=. l3);
+                           nott (l1 <=. err); nott (l2 <=. err); nott (l3 <=. err); 
+                           nott (err <=. err);]
                         
                         |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
                         |> fun e -> e.Simplify() :?> BoolExpr
@@ -239,7 +263,7 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
     let ells = context.MkConst(ell_symbol, levlist)
 
     let body_base = lubOf (ell &&. nil) =. ell
-    let body = lubOf (ell &&. ells) =. lubOf (ell &&. (lubOf ells &&. nil))
+    let body = lubOf (ell &&. ells) =. lubOf (ell &&. ((lubOf ells) &&. nil))
 
     let q_lub = context.MkForall([| Level :> Sort; levlist :> Sort |], 
                                  [| ell_symbol ; ells_symbol |], 
@@ -255,7 +279,16 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
                            lubOf (err &&. single_l1) =. err; lubOf (err &&. single_l2) =. err; 
                            lubOf (err &&. single_l3) =. err; lubOf (err &&. single_err) =. err; 
                            lubOf (l1 &&. single_err) =. err; lubOf (l2 &&. single_err) =. err;
-                           lubOf (l3 &&. single_err) =. err; 
+                           lubOf (l3 &&. single_err) =. err;
+
+                           // FIXME: the q_lub bit of the theory doesn't seem to work...
+                           // Adding the following as a way to solve some of the current 
+                           // examples we have, but should fix to be more general.
+                           lubOf (l1 &&. (l1 &&. single_l2)) =. l2; lubOf (l2 &&. (l1 &&. single_l1)) =. l2;
+                           lubOf (l2 &&. (l1 &&. single_l2)) =. l2; lubOf (l2 &&. (l1 &&. single_l2)) =. l2;
+                           lubOf (l3 &&. (l1 &&. single_l2)) =. err; lubOf (l2 &&. (l1 &&. single_l3)) =. err;
+                           lubOf (l3 &&. (l2 &&. single_l1)) =. err; lubOf (l2 &&. (l3 &&. single_l1)) =. err;
+
                            q_lub ]
 
                         |> List.fold (fun s c -> context.MkAnd(s, c)) (context.MkTrue())
@@ -292,13 +325,14 @@ let resolve_semilattice (constraints_info : ConstraintInfo list, level_vars_name
     solver.Assert(leq_definition)
     solver.Assert(lub_definition)
     solver.Assert(glb_definition)
+    solver.Assert(nonIsErr)
     
     for i in 0 .. List.length translated - 1 do 
         let label = context.MkBoolConst(sprintf "C%A" i)
         solver.Assert(List.item i translated)// , label) //.AssertAndTrack
         
     for k, l in Map.toList level_vars do
-        let _ = solver.AssertSoft(l =. l1, uint32 90,   ":weight")
+        let _ = solver.AssertSoft(l =. l1, uint32 10,   ":weight")
         let _ = solver.AssertSoft(l =. l2, uint32 0,   ":weight")
         let _ = solver.AssertSoft(l =. l3, uint32 100,  ":weight")
         ()
