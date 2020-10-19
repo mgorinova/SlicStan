@@ -341,3 +341,5 @@ copy.gitignore
 
 /packages/*
 /graphs/*
+
+get_graphs.cmd
