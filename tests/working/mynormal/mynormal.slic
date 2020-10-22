@@ -1,6 +1,0 @@
-def MyNormal(real m, real v){
-  real xr ~ normal(0, 1); 
-  return v * xr + m;
-}
-
-real y = MyNormal(5, 2);

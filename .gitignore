@@ -331,10 +331,7 @@ ASALocalRun/
 
 copy.gitignore
 
-/tests/*
-/tests/*/*.txt
-/tests/*/*/*.txt
-/tests/working/pps.slic
+tests/
 
 *.png
 *.gv
