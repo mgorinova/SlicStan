@@ -104,7 +104,7 @@ let main argv =
     let option = try argv.[0] with _ -> "--all"
     
     //let option = "--from-name"
-    let name = "discrete2"
+    let name = "discrete_repo"
 
     match option with 
     | "--test-all" -> run_many (examples, false)

@@ -217,6 +217,8 @@ module ExamplesModule =
     int<2> z2 ~ bernoulli(theta1);
     real theta2 = theta0 * z2 + (1 - theta0) * (1 - z2);
     int<2> z3 ~ bernoulli(theta2);
+    real theta3 = theta0 * z3 + (1 - theta0) * (1 - z3);
+    int z4 ~ bernoulli(theta3);
 
     real phi1 = phi0 * z1 + (1 - phi0) * (1 - z1);
     real phi2 = phi0 * z2 + (1 - phi0) * (1 - z2);
@@ -224,12 +226,20 @@ module ExamplesModule =
 
     data real y1 ~ normal(phi1, 1);
     data real y2 ~ normal(phi2, 1);
-    data real y3 ~ normal(phi3, 1);
-
-    real gentheta = theta0 * z3 + (1 - theta0) * (1 - z3);
-    int genz = bernoulli_rng(gentheta);
+    data real y3 ~ normal(phi3, 1);  
     "
 
+    let discrete_repo = "
+    real phi0 ~ beta(1, 1);
+    real theta0 ~ beta(1, 1); 
+
+    int<2> z1 ~ bernoulli(theta0);
+    real phi1 = phi0 * z1 + (1 - phi0) * (1 - z1);
+    data real y1 ~ normal(phi1, 1);
+
+    real theta1 = theta0 * z1 + (1 - theta0) * (1 - z1);
+    int<2> z2 ~ bernoulli(theta1);
+    "
 
     let discrete_hmm = "
     real phi ~ beta(1, 1);
