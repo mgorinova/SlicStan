@@ -2,7 +2,7 @@
 
 SlicStan<sup>1</sup> is a Stan-like probabilistic programming language that translates to [Stan](https://mc-stan.org/).
 It provides automatic program transformations that allow for a more lightweight syntax and 
-inference optimisations. There are three main ways in which SlicStan and Stan differ:
+inference optimizations. There are three main ways in which SlicStan and Stan differ:
 1. SlicStan contains no program blocks, nor any annotations as to what block a variable 
 belongs to (other than what the input data to the model is).
 2. In SlicStan, there is no need to distinguish between random variables defined 
