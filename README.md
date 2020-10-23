@@ -41,9 +41,13 @@ semantics of SlicStan), or the 2017 MSc thesis [2].
 
 ------------------
 ## Papers  
-[1] Gorinova, M. I., Gordon, A. D., & Sutton, C. (2019). 
+[1] Gorinova, M. I., Gordon, A. D., Sutton, C., & Vákár, M. (2020). 
+[Conditional independence by typing](https://arxiv.org/abs/2010.11887). *arXiv preprint arXiv:2010.11887*.
+
+
+[2] Gorinova, M. I., Gordon, A. D., & Sutton, C. (2019). 
 [Probabilistic programming with densities in SlicStan: efficient, flexible, and deterministic](https://doi.org/10.1145/3290348). 
 *Proceedings of the ACM on Programming Languages*, 3(POPL), 1-30. 
 
-[2] Gorinova, M. I. (2017). [Probabilistic Programming with SlicStan](http://homepages.inf.ed.ac.uk/s1207807/files/slicstan.pdf). 
+[3] Gorinova, M. I. (2017). [Probabilistic Programming with SlicStan](http://homepages.inf.ed.ac.uk/s1207807/files/slicstan.pdf). 
 *MSc dissertation, University of Edinburgh*.
